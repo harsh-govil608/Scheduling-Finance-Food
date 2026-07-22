@@ -1,5 +1,4 @@
 package com.lifeos.expensecapture.data.db.entity
-
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
