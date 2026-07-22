@@ -7,7 +7,11 @@ Read that document first — this README only covers what's implemented and what
 ## What's implemented
 
 - **SMS capture**: `sms/SmsReceiver.kt` listens for incoming SMS, hands each message to
-  `sms/ParseIncomingSmsWorker.kt` via WorkManager (off the broadcast thread).
+  `sms/ParseIncomingSmsWorker.kt` via WorkManager (off the broadcast thread). Additionally,
+  `sms/SmsHistoryScanner.kt` does a one-time scan of the existing SMS inbox right after
+  permission is granted, so transaction history already on the phone before install gets
+  captured too - not just messages arriving afterward. Both paths share the same
+  parse/categorize/insert pipeline via `sms/TransactionIngestor.kt`.
 - **On-device parsing**: `sms/parser/TransactionParser.kt` + `BankTemplate.kt` — a rule-based
   engine, no ML. One deliberately generic template ships (`BankTemplates.genericTransactionAlert`);
   see "Before you test with real users" below.
