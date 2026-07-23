@@ -15,8 +15,9 @@ class CategorizationEngine(
 ) {
     suspend fun categorize(merchantRaw: String): Long {
         val normalized = merchantRaw.trim().lowercase()
+        // Paused rules (Automation Rules PRD, Doc 34) are skipped, not deleted.
         val existingRule = merchantRuleDao.getAll().firstOrNull { rule ->
-            normalized.contains(rule.merchantPattern.lowercase())
+            !rule.isPaused && normalized.contains(rule.merchantPattern.lowercase())
         }
         if (existingRule != null) return existingRule.categoryId
 

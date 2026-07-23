@@ -1,0 +1,217 @@
+package com.lifeos.expensecapture.ui.bills
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.finance.FinanceInsightsRepository.BillDisplayStatus
+import com.lifeos.expensecapture.finance.FinanceInsightsRepository.BillWithComputedStatus
+
+/**
+ * Bills PRD, Phase 3 Doc 22. Detection comes from RecurringPatternDetector (higher amount
+ * variance = bill-like, per the PRD's own stated distinction from fixed-amount subscriptions).
+ * Reminder DELIVERY (push notifications ahead of the due date) is explicitly NOT implemented -
+ * no notification infrastructure exists yet in this pilot - so due/overdue status is only
+ * visible when this screen is opened, not proactively delivered. See day-2.md.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BillsScreen(app: App, onBack: () -> Unit) {
+    val viewModel = remember {
+        BillsViewModel(
+            FinanceInsightsRepository(
+                transactionDao = app.database.transactionDao(),
+                categoryDao = app.database.categoryDao(),
+                budgetDao = app.database.budgetDao(),
+                subscriptionDao = app.database.subscriptionDao(),
+                billDao = app.database.billDao()
+            )
+        )
+    }
+    val bills by viewModel.bills.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Bills") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Default.Add, contentDescription = "Add bill manually")
+            }
+        }
+    ) { padding ->
+        if (bills.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "No recurring bills detected yet. Variable-amount recurring payments " +
+                        "(utilities, statements, rent) show up here once a pattern repeats."
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(bills, key = { it.bill.id }) { item ->
+                    BillCard(
+                        item = item,
+                        onConfirm = { viewModel.confirm(item) },
+                        onDismiss = { viewModel.dismiss(item) }
+                    )
+                }
+            }
+        }
+    }
+
+    if (showAddDialog) {
+        AddBillDialog(
+            onConfirm = { payee, amount, dueDay ->
+                viewModel.addManual(payee, amount, dueDay)
+                showAddDialog = false
+            },
+            onDismiss = { showAddDialog = false }
+        )
+    }
+}
+
+/** Bills PRD, Doc 22 Feature Scope: manual bill add - "for bills with no reliable digital
+ * trail (cash rent, informal loans)" that the SMS-based detector can never see. */
+@Composable
+private fun AddBillDialog(
+    onConfirm: (payee: String, typicalAmount: Double, dueDayOfMonth: Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var payee by remember { mutableStateOf("") }
+    var amountText by remember { mutableStateOf("") }
+    var dueDayText by remember { mutableStateOf("1") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add a bill") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = payee,
+                    onValueChange = { payee = it },
+                    label = { Text("Payee (e.g. Rent, Electricity)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Typical amount") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = dueDayText,
+                    onValueChange = { dueDayText = it },
+                    label = { Text("Usual due day of month (1-31)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val amount = amountText.toDoubleOrNull()
+                val dueDay = dueDayText.toIntOrNull()
+                if (payee.isNotBlank() && amount != null && dueDay != null && dueDay in 1..31) {
+                    onConfirm(payee, amount, dueDay)
+                }
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun BillCard(item: BillWithComputedStatus, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val bill = item.bill
+    val containerColor = when (item.displayStatus) {
+        BillDisplayStatus.OVERDUE -> MaterialTheme.colorScheme.errorContainer
+        BillDisplayStatus.DUE_TODAY -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surface
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(bill.payeeDisplay, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "~₹${"%.2f".format(bill.typicalAmount)} · usually around day ${bill.dueDayOfMonth} of the month",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(statusText(item.displayStatus), style = MaterialTheme.typography.bodySmall)
+
+            when (item.displayStatus) {
+                BillDisplayStatus.UNCONFIRMED -> {
+                    Row {
+                        TextButton(onClick = onConfirm) { Text("Yes, track this") }
+                        TextButton(onClick = onDismiss) { Text("Not a bill") }
+                    }
+                }
+                BillDisplayStatus.CANCELLED -> { /* no actions */ }
+                else -> {
+                    TextButton(onClick = onDismiss) { Text("Stop tracking") }
+                }
+            }
+        }
+    }
+}
+
+private fun statusText(status: BillDisplayStatus): String = when (status) {
+    BillDisplayStatus.UNCONFIRMED -> "Looks like a recurring bill - is this right?"
+    BillDisplayStatus.UPCOMING -> "Upcoming this cycle"
+    BillDisplayStatus.DUE_TODAY -> "Due today"
+    BillDisplayStatus.OVERDUE -> "Past its usual due date - worth checking"
+    BillDisplayStatus.PAID_THIS_CYCLE -> "Paid this cycle"
+    BillDisplayStatus.CANCELLED -> "No longer tracked"
+}

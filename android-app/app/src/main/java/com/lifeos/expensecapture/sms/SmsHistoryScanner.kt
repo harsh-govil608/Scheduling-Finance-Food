@@ -4,6 +4,7 @@ import android.content.Context
 import android.provider.Telephony
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.sms.parser.TransactionParser
+import com.lifeos.expensecapture.widget.SpendWidgetProvider
 
 /**
  * One-time scan of the existing SMS inbox, run right after the user grants SMS permission.
@@ -20,6 +21,18 @@ object SmsHistoryScanner {
 
     private const val PREFS_NAME = "sms_history_scan"
     private const val KEY_HAS_SCANNED = "has_scanned"
+
+    /**
+     * The scanned-flag lives in SharedPreferences, a separate file from the Room database - a
+     * destructive migration (fallbackToDestructiveMigration) wipes the transactions table but
+     * leaves this flag untouched, so scanIfNeeded would otherwise skip forever after any schema
+     * bump and silently strand the user with an empty ledger. AppDatabase's onDestructiveMigration
+     * callback calls this to keep the two in sync.
+     */
+    fun resetScanFlag(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_HAS_SCANNED, false).apply()
+    }
 
     suspend fun scanIfNeeded(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -49,5 +62,6 @@ object SmsHistoryScanner {
         }
 
         prefs.edit().putBoolean(KEY_HAS_SCANNED, true).apply()
+        SpendWidgetProvider.updateAll(context)
     }
 }

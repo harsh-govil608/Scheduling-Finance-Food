@@ -2,6 +2,7 @@ package com.lifeos.expensecapture.ui.onboarding
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,35 +28,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.data.db.entity.ConsentEntity
+import com.lifeos.expensecapture.notifications.NotificationCheckWorker
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.launch
 
+private enum class OnboardingStep { WELCOME, SMS_PERMISSION, SCANNING, NOTIFICATION_PERMISSION, FIRST_VALUE }
+
+const val CONSENT_SMS = "SMS"
+const val CONSENT_NOTIFICATIONS = "NOTIFICATIONS"
+
 /**
- * Minimal, honest version of the Phase 3 Permissions & Consent PRD: explain in plain
- * language what is and isn't read/transmitted BEFORE asking for the permission
- * (architecture doc Section 9's non-negotiables).
- *
- * Also triggers the one-time SMS history scan (SmsHistoryScanner) once permission is granted -
- * without this, "automatic expense capture" would only ever see messages arriving after
- * install, not the transaction history already sitting in the user's inbox.
+ * Onboarding PRD, Phase 3 Doc 40 + Permissions & Consent PRD, Phase 3 Doc 41. Single-pillar
+ * scope (only Finance exists), so "sign-up" is not applicable - there's no backend/account
+ * concept in this local-only app, per Doc 40's own out-of-scope note that account/profile
+ * management is a sibling PRD's concern once accounts exist. What this DOES implement, per
+ * Doc 40's explicit requirements: a value-prop screen before any permission ask (user story
+ * #1), a "Skip for now" escape hatch so denial never dead-ends (user story #5 - the previous
+ * version of this screen had no path forward after a denial, a real gap fixed here), and a
+ * first-value moment showing a genuine result before landing on Home. Every consent decision
+ * is recorded via ConsentEntity per Doc 41's consent-record requirement.
  */
 @Composable
 fun PermissionScreen(onGranted: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var isScanning by remember { mutableStateOf(false) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        if (results.values.all { it }) {
-            isScanning = true
-            scope.launch {
-                SmsHistoryScanner.scanIfNeeded(context)
-                onGranted()
-            }
-        }
-    }
+    val app = context.applicationContext as App
+    var step by remember { mutableStateOf(OnboardingStep.WELCOME) }
 
     fun hasSmsPermission(): Boolean {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) ==
@@ -63,42 +64,134 @@ fun PermissionScreen(onGranted: () -> Unit) {
             PackageManager.PERMISSION_GRANTED
     }
 
+    fun proceedToNotificationStep() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            step = OnboardingStep.NOTIFICATION_PERMISSION
+        } else {
+            // No runtime notification permission needed pre-Android 13 - the worker still
+            // needs scheduling so the in-app Notification Center stays populated.
+            NotificationCheckWorker.schedulePeriodic(context)
+            step = OnboardingStep.FIRST_VALUE
+        }
+    }
+
+    val smsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val granted = results.values.all { it }
+        scope.launch {
+            app.database.consentDao().upsert(ConsentEntity(CONSENT_SMS, granted))
+        }
+        if (granted) {
+            step = OnboardingStep.SCANNING
+            scope.launch {
+                SmsHistoryScanner.scanIfNeeded(context)
+                proceedToNotificationStep()
+            }
+        } else {
+            proceedToNotificationStep()
+        }
+    }
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        scope.launch {
+            app.database.consentDao().upsert(ConsentEntity(CONSENT_NOTIFICATIONS, granted))
+        }
+        NotificationCheckWorker.schedulePeriodic(context)
+        step = OnboardingStep.FIRST_VALUE
+    }
+
     LaunchedEffect(Unit) {
         if (hasSmsPermission()) {
-            isScanning = true
+            step = OnboardingStep.SCANNING
             SmsHistoryScanner.scanIfNeeded(context)
-            onGranted()
+            proceedToNotificationStep()
         }
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (isScanning) {
-            CircularProgressIndicator()
-            Spacer(Modifier.height(16.dp))
-            Text("Scanning your existing messages for past transactions…")
-        } else {
-            Text("Automatic expense capture", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "This app reads bank and UPI transaction SMS on your phone to log expenses " +
-                    "automatically. Only the amount, merchant, and date are ever stored or sent " +
-                    "anywhere - the original message text never leaves your device. Other SMS " +
-                    "(personal messages, OTPs) are ignored and never stored.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(24.dp))
-            Button(onClick = {
-                permissionLauncher.launch(
-                    arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS)
+        when (step) {
+            OnboardingStep.WELCOME -> {
+                Text("Welcome", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "This app automatically captures your expenses from bank and UPI SMS, " +
+                        "tracks budgets, subscriptions, and bills - without you typing anything " +
+                        "in. Next, we'll explain exactly what access that needs and why, before " +
+                        "asking for anything.",
+                    style = MaterialTheme.typography.bodyMedium
                 )
-            }) {
-                Text("Grant SMS access")
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = { step = OnboardingStep.SMS_PERMISSION }) { Text("Continue") }
+            }
+
+            OnboardingStep.SMS_PERMISSION -> {
+                Text("Automatic expense capture", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "This app reads bank and UPI transaction SMS on your phone to log expenses " +
+                        "automatically. Only the amount, merchant, and date are ever stored or sent " +
+                        "anywhere - the original message text never leaves your device. Other SMS " +
+                        "(personal messages, OTPs) are ignored and never stored.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = {
+                    smsLauncher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
+                }) { Text("Grant SMS access") }
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = {
+                    scope.launch { app.database.consentDao().upsert(ConsentEntity(CONSENT_SMS, false)) }
+                    proceedToNotificationStep()
+                }) { Text("Skip for now - I'll add expenses manually") }
+            }
+
+            OnboardingStep.SCANNING -> {
+                CircularProgressIndicator()
+                Spacer(Modifier.height(16.dp))
+                Text("Scanning your existing messages for past transactions…")
+            }
+
+            OnboardingStep.NOTIFICATION_PERMISSION -> {
+                Text("Stay on top of bills & budgets", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "We can notify you when a bill is due, a subscription is about to renew, " +
+                        "or a budget goes over - only for things you're already tracking, nothing else.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = { notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }) {
+                    Text("Allow notifications")
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = {
+                    scope.launch { app.database.consentDao().upsert(ConsentEntity(CONSENT_NOTIFICATIONS, false)) }
+                    NotificationCheckWorker.schedulePeriodic(context)
+                    step = OnboardingStep.FIRST_VALUE
+                }) { Text("Not now") }
+            }
+
+            OnboardingStep.FIRST_VALUE -> {
+                Text("You're all set", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    if (hasSmsPermission()) {
+                        "We've scanned your messages and started building your ledger automatically."
+                    } else {
+                        "You can add expenses manually any time from the + button, and turn on " +
+                            "automatic capture later from Settings."
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = onGranted) { Text("Go to my Finance home") }
             }
         }
     }

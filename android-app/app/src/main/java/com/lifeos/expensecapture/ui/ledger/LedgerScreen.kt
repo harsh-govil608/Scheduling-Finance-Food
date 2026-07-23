@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.* // weight() resolves per-receiver (R
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -35,7 +37,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LedgerScreen(app: App) {
+fun LedgerScreen(app: App, onBack: () -> Unit) {
     val repository = remember {
         TransactionRepository(
             transactionDao = app.database.transactionDao(),
@@ -51,7 +53,16 @@ fun LedgerScreen(app: App) {
     var showManualEntry by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Ledger") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Ledger") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showManualEntry = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add transaction manually")
