@@ -11,10 +11,15 @@ import com.lifeos.expensecapture.data.db.dao.BudgetDao
 import com.lifeos.expensecapture.data.db.dao.CategoryDao
 import com.lifeos.expensecapture.data.db.dao.ConsentDao
 import com.lifeos.expensecapture.data.db.dao.CorrectionDao
+import com.lifeos.expensecapture.data.db.dao.GoalDao
+import com.lifeos.expensecapture.data.db.dao.HabitCompletionDao
+import com.lifeos.expensecapture.data.db.dao.HabitDao
 import com.lifeos.expensecapture.data.db.dao.InvestmentDao
 import com.lifeos.expensecapture.data.db.dao.MerchantRuleDao
 import com.lifeos.expensecapture.data.db.dao.NotificationDao
+import com.lifeos.expensecapture.data.db.dao.ProjectDao
 import com.lifeos.expensecapture.data.db.dao.SubscriptionDao
+import com.lifeos.expensecapture.data.db.dao.TaskDao
 import com.lifeos.expensecapture.data.db.dao.TransactionDao
 import com.lifeos.expensecapture.data.db.dao.UnparsedMessageDao
 import com.lifeos.expensecapture.data.db.entity.BillEntity
@@ -23,12 +28,18 @@ import com.lifeos.expensecapture.data.db.entity.BudgetEntity
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.db.entity.ConsentEntity
 import com.lifeos.expensecapture.data.db.entity.CorrectionEntity
+import com.lifeos.expensecapture.data.db.entity.GoalEntity
+import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
+import com.lifeos.expensecapture.data.db.entity.HabitEntity
 import com.lifeos.expensecapture.data.db.entity.InvestmentEntity
 import com.lifeos.expensecapture.data.db.entity.MerchantRuleEntity
 import com.lifeos.expensecapture.data.db.entity.NotificationEntity
 import com.lifeos.expensecapture.data.db.entity.NotificationType
+import com.lifeos.expensecapture.data.db.entity.ProjectEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionStatus
+import com.lifeos.expensecapture.data.db.entity.TaskEntity
+import com.lifeos.expensecapture.data.db.entity.TaskPriority
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionSource
@@ -65,6 +76,12 @@ class Converters {
 
     @TypeConverter
     fun toNotificationType(value: String): NotificationType = NotificationType.valueOf(value)
+
+    @TypeConverter
+    fun fromTaskPriority(value: TaskPriority): String = value.name
+
+    @TypeConverter
+    fun toTaskPriority(value: String): TaskPriority = TaskPriority.valueOf(value)
 }
 
 @Database(
@@ -79,9 +96,14 @@ class Converters {
         BillEntity::class,
         NotificationEntity::class,
         ConsentEntity::class,
-        InvestmentEntity::class
+        InvestmentEntity::class,
+        TaskEntity::class,
+        HabitEntity::class,
+        HabitCompletionEntity::class,
+        ProjectEntity::class,
+        GoalEntity::class
     ],
-    version = 5,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -98,6 +120,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
     abstract fun consentDao(): ConsentDao
     abstract fun investmentDao(): InvestmentDao
+    abstract fun taskDao(): TaskDao
+    abstract fun habitDao(): HabitDao
+    abstract fun habitCompletionDao(): HabitCompletionDao
+    abstract fun projectDao(): ProjectDao
+    abstract fun goalDao(): GoalDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null

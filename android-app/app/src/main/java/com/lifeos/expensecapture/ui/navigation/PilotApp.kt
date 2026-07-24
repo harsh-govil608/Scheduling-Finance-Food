@@ -10,13 +10,17 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import com.lifeos.expensecapture.ui.bills.BillsScreen
 import com.lifeos.expensecapture.ui.budget.BudgetScreen
+import com.lifeos.expensecapture.ui.goals.GoalsScreen
+import com.lifeos.expensecapture.ui.habits.HabitsScreen
 import com.lifeos.expensecapture.ui.home.HomeScreen
 import com.lifeos.expensecapture.ui.investments.InvestmentsScreen
 import com.lifeos.expensecapture.ui.ledger.LedgerScreen
@@ -24,17 +28,26 @@ import com.lifeos.expensecapture.ui.nightsummary.NightSummaryScreen
 import com.lifeos.expensecapture.ui.notifications.NotificationCenterScreen
 import com.lifeos.expensecapture.ui.onboarding.PermissionScreen
 import com.lifeos.expensecapture.ui.permissions.PermissionsScreen
+import com.lifeos.expensecapture.ui.productivity.ProductivityHomeScreen
 import com.lifeos.expensecapture.ui.profile.ProfileScreen
+import com.lifeos.expensecapture.ui.projects.ProjectDetailScreen
+import com.lifeos.expensecapture.ui.projects.ProjectsScreen
 import com.lifeos.expensecapture.ui.review.UnparsedReviewScreen
 import com.lifeos.expensecapture.ui.rules.AutomationRulesScreen
 import com.lifeos.expensecapture.ui.search.SearchScreen
 import com.lifeos.expensecapture.ui.subscriptions.SubscriptionsScreen
+import com.lifeos.expensecapture.ui.tasks.TaskListScreen
+import com.lifeos.expensecapture.ui.weeklyreview.ReviewScreen
 import kotlinx.coroutines.launch
 
 /**
  * permission (Onboarding, Doc 40) -> home (Finance Tracker Home, Doc 17) -> every other
- * Finance Suite / cross-cutting screen. Route names double as Notification Center deep-link
- * targets (Doc 03) - keep them stable.
+ * Finance Suite / cross-cutting screen, PLUS a second pillar as of today: productivity_home
+ * (Home: Task Management Doc 10 + Habits Doc 13) -> tasks / habits. The two pillar roots
+ * ("home" and "productivity_home") are switched between via PillarBottomBar rather than a
+ * nested NavHost - a deliberate simplification (see PillarBottomBar's kdoc) since this is a
+ * 2-tab pilot, not a case needing full back-stack state preservation per tab. Route names double
+ * as Notification Center deep-link targets (Doc 03) - keep them stable.
  */
 @Composable
 fun PilotApp(app: App) {
@@ -42,6 +55,14 @@ fun PilotApp(app: App) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
+
+    fun selectPillar(pillar: Pillar) {
+        val target = when (pillar) {
+            Pillar.FINANCE -> "home"
+            Pillar.HOME -> "productivity_home"
+        }
+        navController.navigate(target) { launchSingleTop = true }
+    }
 
     // SmsHistoryScanner's catch-up scan otherwise only resumes on a genuine cold start
     // (PermissionScreen's own LaunchedEffect) or the 6-hour periodic worker - simply switching
@@ -87,8 +108,52 @@ fun PilotApp(app: App) {
                 onOpenInvestments = { navController.navigate("investments") },
                 onOpenNightSummary = { navController.navigate("night_summary") },
                 onOpenProfile = { navController.navigate("profile") },
-                onOpenPermissionsReview = { navController.navigate("permissions") }
+                onOpenPermissionsReview = { navController.navigate("permissions") },
+                onSelectPillar = { pillar -> selectPillar(pillar) }
             )
+        }
+        composable("productivity_home") {
+            ProductivityHomeScreen(
+                app = app,
+                onOpenTasks = { navController.navigate("tasks") },
+                onOpenHabits = { navController.navigate("habits") },
+                onOpenGoals = { navController.navigate("goals") },
+                onOpenProjects = { navController.navigate("projects") },
+                onOpenReview = { navController.navigate("review") },
+                onSelectPillar = { pillar -> selectPillar(pillar) }
+            )
+        }
+        composable("tasks") {
+            TaskListScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("habits") {
+            HabitsScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("goals") {
+            GoalsScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("projects") {
+            ProjectsScreen(
+                app = app,
+                onBack = { navController.popBackStack() },
+                onOpenProject = { projectId ->
+                    navController.navigate("project_detail/$projectId")
+                }
+            )
+        }
+        composable(
+            route = "project_detail/{projectId}",
+            arguments = listOf(navArgument("projectId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getLong("projectId") ?: 0L
+            ProjectDetailScreen(
+                app = app,
+                projectId = projectId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("review") {
+            ReviewScreen(app = app, onBack = { navController.popBackStack() })
         }
         composable("ledger") {
             LedgerScreen(app = app, onBack = { navController.popBackStack() })

@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.ui.navigation.Pillar
+import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
 import com.lifeos.expensecapture.ui.theme.AmountLarge
 import com.lifeos.expensecapture.update.UpdateViewModel
 import kotlinx.coroutines.flow.first
@@ -72,7 +74,8 @@ fun HomeScreen(
     onOpenInvestments: () -> Unit,
     onOpenNightSummary: () -> Unit,
     onOpenProfile: () -> Unit,
-    onOpenPermissionsReview: () -> Unit
+    onOpenPermissionsReview: () -> Unit,
+    onSelectPillar: (Pillar) -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -149,7 +152,8 @@ fun HomeScreen(
                     }
                 }
             )
-        }
+        },
+        bottomBar = { PillarBottomBar(current = Pillar.FINANCE, onSelect = onSelectPillar) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),

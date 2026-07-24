@@ -27,9 +27,10 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Notification Center PRD (Phase 3 Doc 03) + the Notification Behaviors sections of Doc 19
- * (Subscription Manager), Doc 20 (Budget Planner), and Doc 22 (Bills). Deliberately simple:
- * checks bills/subscriptions/budgets/night-summary-readiness on a schedule (and once whenever
- * the app opens), cooldown-gated per item so nothing re-notifies more than roughly once a day.
+ * (Subscription Manager), Doc 20 (Budget Planner), Doc 22 (Bills), and - as of the Home pillar -
+ * Doc 09 (Smart Reminders) for tasks. Deliberately simple: checks bills/subscriptions/budgets/
+ * tasks/night-summary-readiness on a schedule (and once whenever the app opens), cooldown-gated
+ * per item so nothing re-notifies more than roughly once a day.
  *
  * There is no arbitration engine here - Phase 2's Notification System (Doc 14) was never
  * built as code, so this is a direct per-source check, not a shared interruption-budget
@@ -86,6 +87,7 @@ class NotificationCheckWorker(
         checkBills(db, insights)
         checkSubscriptions(db, insights)
         checkBudgets(db, insights)
+        checkTasks(db)
         checkNightSummary(db)
 
         return Result.success()
@@ -140,6 +142,31 @@ class NotificationCheckWorker(
                 type = NotificationType.BUDGET_OVER_LIMIT,
                 title = "${progress.categoryName} is over budget",
                 body = "₹${"%.2f".format(progress.spentThisMonth)} spent of a ₹${"%.2f".format(progress.budget.monthlyLimit)} limit this month",
+                route = route,
+                cooldownKey = cooldownKey
+            )
+        }
+    }
+
+    /** Smart Reminders PRD (Phase 3 Doc 09), scoped to exactly the one thing Task Management
+     * (Doc 10) named as its own dependency: a reminder when a task's due date arrives. No
+     * AI-driven timing/re-prioritization - a task is due when its dueDate says so, checked here
+     * the same cooldown-gated way as every other notification source. */
+    private suspend fun checkTasks(db: AppDatabase) {
+        val now = System.currentTimeMillis()
+        val tasks = db.taskDao().observeAll().first()
+        for (task in tasks) {
+            if (task.completed) continue
+            val dueDate = task.dueDate ?: continue
+            if (dueDate > now) continue
+            val route = "tasks"
+            val cooldownKey = route + task.id
+            if (recentlyNotified(db, NotificationType.TASK_DUE, cooldownKey)) continue
+
+            notify(
+                type = NotificationType.TASK_DUE,
+                title = "Task due: ${task.title}",
+                body = "This was due - mark it done or reschedule",
                 route = route,
                 cooldownKey = cooldownKey
             )
