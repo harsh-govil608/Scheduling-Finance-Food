@@ -5,13 +5,16 @@
         Permission footprint matches exactly what's implemented
         (docs/mvp-pilot/01-system-design-and-architecture.md, Section 9). POST_NOTIFICATIONS
         added Day 2 alongside the Notification Center + bill/subscription/budget alerts - see
-        docs/coders-documentation/day-2.md.
+        docs/coders-documentation/day-2.md. REQUEST_INSTALL_PACKAGES added Day 3 for the in-app
+        updater (UpdateChecker.kt) so pilot testers stop needing a manually re-sent APK file for
+        every fix.
     -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".App"

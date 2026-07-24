@@ -44,9 +44,12 @@ import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.ui.theme.AmountLarge
+import com.lifeos.expensecapture.update.UpdateViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.size
 
 /**
  * Finance Tracker (Home) PRD, Phase 3 Doc 17: the Finance pillar's landing surface. Composes a
@@ -106,6 +109,9 @@ fun HomeScreen(
     }
     val morningState by morningViewModel.uiState.collectAsState()
 
+    val updateViewModel = remember { UpdateViewModel(context) }
+    val updateState by updateViewModel.uiState.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -150,6 +156,46 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            updateState.available?.let { update ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(
+                                "Update available (v${update.versionName})",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            if (update.notes.isNotBlank()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    update.notes,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(
+                                    onClick = { updateViewModel.installUpdate() },
+                                    enabled = !updateState.downloading
+                                ) {
+                                    Text(if (updateState.downloading) "Downloading..." else "Download & install")
+                                }
+                                if (updateState.downloading) {
+                                    Spacer(Modifier.width(8.dp))
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                TextButton(onClick = { updateViewModel.dismiss() }) { Text("Later") }
+                            }
+                        }
+                    }
+                }
+            }
+
             if (morningState.visible) {
                 item {
                     Card(

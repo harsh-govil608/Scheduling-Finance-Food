@@ -9,6 +9,9 @@
 .externalNativeBuild
 .cxx
 *.apk
+# Exception: the in-app updater (UpdateChecker.kt) serves this file over raw.githubusercontent.com
+# as the pilot's update distribution point - see distribution/README.md.
+!/distribution/app-latest.apk
 *.ap_
 *.dex
 *.class

@@ -1,0 +1,6 @@
+{
+  "versionCode": 4,
+  "versionName": "0.4.0-pilot",
+  "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
+  "notes": "Adds SBI bank support, fixes a bug where the ledger could get permanently stuck, and adds this in-app updater so future updates won't need a manual re-download."
+}
