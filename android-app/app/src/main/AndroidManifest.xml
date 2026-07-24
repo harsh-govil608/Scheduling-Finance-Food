@@ -4,7 +4,7 @@
     <!--
         Permission footprint matches exactly what's implemented
         (docs/mvp-pilot/01-system-design-and-architecture.md, Section 9). POST_NOTIFICATIONS
-        added Day 3 alongside the Notification Center + bill/subscription/budget alerts - see
+        added Day 2 alongside the Notification Center + bill/subscription/budget alerts - see
         docs/coders-documentation/day-2.md.
     -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
@@ -16,6 +16,8 @@
     <application
         android:name=".App"
         android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:theme="@style/Theme.ExpenseCapture">
 

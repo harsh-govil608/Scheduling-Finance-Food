@@ -20,6 +20,7 @@ import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.NotificationEntity
 import com.lifeos.expensecapture.data.db.entity.NotificationType
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.flow.first
 import java.time.LocalTime
 import java.util.concurrent.TimeUnit
@@ -33,6 +34,10 @@ import java.util.concurrent.TimeUnit
  * There is no arbitration engine here - Phase 2's Notification System (Doc 14) was never
  * built as code, so this is a direct per-source check, not a shared interruption-budget
  * system weighing competing pillar alerts against each other. See day-2.md.
+ *
+ * Also runs SmsHistoryScanner's catch-up pass first (see its kdoc for why that matters) - this
+ * worker was already the one thing guaranteed to run periodically regardless of whether the user
+ * opens the app, which makes it the natural place for that safety net.
  */
 class NotificationCheckWorker(
     context: Context,
@@ -57,6 +62,17 @@ class NotificationCheckWorker(
     }
 
     override suspend fun doWork(): Result {
+        // Safety net for the SmsHistoryScanner interruption class of bug (see its kdoc): every
+        // periodic run and every Home open (runOnce is called from both) also catches up on any
+        // SMS the live receiver path might have missed, instead of relying solely on the
+        // one-shot onboarding scan ever finishing in one pass.
+        val hasSmsPermission = ContextCompat.checkSelfPermission(
+            applicationContext, Manifest.permission.READ_SMS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasSmsPermission) {
+            SmsHistoryScanner.scanIfNeeded(applicationContext)
+        }
+
         val db = AppDatabase.getInstance(applicationContext)
         val insights = FinanceInsightsRepository(
             transactionDao = db.transactionDao(),

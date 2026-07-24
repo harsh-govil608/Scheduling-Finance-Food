@@ -31,6 +31,7 @@ import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.data.repository.TransactionRepository
+import com.lifeos.expensecapture.ui.theme.AmountBody
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -140,10 +141,12 @@ private fun TransactionRow(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        val sign = if (transaction.direction == TransactionDirection.DEBIT) "-" else "+"
+        val isCredit = transaction.direction == TransactionDirection.CREDIT
+        val sign = if (isCredit) "+" else "-"
         Text(
             "$sign₹${"%.2f".format(transaction.amount)}",
-            style = MaterialTheme.typography.bodyLarge
+            style = AmountBody,
+            color = if (isCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
         )
     }
 }

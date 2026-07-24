@@ -37,7 +37,8 @@ object TransactionIngestor {
                         categoryId = categoryId,
                         date = timestamp,
                         source = TransactionSource.SMS_AUTO,
-                        confidenceScore = result.confidence
+                        confidenceScore = result.confidence,
+                        sourceHash = "$sender::$body"
                     )
                 )
             }
@@ -50,7 +51,8 @@ object TransactionIngestor {
                         sender = sender,
                         body = body,
                         receivedAt = timestamp,
-                        reason = result.reason
+                        reason = result.reason,
+                        sourceHash = "$sender::$body"
                     )
                 )
             }

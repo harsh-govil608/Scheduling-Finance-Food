@@ -39,11 +39,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.ui.theme.AmountBody
+import com.lifeos.expensecapture.ui.theme.Warning
+import com.lifeos.expensecapture.ui.theme.WarningStrong
 
 /**
  * Budget Planner PRD, Phase 3 Doc 20. Supports category + overall budgets (goal-linked
@@ -123,9 +125,12 @@ fun BudgetScreen(app: App, onBack: () -> Unit) {
 @Composable
 private fun BudgetCard(progress: FinanceInsightsRepository.BudgetProgress, onDelete: () -> Unit) {
     val ratio = (progress.spentThisMonth / progress.budget.monthlyLimit).coerceIn(0.0, 1.0)
+    // "Over budget" is informational, not a system failure - deliberately stays in the amber
+    // family rather than escalating to MaterialTheme.colorScheme.error's alarm-red, per the
+    // Design System PRD's "encourage, never guilt" rule for semantic color. See Color.kt.
     val barColor = when {
-        progress.spentThisMonth > progress.budget.monthlyLimit -> MaterialTheme.colorScheme.error
-        ratio > 0.7 -> Color(0xFFB8860B)
+        progress.spentThisMonth > progress.budget.monthlyLimit -> WarningStrong
+        ratio > 0.7 -> Warning
         else -> MaterialTheme.colorScheme.primary
     }
 
@@ -141,7 +146,7 @@ private fun BudgetCard(progress: FinanceInsightsRepository.BudgetProgress, onDel
             Spacer(Modifier.height(4.dp))
             Text(
                 "₹${"%.2f".format(progress.spentThisMonth)} of ₹${"%.2f".format(progress.budget.monthlyLimit)}",
-                style = MaterialTheme.typography.bodyMedium
+                style = AmountBody
             )
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(

@@ -31,9 +31,12 @@ object BankTemplates {
      * debited). The genericTransactionAlert template below does not match this shape at all,
      * which is exactly why the first live-transaction test silently failed to parse.
      *
-     * The credit pattern is NOT verified against a real sample yet (no incoming-credit SMS
-     * captured during testing) - it's a reasonable guess based on common ICICI phrasing and
-     * should be corrected against a real sample the next time one arrives.
+     * The credit pattern was originally an unverified guess. It's now confirmed against a real
+     * incoming-credit SMS captured the same day the SBI template was added - a UPI transfer out
+     * of an SBI account landed as this ICICI credit on the receiving end (same UPI reference
+     * number on both messages, which is how the match was found):
+     * "Dear Customer, Acct XX910 is credited with Rs 1.00 on 25-Jul-26 from Sohom Jana.
+     *  UPI:620647267681-ICICI Bank." - parses correctly with no changes needed.
      */
     val iciciBank = BankTemplate(
         name = "icici_bank",
@@ -46,9 +49,49 @@ object BankTemplates {
                 "(.+?)\\s+credited"
         ),
         creditPattern = Regex(
-            // UNVERIFIED - update against a real sample once one is captured.
             "(?i)credited\\s+with\\s+(?:Rs\\.?|INR)\\s?([0-9,]+(?:\\.\\d{1,2})?)\\s+.*?(?:from|by)\\s+" +
                 "([A-Za-z0-9@._\\-\\s]+?)(?:\\.|,|\\son\\s|$)"
+        ),
+        merchantExtractor = { match -> match.groupValues.getOrElse(2) { "Unknown" }.trim() }
+    )
+
+    /**
+     * Verified against a real SBI UPI-debit SMS captured during pilot testing:
+     * "Dear UPI user A/C X5359 debited by 1.00 on date 25Jul26 trf to harshgovil460@ok Refno
+     *  620647267681 If not u? call-1800111109 for other services-18001234-SBI"
+     *
+     * Two things that mattered, found only by matching against this real sample: (1) there is
+     * no "Rs"/"INR" prefix before the amount at all here - just "debited by 1.00" - unlike both
+     * other templates, which assume a currency prefix always exists; (2) the "merchant" SBI's
+     * UPI alert gives you is a raw VPA ("harshgovil460@ok"), not a resolved friendly name the
+     * way ICICI's format resolves "Blinkit". That's an honest limitation of this template, not
+     * a bug: SBI transactions will show the raw UPI ID in the ledger and land in
+     * "Uncategorized" until a user corrects one once, after which a MerchantRule keyed on that
+     * exact VPA auto-categorizes it going forward.
+     *
+     * senderPatterns below are an UNVERIFIED guess at common SBI DLT sender-ID conventions
+     * (SBIUPI/SBIINB/etc.) - only the message body was available to verify against, not the
+     * actual sender ID. This does not block correct parsing today: TransactionParser's
+     * candidate filter also matches on body keywords ("debited"/"upi"/"a/c"), which this
+     * message satisfies regardless of sender - see TransactionParser.looksLikeTransactionSms.
+     *
+     * The credit pattern is NOT verified - no real incoming-UPI-credit SBI SMS was available -
+     * it mirrors the debit structure as a best guess and should be corrected against a real
+     * sample the next time one arrives, the same way ICICI's credit pattern is flagged.
+     */
+    val sbiBank = BankTemplate(
+        name = "sbi",
+        senderPatterns = listOf(
+            Regex("(?i)-SBIUPI-?S?$"),
+            Regex("(?i)-SBIINB-?S?$"),
+            Regex("(?i)sbi")
+        ),
+        debitPattern = Regex(
+            "(?i)debited\\s+by\\s+([0-9,]+(?:\\.\\d{1,2})?)\\s+on\\s+date\\s+\\S+\\s+trf\\s+to\\s+(.+?)\\s+Refno"
+        ),
+        creditPattern = Regex(
+            // UNVERIFIED - update against a real sample once one is captured.
+            "(?i)credited\\s+by\\s+([0-9,]+(?:\\.\\d{1,2})?)\\s+on\\s+date\\s+\\S+\\s+by\\s+(.+?)\\s+Refno"
         ),
         merchantExtractor = { match -> match.groupValues.getOrElse(2) { "Unknown" }.trim() }
     )
@@ -81,5 +124,5 @@ object BankTemplates {
 
     // Order matters: more specific/verified templates first, so a message matching both a
     // specific bank's shape and the generic fallback's loose keyword match resolves correctly.
-    val all = listOf(iciciBank, genericTransactionAlert)
+    val all = listOf(iciciBank, sbiBank, genericTransactionAlert)
 }

@@ -1,17 +1,30 @@
 package com.lifeos.expensecapture.data.db.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 enum class TransactionDirection { DEBIT, CREDIT }
 
 enum class TransactionSource { SMS_AUTO, MANUAL }
 
 /**
- * Mirrors the `transactions` table in the architecture doc (Section 7), with one addition:
- * `synced` tracks whether this row has been pushed to the backend once sync is wired.
+ * Mirrors the `transactions` table in the architecture doc (Section 7), with two additions:
+ * `synced` tracks whether this row has been pushed to the backend once sync is wired, and
+ * `sourceHash` (added when the SBI template landed) makes re-ingesting the same SMS a no-op
+ * instead of a duplicate row. Before this, `TransactionDao.insert`'s `OnConflictStrategy.IGNORE`
+ * had no unique constraint to actually act on, so re-scanning the SMS inbox a second time (which
+ * a manual scan-flag reset can trigger - see docs/coders-documentation/day-3.md) silently
+ * doubled every transaction already in the ledger. `sourceHash` is `sender::body` for
+ * SMS-derived rows (identical real SMS text -> identical hash -> the unique index below rejects
+ * the re-insert) and a random UUID for manual entries, which should never be deduplicated
+ * against each other.
  */
-@Entity(tableName = "transactions")
+@Entity(
+    tableName = "transactions",
+    indices = [Index(value = ["sourceHash"], unique = true)]
+)
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val amount: Double,
@@ -24,5 +37,6 @@ data class TransactionEntity(
     val confidenceScore: Float,
     val isUserCorrected: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val synced: Boolean = false
+    val synced: Boolean = false,
+    val sourceHash: String = UUID.randomUUID().toString()
 )

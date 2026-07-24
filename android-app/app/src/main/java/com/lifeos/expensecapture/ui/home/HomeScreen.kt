@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -27,17 +28,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.ui.theme.AmountLarge
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -85,6 +91,21 @@ fun HomeScreen(
     }
     val uiState by viewModel.uiState.collectAsState()
 
+    val morningViewModel = remember {
+        MorningBriefingViewModel(
+            context = context,
+            transactionDao = app.database.transactionDao(),
+            insightsRepository = FinanceInsightsRepository(
+                transactionDao = app.database.transactionDao(),
+                categoryDao = app.database.categoryDao(),
+                budgetDao = app.database.budgetDao(),
+                subscriptionDao = app.database.subscriptionDao(),
+                billDao = app.database.billDao()
+            )
+        )
+    }
+    val morningState by morningViewModel.uiState.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -129,6 +150,43 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (morningState.visible) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.WbSunny,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Good morning",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                morningState.leadItem ?: "Nothing needs your attention this morning.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                morningState.yesterdaySpendLine,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            TextButton(onClick = { morningViewModel.dismiss() }) { Text("Got it") }
+                        }
+                    }
+                }
+            }
+
             if (!uiState.isOnline) {
                 item {
                     Text(
@@ -164,7 +222,7 @@ fun HomeScreen(
                         Text("Spent this month", style = MaterialTheme.typography.bodyMedium)
                         Text(
                             "₹${"%.2f".format(uiState.spentThisMonth)}",
-                            style = MaterialTheme.typography.headlineMedium
+                            style = AmountLarge
                         )
                         if (!uiState.hasAnyData) {
                             Text(
@@ -213,7 +271,11 @@ private fun EntryPointCard(title: String, subtitle: String, onClick: () -> Unit)
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

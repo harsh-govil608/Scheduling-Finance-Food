@@ -81,7 +81,7 @@ class Converters {
         ConsentEntity::class,
         InvestmentEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
