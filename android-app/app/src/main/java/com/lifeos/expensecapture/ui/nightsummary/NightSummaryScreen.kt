@@ -43,7 +43,10 @@ fun NightSummaryScreen(app: App, onBack: () -> Unit) {
                 budgetDao = app.database.budgetDao(),
                 subscriptionDao = app.database.subscriptionDao(),
                 billDao = app.database.billDao()
-            )
+            ),
+            taskDao = app.database.taskDao(),
+            habitDao = app.database.habitDao(),
+            habitCompletionDao = app.database.habitCompletionDao()
         )
     }
     val uiState by viewModel.uiState.collectAsState()
@@ -79,6 +82,27 @@ fun NightSummaryScreen(app: App, onBack: () -> Unit) {
                             },
                             style = MaterialTheme.typography.bodySmall
                         )
+                    }
+                }
+            }
+            if (uiState.tasksCompletedToday > 0 || uiState.totalHabits > 0) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("Beyond Finance today", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                buildString {
+                                    if (uiState.tasksCompletedToday > 0) {
+                                        append("${uiState.tasksCompletedToday} task${if (uiState.tasksCompletedToday == 1) "" else "s"} completed")
+                                    }
+                                    if (uiState.totalHabits > 0) {
+                                        if (isNotEmpty()) append(", ")
+                                        append("${uiState.habitsMaintainedToday} of ${uiState.totalHabits} habits kept up")
+                                    }
+                                },
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }

@@ -10,7 +10,7 @@ import androidx.room.PrimaryKey
  * since there's no backend and no arbitration engine (Phase 2 Notification System was never
  * implemented as code). See docs/coders-documentation/day-2.md for that scope boundary.
  */
-enum class NotificationType { BILL_DUE, SUBSCRIPTION_RENEWAL, BUDGET_OVER_LIMIT, NIGHT_SUMMARY_READY, TASK_DUE }
+enum class NotificationType { BILL_DUE, SUBSCRIPTION_RENEWAL, BUDGET_OVER_LIMIT, NIGHT_SUMMARY_READY, TASK_DUE, HABIT_REMINDER }
 
 @Entity(tableName = "app_notifications")
 data class NotificationEntity(

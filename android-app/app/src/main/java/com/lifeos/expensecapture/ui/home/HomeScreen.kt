@@ -107,7 +107,10 @@ fun HomeScreen(
                 budgetDao = app.database.budgetDao(),
                 subscriptionDao = app.database.subscriptionDao(),
                 billDao = app.database.billDao()
-            )
+            ),
+            taskDao = app.database.taskDao(),
+            habitDao = app.database.habitDao(),
+            habitCompletionDao = app.database.habitCompletionDao()
         )
     }
     val morningState by morningViewModel.uiState.collectAsState()
@@ -226,6 +229,13 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
+                            morningState.homeLine?.let { line ->
+                                Text(
+                                    line,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                             Text(
                                 morningState.yesterdaySpendLine,
                                 style = MaterialTheme.typography.bodySmall,

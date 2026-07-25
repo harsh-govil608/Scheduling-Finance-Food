@@ -22,15 +22,17 @@ import com.lifeos.expensecapture.data.db.entity.NotificationType
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.flow.first
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 /**
  * Notification Center PRD (Phase 3 Doc 03) + the Notification Behaviors sections of Doc 19
- * (Subscription Manager), Doc 20 (Budget Planner), Doc 22 (Bills), and - as of the Home pillar -
- * Doc 09 (Smart Reminders) for tasks. Deliberately simple: checks bills/subscriptions/budgets/
- * tasks/night-summary-readiness on a schedule (and once whenever the app opens), cooldown-gated
- * per item so nothing re-notifies more than roughly once a day.
+ * (Subscription Manager), Doc 20 (Budget Planner), Doc 22 (Bills), Doc 09 (Smart Reminders for
+ * tasks), and Doc 13 (Habits' daily reminder). Deliberately simple: checks bills/subscriptions/
+ * budgets/tasks/habits/night-summary-readiness on a schedule (and once whenever the app opens),
+ * cooldown-gated per item so nothing re-notifies more than roughly once a day.
  *
  * There is no arbitration engine here - Phase 2's Notification System (Doc 14) was never
  * built as code, so this is a direct per-source check, not a shared interruption-budget
@@ -88,6 +90,7 @@ class NotificationCheckWorker(
         checkSubscriptions(db, insights)
         checkBudgets(db, insights)
         checkTasks(db)
+        checkHabits(db)
         checkNightSummary(db)
 
         return Result.success()
@@ -171,6 +174,39 @@ class NotificationCheckWorker(
                 cooldownKey = cooldownKey
             )
         }
+    }
+
+    /**
+     * The gap directly named in the "make Home proactive, not lazy" conversation: Tasks got a
+     * Smart Reminder above, but Habits had zero proactive nudge at all - a user who forgets to
+     * open the app just silently never checks a habit off. Bundled into ONE evening notification
+     * per day (not one per habit) rather than per-item, both to avoid spamming and per the
+     * Habits PRD's (Doc 13) own Notification Behaviors requirement that recovery/reminder
+     * messaging "must not escalate into a nagging sequence" - a single gentle daily mention,
+     * never repeated per-habit, never guilt-toned (see HabitsViewModel's kdoc for the same
+     * "supportive, not punitive" rule applied here to the notification copy itself).
+     */
+    private suspend fun checkHabits(db: AppDatabase) {
+        if (LocalTime.now().hour < 18) return
+        val habits = db.habitDao().observeAll().first()
+        if (habits.isEmpty()) return
+
+        val today = LocalDate.now(ZoneId.systemDefault()).toEpochDay()
+        val completions = db.habitCompletionDao().observeAll().first()
+        val doneTodayIds = completions.filter { it.dateEpochDay == today }.map { it.habitId }.toSet()
+        val pending = habits.filter { it.id !in doneTodayIds }
+        if (pending.isEmpty()) return
+
+        val route = "habits"
+        if (recentlyNotified(db, NotificationType.HABIT_REMINDER, route)) return
+
+        notify(
+            type = NotificationType.HABIT_REMINDER,
+            title = "A few habits still open today",
+            body = "${pending.joinToString(", ") { it.name }} - no rush, just a reminder",
+            route = route,
+            cooldownKey = route
+        )
     }
 
     /** Night Summary PRD (Phase 3 Doc 02): a low-priority notification once per day, after a
