@@ -1,6 +1,6 @@
 {
-  "versionCode": 6,
-  "versionName": "0.6.0-pilot",
+  "versionCode": 7,
+  "versionName": "0.7.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Adds a whole new 'Home' tab (tasks, habits, goals, projects, and a weekly/monthly review) alongside Finance - tap the bottom bar to switch between them."
+  "notes": "Adds Notes, Journal, Shopping lists and a Timeline, plus the app now reminds you about open habits in the evening and mentions your tasks/habits in the morning and night summaries - not just Finance."
 }
