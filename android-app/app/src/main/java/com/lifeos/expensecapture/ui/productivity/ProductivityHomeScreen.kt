@@ -40,6 +40,10 @@ fun ProductivityHomeScreen(
     onOpenGoals: () -> Unit,
     onOpenProjects: () -> Unit,
     onOpenReview: () -> Unit,
+    onOpenNotes: () -> Unit,
+    onOpenJournal: () -> Unit,
+    onOpenShopping: () -> Unit,
+    onOpenTimeline: () -> Unit,
     onSelectPillar: (Pillar) -> Unit
 ) {
     val viewModel = remember {
@@ -111,6 +115,10 @@ fun ProductivityHomeScreen(
             }
             item { EntryPointCard("Goals", "Longer-term targets you're working toward", onOpenGoals) }
             item { EntryPointCard("Projects", "Group related tasks together", onOpenProjects) }
+            item { EntryPointCard("Timeline", "Today, across Finance and Home together", onOpenTimeline) }
+            item { EntryPointCard("Notes", "Quick things worth writing down", onOpenNotes) }
+            item { EntryPointCard("Journal", "A daily entry, for yourself", onOpenJournal) }
+            item { EntryPointCard("Shopping", "A simple list for what you need to buy", onOpenShopping) }
             item { EntryPointCard("Review", "How the last week or month went, in real numbers", onOpenReview) }
         }
     }

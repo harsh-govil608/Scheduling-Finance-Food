@@ -22,9 +22,11 @@ import com.lifeos.expensecapture.ui.budget.BudgetScreen
 import com.lifeos.expensecapture.ui.goals.GoalsScreen
 import com.lifeos.expensecapture.ui.habits.HabitsScreen
 import com.lifeos.expensecapture.ui.home.HomeScreen
+import com.lifeos.expensecapture.data.db.entity.NoteType
 import com.lifeos.expensecapture.ui.investments.InvestmentsScreen
 import com.lifeos.expensecapture.ui.ledger.LedgerScreen
 import com.lifeos.expensecapture.ui.nightsummary.NightSummaryScreen
+import com.lifeos.expensecapture.ui.notes.NotesScreen
 import com.lifeos.expensecapture.ui.notifications.NotificationCenterScreen
 import com.lifeos.expensecapture.ui.onboarding.PermissionScreen
 import com.lifeos.expensecapture.ui.permissions.PermissionsScreen
@@ -35,8 +37,10 @@ import com.lifeos.expensecapture.ui.projects.ProjectsScreen
 import com.lifeos.expensecapture.ui.review.UnparsedReviewScreen
 import com.lifeos.expensecapture.ui.rules.AutomationRulesScreen
 import com.lifeos.expensecapture.ui.search.SearchScreen
+import com.lifeos.expensecapture.ui.shopping.ShoppingScreen
 import com.lifeos.expensecapture.ui.subscriptions.SubscriptionsScreen
 import com.lifeos.expensecapture.ui.tasks.TaskListScreen
+import com.lifeos.expensecapture.ui.timeline.ContextTimelineScreen
 import com.lifeos.expensecapture.ui.weeklyreview.ReviewScreen
 import kotlinx.coroutines.launch
 
@@ -120,8 +124,24 @@ fun PilotApp(app: App) {
                 onOpenGoals = { navController.navigate("goals") },
                 onOpenProjects = { navController.navigate("projects") },
                 onOpenReview = { navController.navigate("review") },
+                onOpenNotes = { navController.navigate("notes") },
+                onOpenJournal = { navController.navigate("journal") },
+                onOpenShopping = { navController.navigate("shopping") },
+                onOpenTimeline = { navController.navigate("timeline") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
             )
+        }
+        composable("notes") {
+            NotesScreen(app = app, type = NoteType.NOTE, screenTitle = "Notes", onBack = { navController.popBackStack() })
+        }
+        composable("journal") {
+            NotesScreen(app = app, type = NoteType.JOURNAL, screenTitle = "Journal", onBack = { navController.popBackStack() })
+        }
+        composable("shopping") {
+            ShoppingScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("timeline") {
+            ContextTimelineScreen(app = app, onBack = { navController.popBackStack() })
         }
         composable("tasks") {
             TaskListScreen(app = app, onBack = { navController.popBackStack() })

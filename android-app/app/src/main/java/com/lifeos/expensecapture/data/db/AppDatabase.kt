@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.lifeos.expensecapture.data.db.dao.BillDao
 import com.lifeos.expensecapture.data.db.dao.BudgetDao
 import com.lifeos.expensecapture.data.db.dao.CategoryDao
@@ -16,8 +18,10 @@ import com.lifeos.expensecapture.data.db.dao.HabitCompletionDao
 import com.lifeos.expensecapture.data.db.dao.HabitDao
 import com.lifeos.expensecapture.data.db.dao.InvestmentDao
 import com.lifeos.expensecapture.data.db.dao.MerchantRuleDao
+import com.lifeos.expensecapture.data.db.dao.NoteDao
 import com.lifeos.expensecapture.data.db.dao.NotificationDao
 import com.lifeos.expensecapture.data.db.dao.ProjectDao
+import com.lifeos.expensecapture.data.db.dao.ShoppingItemDao
 import com.lifeos.expensecapture.data.db.dao.SubscriptionDao
 import com.lifeos.expensecapture.data.db.dao.TaskDao
 import com.lifeos.expensecapture.data.db.dao.TransactionDao
@@ -33,9 +37,12 @@ import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
 import com.lifeos.expensecapture.data.db.entity.InvestmentEntity
 import com.lifeos.expensecapture.data.db.entity.MerchantRuleEntity
+import com.lifeos.expensecapture.data.db.entity.NoteEntity
+import com.lifeos.expensecapture.data.db.entity.NoteType
 import com.lifeos.expensecapture.data.db.entity.NotificationEntity
 import com.lifeos.expensecapture.data.db.entity.NotificationType
 import com.lifeos.expensecapture.data.db.entity.ProjectEntity
+import com.lifeos.expensecapture.data.db.entity.ShoppingItemEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionStatus
 import com.lifeos.expensecapture.data.db.entity.TaskEntity
@@ -82,6 +89,54 @@ class Converters {
 
     @TypeConverter
     fun toTaskPriority(value: String): TaskPriority = TaskPriority.valueOf(value)
+
+    @TypeConverter
+    fun fromNoteType(value: NoteType): String = value.name
+
+    @TypeConverter
+    fun toNoteType(value: String): NoteType = NoteType.valueOf(value)
+}
+
+/**
+ * The first real Migration in this project - every schema change before this one used
+ * `fallbackToDestructiveMigration()`, an accepted pilot-stage tradeoff while only auto-derived
+ * SMS transactions were at stake (they self-heal via SmsHistoryScanner's catch-up rescan - see
+ * docs/coders-documentation/day-3.md). That stopped being acceptable once the Home pillar
+ * (Day 4) introduced manually-entered data - tasks, habits, goals, projects - with no SMS to
+ * re-derive them from. This migration only ADDS the two new tables Notes/Journal and Shopping
+ * need; every existing table and its data is left untouched.
+ *
+ * `fallbackToDestructiveMigration()` is still registered below as a safety net for any gap this
+ * migration doesn't cover (there shouldn't be one, but a crash-on-open is a worse failure mode
+ * than a wipe for a pilot with few users) - `addMigrations` takes precedence for the exact
+ * version pair it defines, so this specific 7->8 transition is protected either way.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `notes` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `type` TEXT NOT NULL,
+                `title` TEXT NOT NULL,
+                `body` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `shopping_items` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `name` TEXT NOT NULL,
+                `quantity` TEXT NOT NULL,
+                `checked` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
 }
 
 @Database(
@@ -101,9 +156,11 @@ class Converters {
         HabitEntity::class,
         HabitCompletionEntity::class,
         ProjectEntity::class,
-        GoalEntity::class
+        GoalEntity::class,
+        NoteEntity::class,
+        ShoppingItemEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -125,6 +182,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun habitCompletionDao(): HabitCompletionDao
     abstract fun projectDao(): ProjectDao
     abstract fun goalDao(): GoalDao
+    abstract fun noteDao(): NoteDao
+    abstract fun shoppingItemDao(): ShoppingItemDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -136,9 +195,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expense_capture_pilot.db"
                 )
-                    // Still a deliberate pilot-stage choice (see Day 2 note in this file's
-                    // history) - replace with a real Migration before any real pilot user has
-                    // data worth preserving across an update.
+                    // Real migration path for 7->8 (see MIGRATION_7_8's kdoc for why this
+                    // finally mattered enough to do). Destructive fallback stays as a safety
+                    // net for any other version gap.
+                    .addMigrations(MIGRATION_7_8)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {
