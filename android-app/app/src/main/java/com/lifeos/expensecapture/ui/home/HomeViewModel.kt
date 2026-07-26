@@ -41,7 +41,8 @@ data class HomeUiState(
     val hasAnyData: Boolean = false,
     val unreadNotifications: Int = 0,
     val isOnline: Boolean = true,
-    val smsPermissionRevoked: Boolean = false
+    val smsPermissionRevoked: Boolean = false,
+    val last7DaysSpend: List<Float> = emptyList()
 )
 
 /** Intermediate grouping to keep the combine() chain to 2-5 arg overloads instead of unsafe
@@ -106,6 +107,16 @@ class HomeViewModel(
             .filter { it.direction == TransactionDirection.DEBIT && it.date >= monthStart }
             .sumOf { it.amount }
 
+        val today = LocalDate.now(zone)
+        val last7DaysSpend = (6 downTo 0).map { today.minusDays(it.toLong()) }.map { day ->
+            val start = day.atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            finance.transactions
+                .filter { it.direction == TransactionDirection.DEBIT && it.date in start until end }
+                .sumOf { it.amount }
+                .toFloat()
+        }
+
         val overdueBill = finance.bills.firstOrNull { it.displayStatus == FinanceInsightsRepository.BillDisplayStatus.OVERDUE }
         val overBudget = finance.budgets.firstOrNull { it.spentThisMonth > it.budget.monthlyLimit }
 
@@ -125,7 +136,8 @@ class HomeViewModel(
             hasAnyData = finance.transactions.isNotEmpty(),
             unreadNotifications = status.unreadNotifications,
             isOnline = status.isOnline,
-            smsPermissionRevoked = status.smsConsentedButRevoked
+            smsPermissionRevoked = status.smsConsentedButRevoked,
+            last7DaysSpend = last7DaysSpend
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 }

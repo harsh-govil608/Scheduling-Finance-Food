@@ -9,7 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.TrendingFlat
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.ui.common.AccentInfoCard
+import com.lifeos.expensecapture.ui.common.HeroMoneyCard
 
 /**
  * Night Summary PRD, Phase 3 Doc 02: closes the day as evidence the AI was paying attention,
@@ -69,74 +75,64 @@ fun NightSummaryScreen(app: App, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Today", style = MaterialTheme.typography.bodyMedium)
-                        Text("₹${"%.2f".format(uiState.todaySpend)}", style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            if (uiState.todayCount == 0) {
-                                "A quiet day - nothing captured, nothing missed."
-                            } else {
-                                "${uiState.todayCount} transaction${if (uiState.todayCount == 1) "" else "s"} today, " +
-                                    "${uiState.autoCapturedCount} of them captured automatically - no typing needed."
-                            },
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                HeroMoneyCard(
+                    label = "Today",
+                    amount = uiState.todaySpend,
+                    caption = if (uiState.todayCount == 0) {
+                        "A quiet day - nothing captured, nothing missed."
+                    } else {
+                        "${uiState.todayCount} transaction${if (uiState.todayCount == 1) "" else "s"} today, " +
+                            "${uiState.autoCapturedCount} of them captured automatically - no typing needed."
                     }
-                }
+                )
             }
             if (uiState.tasksCompletedToday > 0 || uiState.totalHabits > 0) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("Beyond Finance today", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                buildString {
-                                    if (uiState.tasksCompletedToday > 0) {
-                                        append("${uiState.tasksCompletedToday} task${if (uiState.tasksCompletedToday == 1) "" else "s"} completed")
-                                    }
-                                    if (uiState.totalHabits > 0) {
-                                        if (isNotEmpty()) append(", ")
-                                        append("${uiState.habitsMaintainedToday} of ${uiState.totalHabits} habits kept up")
-                                    }
-                                },
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                    AccentInfoCard(
+                        icon = Icons.Filled.CheckCircle,
+                        accentColor = MaterialTheme.colorScheme.tertiary,
+                        title = "Beyond Finance today",
+                        body = buildString {
+                            if (uiState.tasksCompletedToday > 0) {
+                                append("${uiState.tasksCompletedToday} task${if (uiState.tasksCompletedToday == 1) "" else "s"} completed")
+                            }
+                            if (uiState.totalHabits > 0) {
+                                if (isNotEmpty()) append(", ")
+                                append("${uiState.habitsMaintainedToday} of ${uiState.totalHabits} habits kept up")
+                            }
                         }
-                    }
+                    )
                 }
             }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Compared to yesterday", style = MaterialTheme.typography.bodyMedium)
-                        val diff = uiState.todaySpend - uiState.yesterdaySpend
-                        Text(
-                            when {
-                                uiState.yesterdaySpend == 0.0 && uiState.todaySpend == 0.0 -> "Both quiet days."
-                                diff > 0 -> "₹${"%.2f".format(diff)} more than yesterday - just for context, not a target to hit."
-                                diff < 0 -> "₹${"%.2f".format(-diff)} less than yesterday."
-                                else -> "About the same as yesterday."
-                            },
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                val diff = uiState.todaySpend - uiState.yesterdaySpend
+                AccentInfoCard(
+                    icon = when {
+                        diff > 0 -> Icons.Filled.TrendingUp
+                        diff < 0 -> Icons.Filled.TrendingDown
+                        else -> Icons.Filled.TrendingFlat
+                    },
+                    accentColor = MaterialTheme.colorScheme.secondary,
+                    title = "Compared to yesterday",
+                    body = when {
+                        uiState.yesterdaySpend == 0.0 && uiState.todaySpend == 0.0 -> "Both quiet days."
+                        diff > 0 -> "₹${"%.2f".format(diff)} more than yesterday - just for context, not a target to hit."
+                        diff < 0 -> "₹${"%.2f".format(-diff)} less than yesterday."
+                        else -> "About the same as yesterday."
                     }
-                }
+                )
             }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Tomorrow", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            if (uiState.billsDueTomorrow.isEmpty()) {
-                                "Nothing due that we know of - a clear start."
-                            } else {
-                                "Coming up: ${uiState.billsDueTomorrow.joinToString(", ")}"
-                            },
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                AccentInfoCard(
+                    icon = Icons.Filled.CalendarMonth,
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    title = "Tomorrow",
+                    body = if (uiState.billsDueTomorrow.isEmpty()) {
+                        "Nothing due that we know of - a clear start."
+                    } else {
+                        "Coming up: ${uiState.billsDueTomorrow.joinToString(", ")}"
                     }
-                }
+                )
             }
         }
     }

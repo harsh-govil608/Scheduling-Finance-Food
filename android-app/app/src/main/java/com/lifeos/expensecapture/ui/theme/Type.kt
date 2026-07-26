@@ -45,3 +45,13 @@ val AmountBody = TextStyle(
     lineHeight = 22.sp,
     fontFeatureSettings = "tnum"
 )
+
+/** The single biggest number on a landing screen (Home's monthly spend, Night Summary's today
+ * total) - bigger and bolder than AmountLarge, which stays for secondary contexts like Budget
+ * progress rows. */
+val AmountHero = TextStyle(
+    fontWeight = FontWeight.Bold,
+    fontSize = 42.sp,
+    lineHeight = 48.sp,
+    fontFeatureSettings = "tnum"
+)
