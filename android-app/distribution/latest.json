@@ -1,6 +1,6 @@
 {
-  "versionCode": 7,
-  "versionName": "0.7.0-pilot",
+  "versionCode": 8,
+  "versionName": "0.8.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Adds Notes, Journal, Shopping lists and a Timeline, plus the app now reminds you about open habits in the evening and mentions your tasks/habits in the morning and night summaries - not just Finance."
+  "notes": "A visual refresh - bigger numbers with a spend trend line, icons instead of plain text lists, and calmer cards throughout Finance, Home, and Your Day."
 }
