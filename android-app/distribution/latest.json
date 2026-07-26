@@ -1,6 +1,6 @@
 {
-  "versionCode": 9,
-  "versionName": "0.9.0-pilot",
+  "versionCode": 10,
+  "versionName": "0.10.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes the new cards being hard to see in dark mode - if the last update looked unchanged for you, this should fix it."
+  "notes": "Toned down the card color from the last update - back to a subtle look instead of a strong highlight color."
 }
