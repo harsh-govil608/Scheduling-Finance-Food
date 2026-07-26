@@ -1,6 +1,6 @@
 {
-  "versionCode": 8,
-  "versionName": "0.8.0-pilot",
+  "versionCode": 9,
+  "versionName": "0.9.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "A visual refresh - bigger numbers with a spend trend line, icons instead of plain text lists, and calmer cards throughout Finance, Home, and Your Day."
+  "notes": "Fixes the new cards being hard to see in dark mode - if the last update looked unchanged for you, this should fix it."
 }
