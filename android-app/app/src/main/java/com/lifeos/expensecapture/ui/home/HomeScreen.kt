@@ -320,7 +320,7 @@ fun HomeScreen(
             }
             item {
                 EntryRow(
-                    Icons.Filled.Inbox, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.secondaryContainer,
+                    Icons.Filled.Inbox, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
                     "Needs Review", "Messages the parser couldn't confidently read", onOpenNeedsReview
                 )
             }

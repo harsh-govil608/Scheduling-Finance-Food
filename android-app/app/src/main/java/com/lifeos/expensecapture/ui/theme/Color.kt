@@ -81,3 +81,15 @@ val OnWarningContainerDark = Color(0xFFFBE7B7)
  * urgency, without either one escalating all the way to alarm-red `error`. */
 val Warning = Color(0xFFB8860B)
 val WarningStrong = Color(0xFFB35C00)
+
+/**
+ * Dedicated card-background colors (2026-07-26 redesign follow-up), used instead of
+ * `colorScheme.surface`/`surfaceVariant` directly. `surface` alone wasn't safe because
+ * SurfaceDark and BackgroundDark are the same hex value - a card would blend invisibly into the
+ * page in dark mode. `surfaceVariant` fixed that but was too strong a jump from the light theme's
+ * off-white background - it read as a highlighter color rather than a subtle card. These sit
+ * deliberately between the two: barely-there in light mode (matching what the old
+ * elevation-tinted plain Card looked like), genuinely visible in dark mode without being loud.
+ */
+val CardSurfaceLight = Color(0xFFF6F5F0)
+val CardSurfaceDark = Color(0xFF1B211F)

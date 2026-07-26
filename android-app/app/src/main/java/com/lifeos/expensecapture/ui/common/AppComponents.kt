@@ -3,6 +3,7 @@ package com.lifeos.expensecapture.ui.common
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.ui.theme.AmountHero
+import com.lifeos.expensecapture.ui.theme.CardSurfaceDark
+import com.lifeos.expensecapture.ui.theme.CardSurfaceLight
 
 /**
  * Shared "premium minimal" components (Design System refresh, 2026-07-26): mostly-neutral
@@ -43,6 +46,11 @@ import com.lifeos.expensecapture.ui.theme.AmountHero
  * most on a screen. Introduced to replace duplicated plain-`Card`+`Text` blocks across Home,
  * Productivity Home, and Night Summary that all looked like stock Material3 defaults.
  */
+
+/** See CardSurfaceLight/CardSurfaceDark kdoc - a subtle-but-theme-safe card background, picked
+ * directly rather than derived from colorScheme.surface/surfaceVariant. */
+@Composable
+fun cardSurfaceColor(): Color = if (isSystemInDarkTheme()) CardSurfaceDark else CardSurfaceLight
 
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
@@ -109,7 +117,7 @@ fun HeroMoneyCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(Modifier.padding(24.dp)) {
@@ -144,7 +152,7 @@ fun AccentInfoCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(Modifier.padding(16.dp)) {
@@ -180,7 +188,7 @@ fun EntryRow(
     Card(
         modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(

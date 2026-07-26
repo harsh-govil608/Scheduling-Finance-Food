@@ -36,6 +36,7 @@ import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.ui.common.EntryRow
 import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.common.SectionLabel
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
 import androidx.compose.foundation.layout.Row
@@ -87,7 +88,7 @@ fun ProductivityHomeScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTasks),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(Modifier.padding(18.dp)) {
@@ -122,7 +123,7 @@ fun ProductivityHomeScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenHabits),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(Modifier.padding(18.dp)) {
@@ -192,7 +193,7 @@ fun ProductivityHomeScreen(
             }
             item {
                 EntryRow(
-                    Icons.Filled.Assessment, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.secondaryContainer,
+                    Icons.Filled.Assessment, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
                     "Review", "How the last week or month went, in real numbers", onOpenReview
                 )
             }
