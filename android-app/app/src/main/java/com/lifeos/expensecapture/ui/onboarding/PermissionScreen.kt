@@ -30,14 +30,78 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.ConsentEntity
+import com.lifeos.expensecapture.data.db.entity.TransactionDirection
+import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private enum class OnboardingStep { WELCOME, SMS_PERMISSION, SCANNING, NOTIFICATION_PERMISSION, FIRST_VALUE }
 
 const val CONSENT_SMS = "SMS"
 const val CONSENT_NOTIFICATIONS = "NOTIFICATIONS"
+
+/**
+ * AI Transformation Plan P1 (personalized first-scan summary): the completion screen used to say
+ * "you're all set" regardless of what the scan actually found - the single most fragile retention
+ * moment in the app got the least personalized message anywhere in it. Built entirely from
+ * numbers the repositories already compute; no model needed.
+ */
+private data class ScanSummary(
+    val transactionCount: Int,
+    val recurringCount: Int,
+    val topCategoryName: String?,
+    val topCategoryAmount: Double
+)
+
+private suspend fun buildScanSummary(app: App): ScanSummary {
+    val transactions = app.database.transactionDao().getSince(0L)
+    val categories = app.database.categoryDao().observeAll().first()
+    val topEntry = transactions
+        .filter { it.direction == TransactionDirection.DEBIT }
+        .groupBy { it.categoryId }
+        .mapValues { (_, txns) -> txns.sumOf { it.amount } }
+        .entries
+        .maxByOrNull { it.value }
+
+    val recurringCount = app.database.subscriptionDao().observeAll().first().size +
+        app.database.billDao().observeAll().first().size
+
+    return ScanSummary(
+        transactionCount = transactions.size,
+        recurringCount = recurringCount,
+        topCategoryName = topEntry?.let { entry ->
+            categories.firstOrNull { it.id == entry.key }?.name ?: "Uncategorized"
+        },
+        topCategoryAmount = topEntry?.value ?: 0.0
+    )
+}
+
+private fun firstValueMessage(hasSmsPermission: Boolean, summary: ScanSummary?): String {
+    if (!hasSmsPermission) {
+        return "You can add expenses manually any time from the + button, and turn on " +
+            "automatic capture later from Settings."
+    }
+    if (summary == null || summary.transactionCount == 0) {
+        // Honest, non-deflating framing for a genuinely quiet scan - never a hollow
+        // "you're all set" when nothing was actually found yet.
+        return "Found 0 so far - more will show up automatically as new messages arrive, " +
+            "and anything already on your phone keeps getting picked up in the background."
+    }
+    return buildString {
+        append("Found ${summary.transactionCount} transaction${if (summary.transactionCount == 1) "" else "s"} so far.")
+        if (summary.topCategoryName != null) {
+            append(" Your biggest category so far: ${summary.topCategoryName} (₹${"%.2f".format(summary.topCategoryAmount)}).")
+        }
+        if (summary.recurringCount > 0) {
+            append(
+                " ${summary.recurringCount} look${if (summary.recurringCount == 1) "s" else ""} like " +
+                    "a recurring bill or subscription - review ${if (summary.recurringCount == 1) "it" else "them"} anytime from Finance."
+            )
+        }
+    }
+}
 
 /**
  * Onboarding PRD, Phase 3 Doc 40 + Permissions & Consent PRD, Phase 3 Doc 41. Single-pillar
@@ -56,6 +120,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
     val scope = rememberCoroutineScope()
     val app = context.applicationContext as App
     var step by remember { mutableStateOf(OnboardingStep.WELCOME) }
+    var scanSummary by remember { mutableStateOf<ScanSummary?>(null) }
 
     fun hasSmsPermission(): Boolean {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) ==
@@ -64,14 +129,29 @@ fun PermissionScreen(onGranted: () -> Unit) {
             PackageManager.PERMISSION_GRANTED
     }
 
-    fun proceedToNotificationStep() {
+    suspend fun finishOnboarding() {
+        // Recurring detection needs to have run before the summary is built, or "N look like a
+        // recurring bill/subscription" would always read 0 on a first-ever scan.
+        val insights = FinanceInsightsRepository(
+            transactionDao = app.database.transactionDao(),
+            categoryDao = app.database.categoryDao(),
+            budgetDao = app.database.budgetDao(),
+            subscriptionDao = app.database.subscriptionDao(),
+            billDao = app.database.billDao()
+        )
+        insights.refreshRecurringDetection()
+        scanSummary = buildScanSummary(app)
+        step = OnboardingStep.FIRST_VALUE
+    }
+
+    suspend fun proceedToNotificationStep() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             step = OnboardingStep.NOTIFICATION_PERMISSION
         } else {
             // No runtime notification permission needed pre-Android 13 - the worker still
             // needs scheduling so the in-app Notification Center stays populated.
             NotificationCheckWorker.schedulePeriodic(context)
-            step = OnboardingStep.FIRST_VALUE
+            finishOnboarding()
         }
     }
 
@@ -89,7 +169,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
                 proceedToNotificationStep()
             }
         } else {
-            proceedToNotificationStep()
+            scope.launch { proceedToNotificationStep() }
         }
     }
 
@@ -98,9 +178,9 @@ fun PermissionScreen(onGranted: () -> Unit) {
     ) { granted ->
         scope.launch {
             app.database.consentDao().upsert(ConsentEntity(CONSENT_NOTIFICATIONS, granted))
+            NotificationCheckWorker.schedulePeriodic(context)
+            finishOnboarding()
         }
-        NotificationCheckWorker.schedulePeriodic(context)
-        step = OnboardingStep.FIRST_VALUE
     }
 
     LaunchedEffect(Unit) {
@@ -147,8 +227,10 @@ fun PermissionScreen(onGranted: () -> Unit) {
                 }) { Text("Grant SMS access") }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = {
-                    scope.launch { app.database.consentDao().upsert(ConsentEntity(CONSENT_SMS, false)) }
-                    proceedToNotificationStep()
+                    scope.launch {
+                        app.database.consentDao().upsert(ConsentEntity(CONSENT_SMS, false))
+                        proceedToNotificationStep()
+                    }
                 }) { Text("Skip for now - I'll add expenses manually") }
             }
 
@@ -172,9 +254,11 @@ fun PermissionScreen(onGranted: () -> Unit) {
                 }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = {
-                    scope.launch { app.database.consentDao().upsert(ConsentEntity(CONSENT_NOTIFICATIONS, false)) }
-                    NotificationCheckWorker.schedulePeriodic(context)
-                    step = OnboardingStep.FIRST_VALUE
+                    scope.launch {
+                        app.database.consentDao().upsert(ConsentEntity(CONSENT_NOTIFICATIONS, false))
+                        NotificationCheckWorker.schedulePeriodic(context)
+                        finishOnboarding()
+                    }
                 }) { Text("Not now") }
             }
 
@@ -182,12 +266,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
                 Text("You're all set", style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    if (hasSmsPermission()) {
-                        "We've scanned your messages and started building your ledger automatically."
-                    } else {
-                        "You can add expenses manually any time from the + button, and turn on " +
-                            "automatic capture later from Settings."
-                    },
+                    firstValueMessage(hasSmsPermission(), scanSummary),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(24.dp))
