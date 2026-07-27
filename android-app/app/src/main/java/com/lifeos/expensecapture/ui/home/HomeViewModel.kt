@@ -145,7 +145,14 @@ class HomeViewModel(
         }
 
         val overdueBill = finance.bills.firstOrNull { it.displayStatus == FinanceInsightsRepository.BillDisplayStatus.OVERDUE }
-        val overBudget = finance.budgets.firstOrNull { it.spentThisMonth > it.budget.monthlyLimit }
+        val overBudgets = finance.budgets.filter { it.spentThisMonth > it.budget.monthlyLimit }
+        // Bug fix (found via a user report): a specific category being over budget is more
+        // actionable than the generic "Overall" total budget (categoryId == null, see
+        // FinanceInsightsRepository's categoryName resolution) being over. Previously this used
+        // firstOrNull() with no preference, so whichever happened to come first in the DB's
+        // return order could surface "Overall is ₹X over budget" instead of naming the actual
+        // category - real numbers, but strictly less useful than the detail a category name gives.
+        val overBudget = overBudgets.firstOrNull { it.budget.categoryId != null } ?: overBudgets.firstOrNull()
         val cashFlowRisk = computeCashFlowRisk(finance)
         val spendingInsight = SpendingInsightEngine.compute(
             transactions = finance.transactions,
@@ -178,7 +185,7 @@ class HomeViewModel(
 
     /**
      * AI Transformation Plan F1. Projects known due-dates (Bills, plus Subscriptions - a real
-     * upcoming debit even though it's automatic, see NotificationCheckWorker.syncBillTasks' kdoc
+     * upcoming debit even though it's automatic, see FinanceNotificationChecks.syncBillTasks' kdoc
      * for why Subscriptions are excluded from *that* feature but belong here) within
      * [CASH_FLOW_WINDOW_DAYS] against remaining budget headroom at current pace. Deliberately
      * returns null (no signal, not a false "you're fine") when no budget exists at all - there's

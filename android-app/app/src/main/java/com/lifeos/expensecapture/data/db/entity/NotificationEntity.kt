@@ -33,7 +33,15 @@ enum class NotificationType {
     /** A Goal with both a rupee target and a target date, whose current savings pace (the same
      * proxy SpendingInsightEngine's goal-acceleration line uses) won't realistically get there in
      * time - supportive framing, a check-in prompt, not a countdown to failure. */
-    GOAL_OFF_TRACK
+    GOAL_OFF_TRACK,
+    /** Found via a real user report (2026-07): categorization here is deliberately learn-by-
+     * correction with no default merchant rules (see CategorizationEngine's kdoc) - accurate
+     * until the user has actually corrected a few transactions, and totally silent about that
+     * requirement in the meantime. A pile of Uncategorized spend quietly means every category
+     * budget and insight that depends on it (Spending Insight, category budgets) can't fire.
+     * This closes that silence: a nudge toward Ledger once enough uncategorized spend has
+     * accumulated this month, not a hard requirement. */
+    UNCATEGORIZED_SPEND
 }
 
 @Entity(tableName = "app_notifications")

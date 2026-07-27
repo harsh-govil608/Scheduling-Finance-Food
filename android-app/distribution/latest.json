@@ -1,6 +1,6 @@
 {
-  "versionCode": 14,
-  "versionName": "0.14.0-pilot",
+  "versionCode": 15,
+  "versionName": "0.15.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "More behind-the-scenes reliability fixes - closed a rare timing bug that could create a duplicate bill reminder, and made sure a hiccup during startup can never repeatedly block the app from opening."
+  "notes": "Needs attention now names the specific category when one's over its own budget, instead of just the overall total. Also added a gentle nudge when transactions pile up uncategorized, pointing you to Ledger so budgets and insights stay accurate."
 }
