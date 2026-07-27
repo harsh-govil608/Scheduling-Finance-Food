@@ -1,6 +1,6 @@
 {
-  "versionCode": 13,
-  "versionName": "0.13.0-pilot",
+  "versionCode": 14,
+  "versionName": "0.14.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Behind-the-scenes reliability work: the app now keeps a local, private log if anything goes wrong (Profile > Diagnostics), and background checks are more resilient so one hiccup can't silently stop the others."
+  "notes": "More behind-the-scenes reliability fixes - closed a rare timing bug that could create a duplicate bill reminder, and made sure a hiccup during startup can never repeatedly block the app from opening."
 }
