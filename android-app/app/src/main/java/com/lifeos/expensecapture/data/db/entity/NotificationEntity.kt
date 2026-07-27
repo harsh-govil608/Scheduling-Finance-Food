@@ -56,5 +56,11 @@ data class NotificationEntity(
      * from deepLinkRoute since a route like "bills" is shared across many individual bills. */
     val sourceKey: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val isRead: Boolean = false
+    val isRead: Boolean = false,
+    /** Bug fix (found via a real user report, 2026-07): the Notification Center had no way to
+     * remove anything, so it only ever grew. This is a soft delete, not a real DELETE - the row
+     * (and its sourceKey/createdAt) still has to exist for NotificationSender.recentlyNotified's
+     * cooldown check to see it, or clearing your inbox would make an alert you just dismissed
+     * eligible to fire again immediately instead of respecting its normal ~20h cooldown. */
+    val isDismissed: Boolean = false
 )

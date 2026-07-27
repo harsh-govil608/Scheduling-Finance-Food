@@ -218,6 +218,16 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
     }
 }
 
+/** Bug fix (found via a real user report, 2026-07): the Notification Center had no way to
+ * remove anything - see NotificationEntity's isDismissed kdoc for why this is a soft delete
+ * rather than a real DELETE (the cooldown check in NotificationSender.recentlyNotified still
+ * needs the row). Defaults to false so every existing notification stays visible after update. */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE app_notifications ADD COLUMN isDismissed INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -240,7 +250,7 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         ShoppingItemEntity::class,
         CrashLogEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -280,7 +290,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

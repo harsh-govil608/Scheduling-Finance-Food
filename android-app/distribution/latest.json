@@ -1,6 +1,6 @@
 {
-  "versionCode": 16,
-  "versionName": "0.16.0-pilot",
+  "versionCode": 17,
+  "versionName": "0.17.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixed a bug where correcting the same merchant's category twice (including fixing a mis-tap) could leave contradictory rules behind, causing that merchant's future transactions to categorize unpredictably. Existing rules are automatically cleaned up on update."
+  "notes": "You can now remove notifications instead of them piling up forever - each one has its own remove (X) button, or use the new menu (top right of Notifications) to clear everything at once."
 }

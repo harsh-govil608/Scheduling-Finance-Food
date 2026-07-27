@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 class NotificationCenterViewModel(private val notificationDao: NotificationDao) : ViewModel() {
 
-    val notifications: StateFlow<List<NotificationEntity>> = notificationDao.observeAll()
+    val notifications: StateFlow<List<NotificationEntity>> = notificationDao.observeVisible()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun markRead(notification: NotificationEntity) {
@@ -20,5 +20,13 @@ class NotificationCenterViewModel(private val notificationDao: NotificationDao) 
 
     fun markAllRead() {
         viewModelScope.launch { notificationDao.markAllRead() }
+    }
+
+    fun dismiss(notification: NotificationEntity) {
+        viewModelScope.launch { notificationDao.dismiss(notification.id) }
+    }
+
+    fun clearAll() {
+        viewModelScope.launch { notificationDao.dismissAll() }
     }
 }

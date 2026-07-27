@@ -12,8 +12,8 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 16
-        versionName = "0.16.0-pilot"
+        versionCode = 17
+        versionName = "0.17.0-pilot"
     }
 
     buildTypes {
