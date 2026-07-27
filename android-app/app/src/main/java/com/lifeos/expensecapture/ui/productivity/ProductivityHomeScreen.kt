@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.ui.common.AiInsightCard
 import com.lifeos.expensecapture.ui.common.EntryRow
 import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.common.SectionLabel
@@ -84,6 +85,12 @@ fun ProductivityHomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            uiState.insight?.let { insight ->
+                item {
+                    AiInsightCard(title = "What's working", body = insight)
+                }
+            }
+
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTasks),

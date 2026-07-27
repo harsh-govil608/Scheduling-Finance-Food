@@ -6,12 +6,15 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lifeos.expensecapture.data.db.dao.CategoryDao
 import com.lifeos.expensecapture.data.db.dao.ConsentDao
+import com.lifeos.expensecapture.data.db.dao.GoalDao
 import com.lifeos.expensecapture.data.db.dao.NotificationDao
 import com.lifeos.expensecapture.data.db.dao.TransactionDao
 import com.lifeos.expensecapture.data.db.dao.UnparsedMessageDao
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.finance.SpendingInsightEngine
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
 import com.lifeos.expensecapture.ui.onboarding.CONSENT_SMS
 import com.lifeos.expensecapture.util.ConnectivityObserver
@@ -49,7 +52,8 @@ data class HomeUiState(
     val unreadNotifications: Int = 0,
     val isOnline: Boolean = true,
     val smsPermissionRevoked: Boolean = false,
-    val last7DaysSpend: List<Float> = emptyList()
+    val last7DaysSpend: List<Float> = emptyList(),
+    val spendingInsight: SpendingInsightEngine.SpendingInsight? = null
 )
 
 /** Intermediate grouping to keep the combine() chain to 2-5 arg overloads instead of unsafe
@@ -68,12 +72,19 @@ private data class StatusSnapshot(
     val smsConsentedButRevoked: Boolean
 )
 
+private data class InsightInputsSnapshot(
+    val categories: List<com.lifeos.expensecapture.data.db.entity.CategoryEntity>,
+    val goals: List<com.lifeos.expensecapture.data.db.entity.GoalEntity>
+)
+
 class HomeViewModel(
     context: Context,
     transactionDao: TransactionDao,
     unparsedMessageDao: UnparsedMessageDao,
     notificationDao: NotificationDao,
     consentDao: ConsentDao,
+    categoryDao: CategoryDao,
+    goalDao: GoalDao,
     private val insightsRepository: FinanceInsightsRepository
 ) : ViewModel() {
 
@@ -109,7 +120,14 @@ class HomeViewModel(
         )
     }
 
-    val uiState: StateFlow<HomeUiState> = combine(financeSnapshot, statusSnapshot) { finance, status ->
+    private val insightInputsSnapshot = combine(
+        categoryDao.observeAll(),
+        goalDao.observeAll()
+    ) { categories, goals -> InsightInputsSnapshot(categories, goals) }
+
+    val uiState: StateFlow<HomeUiState> = combine(
+        financeSnapshot, statusSnapshot, insightInputsSnapshot
+    ) { finance, status, insightInputs ->
         val zone = ZoneId.systemDefault()
         val monthStart = LocalDate.now(zone).withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val spent = finance.transactions
@@ -129,6 +147,11 @@ class HomeViewModel(
         val overdueBill = finance.bills.firstOrNull { it.displayStatus == FinanceInsightsRepository.BillDisplayStatus.OVERDUE }
         val overBudget = finance.budgets.firstOrNull { it.spentThisMonth > it.budget.monthlyLimit }
         val cashFlowRisk = computeCashFlowRisk(finance)
+        val spendingInsight = SpendingInsightEngine.compute(
+            transactions = finance.transactions,
+            categories = insightInputs.categories,
+            goals = insightInputs.goals
+        )
 
         val attentionItem = when {
             overdueBill != null -> AttentionItem.OverdueBill(overdueBill.bill.payeeDisplay, overdueBill.bill.typicalAmount)
@@ -148,7 +171,8 @@ class HomeViewModel(
             unreadNotifications = status.unreadNotifications,
             isOnline = status.isOnline,
             smsPermissionRevoked = status.smsConsentedButRevoked,
-            last7DaysSpend = last7DaysSpend
+            last7DaysSpend = last7DaysSpend,
+            spendingInsight = spendingInsight
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

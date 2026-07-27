@@ -161,6 +161,14 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+/** Spending Insight card: a Goal needs a real rupee target for "cutting X/day gets you there N
+ * months sooner" to be an honest computed number rather than an invented one. */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE goals ADD COLUMN targetAmount REAL")
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -182,7 +190,7 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         NoteEntity::class,
         ShoppingItemEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -221,7 +229,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

@@ -100,7 +100,10 @@ fun GoalsScreen(app: App, onBack: () -> Unit) {
 
     if (showAddDialog) {
         AddGoalDialog(
-            onConfirm = { title, targetDate -> viewModel.addGoal(title, targetDate); showAddDialog = false },
+            onConfirm = { title, targetDate, targetAmount ->
+                viewModel.addGoal(title, targetDate, targetAmount)
+                showAddDialog = false
+            },
             onDismiss = { showAddDialog = false }
         )
     }
@@ -128,6 +131,13 @@ private fun GoalCard(goal: GoalEntity, onToggle: () -> Unit, onDelete: () -> Uni
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                goal.targetAmount?.let { amount ->
+                    Text(
+                        "₹${"%,.0f".format(amount)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Delete goal")
@@ -138,9 +148,13 @@ private fun GoalCard(goal: GoalEntity, onToggle: () -> Unit, onDelete: () -> Uni
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddGoalDialog(onConfirm: (title: String, targetDate: Long?) -> Unit, onDismiss: () -> Unit) {
+private fun AddGoalDialog(
+    onConfirm: (title: String, targetDate: Long?, targetAmount: Double?) -> Unit,
+    onDismiss: () -> Unit
+) {
     var title by remember { mutableStateOf("") }
     var targetInDays by remember { mutableStateOf<Int?>(null) }
+    var amountText by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -154,6 +168,13 @@ private fun AddGoalDialog(onConfirm: (title: String, targetDate: Long?) -> Unit,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Target amount, optional (e.g. house down payment)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
                 Row {
                     TextButton(onClick = { targetInDays = null }) { Text(if (targetInDays == null) "• No target date" else "No target date") }
                     TextButton(onClick = { targetInDays = 30 }) { Text(if (targetInDays == 30) "• 1 month" else "1 month") }
@@ -164,7 +185,7 @@ private fun AddGoalDialog(onConfirm: (title: String, targetDate: Long?) -> Unit,
         confirmButton = {
             TextButton(onClick = {
                 val target = targetInDays?.let { days -> System.currentTimeMillis() + days * 86_400_000L }
-                onConfirm(title, target)
+                onConfirm(title, target, amountText.toDoubleOrNull())
             }) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }

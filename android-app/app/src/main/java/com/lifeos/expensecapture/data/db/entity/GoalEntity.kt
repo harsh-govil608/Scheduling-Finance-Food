@@ -17,5 +17,10 @@ data class GoalEntity(
     val targetDate: Long? = null,
     val completed: Boolean = false,
     val completedAt: Long? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** AI Transformation Plan spending-insight card: a real rupee target (e.g. a house down
+     * payment) is what makes "cutting X/day gets you there N months sooner" an honest, computed
+     * number instead of a made-up one. Optional - a goal with no target amount just never appears
+     * in that projection. */
+    val targetAmount: Double? = null
 )

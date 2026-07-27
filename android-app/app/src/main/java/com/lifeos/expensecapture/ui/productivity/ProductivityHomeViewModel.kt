@@ -7,6 +7,7 @@ import com.lifeos.expensecapture.data.db.dao.HabitDao
 import com.lifeos.expensecapture.data.db.dao.TaskDao
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
 import com.lifeos.expensecapture.data.db.entity.TaskEntity
+import com.lifeos.expensecapture.productivity.ProductivityInsightEngine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -18,7 +19,8 @@ data class ProductivityHomeUiState(
     val todayTasks: List<TaskEntity> = emptyList(),
     val totalOpenTasks: Int = 0,
     val pendingHabitsToday: List<HabitEntity> = emptyList(),
-    val totalHabits: Int = 0
+    val totalHabits: Int = 0,
+    val insight: String? = null
 )
 
 /**
@@ -54,7 +56,8 @@ class ProductivityHomeViewModel(
             todayTasks = todayTasks,
             totalOpenTasks = openTasks.size,
             pendingHabitsToday = pendingHabits,
-            totalHabits = habits.size
+            totalHabits = habits.size,
+            insight = ProductivityInsightEngine.compute(tasks, habits, completions)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProductivityHomeUiState())
 }

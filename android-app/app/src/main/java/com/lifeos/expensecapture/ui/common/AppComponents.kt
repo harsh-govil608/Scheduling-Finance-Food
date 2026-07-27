@@ -2,8 +2,10 @@ package com.lifeos.expensecapture.ui.common
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -21,11 +23,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -134,6 +138,42 @@ fun HeroMoneyCard(
             }
             Spacer(Modifier.height(10.dp))
             Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * The one deliberately eye-catching element on either landing screen: a narrative synthesis of
+ * real numbers (SpendingInsightEngine / ProductivityInsightEngine), not a chat box, not a model
+ * call - but the one place this app is allowed to look a little more alive than everything
+ * around it, since this is the actual "does this feel intelligent" moment for the whole product.
+ * A soft primary-tinted gradient + border instead of a solid fill, so it reads as a highlight
+ * against the neutral cards around it without going full gradient-hero cliché.
+ */
+@Composable
+fun AiInsightCard(title: String, body: String, modifier: Modifier = Modifier) {
+    val accent = MaterialTheme.colorScheme.primary
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(Brush.linearGradient(listOf(accent.copy(alpha = 0.18f), accent.copy(alpha = 0.05f))))
+            .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(28.dp))
+            .padding(22.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(
+                    icon = Icons.Filled.AutoAwesome,
+                    tint = accent,
+                    containerColor = accent.copy(alpha = 0.18f),
+                    size = 40.dp
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(body, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }

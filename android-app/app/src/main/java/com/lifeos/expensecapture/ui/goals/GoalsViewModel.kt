@@ -14,9 +14,11 @@ class GoalsViewModel(private val goalDao: GoalDao) : ViewModel() {
     val goals: StateFlow<List<GoalEntity>> = goalDao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addGoal(title: String, targetDate: Long?) {
+    fun addGoal(title: String, targetDate: Long?, targetAmount: Double? = null) {
         if (title.isBlank()) return
-        viewModelScope.launch { goalDao.insert(GoalEntity(title = title.trim(), targetDate = targetDate)) }
+        viewModelScope.launch {
+            goalDao.insert(GoalEntity(title = title.trim(), targetDate = targetDate, targetAmount = targetAmount))
+        }
     }
 
     fun toggleCompleted(goal: GoalEntity) {
