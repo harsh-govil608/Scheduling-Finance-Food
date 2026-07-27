@@ -1,6 +1,6 @@
 {
-  "versionCode": 11,
-  "versionName": "0.11.0-pilot",
+  "versionCode": 12,
+  "versionName": "0.12.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "The app is now proactive: a new AI-style insight card tells you what actually changed in your spending and habits, bills you confirm can turn into real to-dos, you'll get reminders throughout the day (not just once), and you can speak to add a task or item and have your daily briefing read aloud."
+  "notes": "You'll now get an instant alert the moment an unusually large charge is captured, instead of waiting for the next check. Any savings goal with a target amount and date also gets a proactive nudge if it's falling behind pace."
 }
