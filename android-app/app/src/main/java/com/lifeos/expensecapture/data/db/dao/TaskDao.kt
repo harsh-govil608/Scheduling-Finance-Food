@@ -25,4 +25,10 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE projectId = :projectId ORDER BY completed ASC, dueDate ASC, createdAt DESC")
     fun observeForProject(projectId: Long): Flow<List<TaskEntity>>
+
+    /** Most recent task generated from a given Bill, if any - lets the bill-task sync tell a
+     * still-open instance (update in place) apart from one completed for an earlier cycle
+     * (leave it, create a fresh one for the current cycle). */
+    @Query("SELECT * FROM tasks WHERE sourceBillId = :billId ORDER BY dueDate DESC, createdAt DESC LIMIT 1")
+    suspend fun findLatestForBill(billId: Long): TaskEntity?
 }

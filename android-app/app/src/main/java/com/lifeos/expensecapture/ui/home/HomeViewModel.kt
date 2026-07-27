@@ -26,11 +26,18 @@ import java.time.ZoneId
 /**
  * Finance Tracker (Home) PRD, Phase 3 Doc 17. The "needs attention" arbitration rule (Section
  * 8: "when two or more features' signals compete for the single slot") is a fixed precedence
- * here: an overdue bill (real financial consequence) beats an over-budget category
+ * here: an overdue bill (real, specific, immediately-actionable) beats a cash-flow risk
+ * (real but broader/forward-looking - AI Transformation Plan F1) beats an over-budget category
  * (informational) beats a pending review-queue count (lowest urgency).
  */
 sealed class AttentionItem {
     data class OverdueBill(val payee: String, val amount: Double) : AttentionItem()
+    /** AI Transformation Plan F1 (cross-module cash-flow guard): Budgets and Bills each already
+     * show correct numbers, but never cross-checked against each other - a user could look "on
+     * pace" in Budgets while several bills/subscriptions land the same week. Deterministic
+     * projection, not a model: known due-dates within `windowDays` versus remaining budget
+     * headroom at current pace. */
+    data class CashFlowRisk(val upcomingTotal: Double, val availableHeadroom: Double, val windowDays: Int) : AttentionItem()
     data class OverBudget(val categoryName: String, val overspendAmount: Double) : AttentionItem()
     data class UnparsedMessages(val count: Int) : AttentionItem()
 }
@@ -51,6 +58,7 @@ private data class FinanceSnapshot(
     val transactions: List<com.lifeos.expensecapture.data.db.entity.TransactionEntity>,
     val budgets: List<FinanceInsightsRepository.BudgetProgress>,
     val bills: List<FinanceInsightsRepository.BillWithComputedStatus>,
+    val subscriptions: List<FinanceInsightsRepository.SubscriptionWithComputedStatus>,
     val unparsedCount: Int
 )
 
@@ -80,9 +88,10 @@ class HomeViewModel(
         transactionDao.observeAll(),
         insightsRepository.observeBudgetProgress(),
         insightsRepository.observeBills(),
+        insightsRepository.observeSubscriptions(),
         unparsedMessageDao.observeUnresolved()
-    ) { transactions, budgets, bills, unparsed ->
-        FinanceSnapshot(transactions, budgets, bills, unparsed.size)
+    ) { transactions, budgets, bills, subscriptions, unparsed ->
+        FinanceSnapshot(transactions, budgets, bills, subscriptions, unparsed.size)
     }
 
     private val statusSnapshot = combine(
@@ -119,9 +128,11 @@ class HomeViewModel(
 
         val overdueBill = finance.bills.firstOrNull { it.displayStatus == FinanceInsightsRepository.BillDisplayStatus.OVERDUE }
         val overBudget = finance.budgets.firstOrNull { it.spentThisMonth > it.budget.monthlyLimit }
+        val cashFlowRisk = computeCashFlowRisk(finance)
 
         val attentionItem = when {
             overdueBill != null -> AttentionItem.OverdueBill(overdueBill.bill.payeeDisplay, overdueBill.bill.typicalAmount)
+            cashFlowRisk != null -> cashFlowRisk
             overBudget != null -> AttentionItem.OverBudget(
                 overBudget.categoryName,
                 overBudget.spentThisMonth - overBudget.budget.monthlyLimit
@@ -140,4 +151,43 @@ class HomeViewModel(
             last7DaysSpend = last7DaysSpend
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    /**
+     * AI Transformation Plan F1. Projects known due-dates (Bills, plus Subscriptions - a real
+     * upcoming debit even though it's automatic, see NotificationCheckWorker.syncBillTasks' kdoc
+     * for why Subscriptions are excluded from *that* feature but belong here) within
+     * [CASH_FLOW_WINDOW_DAYS] against remaining budget headroom at current pace. Deliberately
+     * returns null (no signal, not a false "you're fine") when no budget exists at all - there's
+     * nothing to project a pace against.
+     */
+    private fun computeCashFlowRisk(finance: FinanceSnapshot): AttentionItem.CashFlowRisk? {
+        if (finance.budgets.isEmpty()) return null
+
+        val upcomingBillsTotal = finance.bills
+            .filter {
+                it.bill.status == com.lifeos.expensecapture.data.db.entity.BillStatus.CONFIRMED_TRACKED &&
+                    it.displayStatus != FinanceInsightsRepository.BillDisplayStatus.PAID_THIS_CYCLE &&
+                    it.daysUntilDue <= CASH_FLOW_WINDOW_DAYS
+            }
+            .sumOf { it.bill.typicalAmount }
+
+        val now = System.currentTimeMillis()
+        val upcomingSubsTotal = finance.subscriptions
+            .filter {
+                (it.displayStatus == FinanceInsightsRepository.SubscriptionDisplayStatus.TRACKED ||
+                    it.displayStatus == FinanceInsightsRepository.SubscriptionDisplayStatus.RENEWAL_UPCOMING) &&
+                    (it.nextExpectedDate - now) / 86_400_000.0 <= CASH_FLOW_WINDOW_DAYS
+            }
+            .sumOf { it.subscription.amount }
+
+        val upcomingTotal = upcomingBillsTotal + upcomingSubsTotal
+        val availableHeadroom = finance.budgets.sumOf { (it.budget.monthlyLimit - it.spentThisMonth).coerceAtLeast(0.0) }
+
+        if (upcomingTotal <= availableHeadroom) return null
+        return AttentionItem.CashFlowRisk(upcomingTotal, availableHeadroom, CASH_FLOW_WINDOW_DAYS)
+    }
+
+    companion object {
+        private const val CASH_FLOW_WINDOW_DAYS = 14
+    }
 }

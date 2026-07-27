@@ -139,6 +139,28 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+/**
+ * AI Transformation Plan H1 (bill-to-task auto-creation): tasks generated from a Bill need a
+ * stable link back to it (see TaskEntity.sourceBillId's kdoc) so the sync worker can update the
+ * same task in place instead of spawning a new one every check. A plain nullable column, no FK
+ * constraint - consistent with how TaskEntity.projectId already links to Projects in this schema.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tasks ADD COLUMN sourceBillId INTEGER")
+    }
+}
+
+/** AI Transformation Plan F2 (recurring pattern intelligence, generalized): shopping items need
+ * a checked-timestamp (see ShoppingItemEntity.checkedAt's kdoc) to detect an "about due" pattern
+ * from repeated check events, the same way subscriptions/bills are detected from repeated
+ * transactions. */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE shopping_items ADD COLUMN checkedAt INTEGER")
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -160,7 +182,7 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         NoteEntity::class,
         ShoppingItemEntity::class
     ],
-    version = 8,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -195,10 +217,11 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expense_capture_pilot.db"
                 )
-                    // Real migration path for 7->8 (see MIGRATION_7_8's kdoc for why this
-                    // finally mattered enough to do). Destructive fallback stays as a safety
-                    // net for any other version gap.
-                    .addMigrations(MIGRATION_7_8)
+                    // Real migration path for every version gap so far (see each Migration's
+                    // own kdoc). Destructive fallback stays as a safety net for any gap that
+                    // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
+                    // why a wipe is still preferable to a crash-on-open as a last resort.
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

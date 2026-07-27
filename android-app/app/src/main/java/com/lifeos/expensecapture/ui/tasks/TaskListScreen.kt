@@ -66,7 +66,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskListScreen(app: App, onBack: () -> Unit) {
-    val viewModel = remember { TaskListViewModel(app.database.taskDao()) }
+    val viewModel = remember { TaskListViewModel(app.database.taskDao(), app.database.billDao()) }
     val tasks by viewModel.tasks.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 

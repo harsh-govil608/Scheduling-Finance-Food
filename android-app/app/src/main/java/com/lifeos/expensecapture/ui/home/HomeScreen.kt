@@ -330,6 +330,9 @@ fun HomeScreen(
 
 private fun attentionItemText(item: AttentionItem): String = when (item) {
     is AttentionItem.OverdueBill -> "${item.payee} (~₹${"%.2f".format(item.amount)}) looks overdue"
+    is AttentionItem.CashFlowRisk ->
+        "₹${"%.2f".format(item.upcomingTotal)} in bills and subscriptions due in the next ${item.windowDays} days - " +
+            "current budget pace leaves ₹${"%.2f".format(item.availableHeadroom)}"
     is AttentionItem.OverBudget -> "${item.categoryName} is ₹${"%.2f".format(item.overspendAmount)} over budget this month"
     is AttentionItem.UnparsedMessages -> "${item.count} message${if (item.count == 1) "" else "s"} couldn't be read automatically"
 }

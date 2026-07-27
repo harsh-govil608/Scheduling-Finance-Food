@@ -26,5 +26,10 @@ data class TaskEntity(
     val createdAt: Long = System.currentTimeMillis(),
     /** Projects PRD, Phase 3 Doc 11, scoped to exactly this: a task optionally tagged to a
      * project, no dependency graph or milestone tracking. Null means "not part of a project". */
-    val projectId: Long? = null
+    val projectId: Long? = null,
+    /** AI Transformation Plan H1 (bill-to-task auto-creation): links this task back to the Bill
+     * it was generated from, so NotificationCheckWorker.syncBillTasks can update the same task in
+     * place across checks instead of spawning a duplicate every cycle. Null means self-authored,
+     * not bill-generated - the overwhelming majority of tasks. */
+    val sourceBillId: Long? = null
 )

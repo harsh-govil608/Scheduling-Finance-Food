@@ -19,6 +19,16 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
+/** Needs at least this many charges from a merchant before a "prior average" is meaningful
+ * enough to compare the latest one against - otherwise two charges could each read as 100% drift
+ * off the other. See FinanceInsightsRepository.PriceDrift's kdoc. */
+private const val MIN_CHARGES_FOR_DRIFT_CHECK = 3
+
+/** A product-level threshold, same spirit as RecurringPatternDetector's own
+ * SUBSCRIPTION_VARIANCE_THRESHOLD_PERCENT - an explicit, named decision rather than a buried
+ * algorithm detail, tunable once real usage shows it's wrong. */
+private const val PRICE_DRIFT_THRESHOLD_PERCENT = 20.0
+
 /**
  * Backs Finance Tracker (Home), Budget Planner, Subscription Manager, Bills, and Spend
  * Prediction (Phase 3 Docs 17, 19, 20, 21, 22) - all "insights derived from the transaction
@@ -186,14 +196,24 @@ class FinanceInsightsRepository(
 
     enum class SubscriptionDisplayStatus { UNCONFIRMED, TRACKED, RENEWAL_UPCOMING, POSSIBLY_LAPSED, CANCELLED }
 
+    /** AI Transformation Plan F2 (recurring pattern intelligence, generalized): the existing
+     * detector only ever asked "does this repeat," never "did this change" - a subscription
+     * creeping from ₹199 to ₹649 went completely unflagged since `refreshRecurringDetection`
+     * stores a rolling average that absorbs a price change into itself over a few cycles instead
+     * of surfacing it. Computed at display time from the raw transaction history (the most recent
+     * charge versus the average of every prior one for that merchant), not persisted - consistent
+     * with how every other bill/subscription status in this file is derived, not stored. */
+    data class PriceDrift(val latestAmount: Double, val priorAverageAmount: Double, val percentChange: Double)
+
     data class SubscriptionWithComputedStatus(
         val subscription: SubscriptionEntity,
         val displayStatus: SubscriptionDisplayStatus,
-        val nextExpectedDate: Long
+        val nextExpectedDate: Long,
+        val priceDrift: PriceDrift?
     )
 
     fun observeSubscriptions(): Flow<List<SubscriptionWithComputedStatus>> {
-        return subscriptionDao.observeAll().map { subs ->
+        return combine(subscriptionDao.observeAll(), transactionDao.observeAll()) { subs, transactions ->
             subs.map { sub ->
                 val nextExpected = sub.lastTransactionDate + (sub.cadenceDays * 86_400_000L)
                 val daysUntilNext = (nextExpected - System.currentTimeMillis()) / 86_400_000.0
@@ -204,7 +224,20 @@ class FinanceInsightsRepository(
                     daysUntilNext in -3.0..3.0 -> SubscriptionDisplayStatus.RENEWAL_UPCOMING
                     else -> SubscriptionDisplayStatus.TRACKED
                 }
-                SubscriptionWithComputedStatus(sub, status, nextExpected)
+
+                val merchantCharges = transactions
+                    .filter { it.direction == TransactionDirection.DEBIT && it.merchantNormalized == sub.merchantNormalized }
+                    .sortedBy { it.date }
+                val priceDrift = if (merchantCharges.size >= MIN_CHARGES_FOR_DRIFT_CHECK) {
+                    val latest = merchantCharges.last().amount
+                    val priorAverage = merchantCharges.dropLast(1).map { it.amount }.average()
+                    val percentChange = if (priorAverage > 0) ((latest - priorAverage) / priorAverage) * 100.0 else 0.0
+                    if (kotlin.math.abs(percentChange) >= PRICE_DRIFT_THRESHOLD_PERCENT) {
+                        PriceDrift(latest, priorAverage, percentChange)
+                    } else null
+                } else null
+
+                SubscriptionWithComputedStatus(sub, status, nextExpected, priceDrift)
             }
         }
     }
@@ -242,16 +275,24 @@ class FinanceInsightsRepository(
 
     data class BillWithComputedStatus(
         val bill: BillEntity,
-        val displayStatus: BillDisplayStatus
+        val displayStatus: BillDisplayStatus,
+        /** Negative once overdue. Added for the AI Transformation Plan's H1 (bill-to-task
+         * auto-creation) and F1 (cross-module cash-flow guard), both of which need a "due within
+         * N days" window rather than just the coarser UPCOMING/DUE_TODAY/OVERDUE bucket. */
+        val daysUntilDue: Long,
+        /** This cycle's resolved due date (start-of-day millis), so downstream consumers don't
+         * each re-derive dueThisMonth from dueDayOfMonth themselves. */
+        val dueDateThisCycleMillis: Long
     )
 
     fun observeBills(): Flow<List<BillWithComputedStatus>> {
         return billDao.observeAll().map { bills ->
             bills.map { bill ->
-                val today = LocalDate.now()
+                val zone = ZoneId.systemDefault()
+                val today = LocalDate.now(zone)
                 val dueThisMonth = today.withDayOfMonth(bill.dueDayOfMonth.coerceAtMost(today.lengthOfMonth()))
                 val paidThisCycle = bill.lastPaidDate?.let { paidMillis ->
-                    val paidDate = Instant.ofEpochMilli(paidMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+                    val paidDate = Instant.ofEpochMilli(paidMillis).atZone(zone).toLocalDate()
                     ChronoUnit.DAYS.between(paidDate, dueThisMonth) in 0..27
                 } ?: false
 
@@ -263,7 +304,12 @@ class FinanceInsightsRepository(
                     today.isEqual(dueThisMonth) -> BillDisplayStatus.DUE_TODAY
                     else -> BillDisplayStatus.UPCOMING
                 }
-                BillWithComputedStatus(bill, status)
+                BillWithComputedStatus(
+                    bill = bill,
+                    displayStatus = status,
+                    daysUntilDue = ChronoUnit.DAYS.between(today, dueThisMonth),
+                    dueDateThisCycleMillis = dueThisMonth.atStartOfDay(zone).toInstant().toEpochMilli()
+                )
             }
         }
     }

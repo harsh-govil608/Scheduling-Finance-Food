@@ -22,4 +22,7 @@ interface BillDao {
 
     @Query("SELECT * FROM bills WHERE payeeNormalized = :payee LIMIT 1")
     suspend fun findByPayee(payee: String): BillEntity?
+
+    @Query("SELECT * FROM bills WHERE id = :id LIMIT 1")
+    suspend fun findById(id: Long): BillEntity?
 }

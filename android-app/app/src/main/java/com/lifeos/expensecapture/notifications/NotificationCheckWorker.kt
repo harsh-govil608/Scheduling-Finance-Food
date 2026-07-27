@@ -17,8 +17,10 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.lifeos.expensecapture.MainActivity
 import com.lifeos.expensecapture.data.db.AppDatabase
+import com.lifeos.expensecapture.data.db.entity.BillStatus
 import com.lifeos.expensecapture.data.db.entity.NotificationEntity
 import com.lifeos.expensecapture.data.db.entity.NotificationType
+import com.lifeos.expensecapture.data.db.entity.TaskEntity
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.flow.first
@@ -49,6 +51,7 @@ class NotificationCheckWorker(
 
     companion object {
         private const val COOLDOWN_MILLIS = 20L * 60 * 60 * 1000 // ~20h: at most once/day per item
+        private const val DUE_SOON_WINDOW_DAYS = 3L // matches checkBills' own DUE_TODAY/OVERDUE horizon
 
         fun schedulePeriodic(context: Context) {
             val request = PeriodicWorkRequestBuilder<NotificationCheckWorker>(6, TimeUnit.HOURS).build()
@@ -92,6 +95,7 @@ class NotificationCheckWorker(
         checkTasks(db)
         checkHabits(db)
         checkNightSummary(db)
+        syncBillTasks(db, insights)
 
         return Result.success()
     }
@@ -112,6 +116,61 @@ class NotificationCheckWorker(
                 route = route,
                 cooldownKey = route + item.bill.id
             )
+        }
+    }
+
+    /**
+     * AI Transformation Plan H1: Finance knows a bill is coming due; Home's Tasks had no idea it
+     * existed - a bill generated a push notification here and nothing else, never became a thing
+     * to actually do. This bridges the two, deterministically, no model involved: within
+     * `DUE_SOON_WINDOW_DAYS` of a CONFIRMED_TRACKED bill's due date, ensure a linked task exists
+     * on Home's own Due Today list.
+     *
+     * Scoped to Bills only, not Subscriptions - Subscriptions are auto-debited recurring charges
+     * (see SubscriptionEntity's kdoc), not something the user needs to go *do*, so a "pay Netflix"
+     * task would be a false action item. Bills (Doc 22) are explicitly the variable-amount,
+     * user-actioned kind (rent, informal loans) - the PRD's own distinction from Subscriptions.
+     *
+     * A separate data sync from checkBills' push notification above: this runs every worker pass
+     * unconditionally (no cooldown) since it's idempotent - re-running it with unchanged data is a
+     * no-op, not a repeat notification.
+     */
+    private suspend fun syncBillTasks(db: AppDatabase, insights: FinanceInsightsRepository) {
+        val bills = insights.observeBills().first()
+        for (item in bills) {
+            val bill = item.bill
+            val actionable = bill.status == BillStatus.CONFIRMED_TRACKED &&
+                item.displayStatus != FinanceInsightsRepository.BillDisplayStatus.PAID_THIS_CYCLE &&
+                item.daysUntilDue <= DUE_SOON_WINDOW_DAYS
+            if (!actionable) continue
+
+            val title = "Pay ${bill.payeeDisplay} (~₹${"%.2f".format(bill.typicalAmount)})"
+            val existing = db.taskDao().findLatestForBill(bill.id)
+
+            when {
+                existing != null && !existing.completed -> {
+                    // Update in place rather than spawning a duplicate every check.
+                    if (existing.title != title || existing.dueDate != item.dueDateThisCycleMillis) {
+                        db.taskDao().update(
+                            existing.copy(title = title, dueDate = item.dueDateThisCycleMillis)
+                        )
+                    }
+                }
+                existing == null || (existing.dueDate ?: 0L) < item.dueDateThisCycleMillis -> {
+                    // No linked task yet, or the last one was completed for an earlier cycle -
+                    // this is a new cycle's bill, needs its own task instance (no recurrence
+                    // engine in this app - see TaskEntity's kdoc - so a fresh row per cycle is
+                    // the honest scope here, same as how a completed habit-day never gets reused).
+                    db.taskDao().insert(
+                        TaskEntity(
+                            title = title,
+                            dueDate = item.dueDateThisCycleMillis,
+                            sourceBillId = bill.id
+                        )
+                    )
+                }
+                // else: already completed for this exact cycle - leave it, nothing to do.
+            }
         }
     }
 
