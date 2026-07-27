@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -19,6 +20,8 @@ import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -57,6 +60,27 @@ class NotificationCheckWorker(
         private const val GOAL_ON_TRACK_RATIO = 0.7 // pace below 70% of what's needed counts as "off track"
         private val DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d")
 
+        /**
+         * Pre-beta hardening (Priority 4 - reliability, race condition): `runOnce()` used to
+         * enqueue a plain, unnamed one-time work request every single time - every HomeViewModel
+         * construction (which happens on every Home-tab open, including rapid tab-switching or a
+         * config change recomposing the screen) fired a brand new one, free to run fully
+         * concurrently with any other in-flight execution. That's a real check-then-act race:
+         * two concurrent runs of syncBillTasks could both see "no task for this bill yet" before
+         * either commits its insert, producing a genuine duplicate task. Named + KEEP means a
+         * trigger that arrives while one is already pending/running is simply dropped - the
+         * check still happens soon, just not redundantly N times over.
+         */
+        private const val ONE_TIME_WORK_NAME = "notification_check_once"
+
+        /** A second, cheaper layer than WorkManager naming alone: this survives even the rarer
+         * case of the periodic worker and a run-once request happening to execute at the same
+         * moment (they're different unique-work names, so WorkManager alone won't serialize
+         * them). Held for doWork()'s entire body - a second execution simply waits, and by the
+         * time it runs, the first's writes are already committed, so its own idempotency checks
+         * (findLatestForBill, recentlyNotified) correctly see "already handled" instead of racing. */
+        private val executionMutex = Mutex()
+
         fun schedulePeriodic(context: Context) {
             // "Reminders everywhere," not a daily batch: 6h -> 2h, the closest a periodic
             // WorkManager job (min 15 min, subject to Doze/battery deferral regardless of the
@@ -70,11 +94,15 @@ class NotificationCheckWorker(
         }
 
         fun runOnce(context: Context) {
-            WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<NotificationCheckWorker>().build())
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                ONE_TIME_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<NotificationCheckWorker>().build()
+            )
         }
     }
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = executionMutex.withLock {
         // Pre-beta hardening (Priority 4 - reliability): every check below used to run as one
         // unbroken sequence of suspend calls - a single exception anywhere (say, checkBills
         // hitting a null it didn't expect) silently aborted every check after it in that pass,
@@ -84,6 +112,10 @@ class NotificationCheckWorker(
         // Each check now runs in its own try/catch via runCheck(), logged with AppLogger so a
         // failure is visible (see the Diagnostics screen) instead of just vanishing, and one
         // check's failure can no longer take out every other one in the same pass.
+        //
+        // The whole body also runs under executionMutex (see its kdoc) - two concurrent
+        // executions of this worker running their check suites interleaved is exactly the
+        // check-then-act race that let syncBillTasks create a duplicate task under overlap.
         val hasSmsPermission = ContextCompat.checkSelfPermission(
             applicationContext, Manifest.permission.READ_SMS
         ) == PackageManager.PERMISSION_GRANTED
@@ -114,7 +146,7 @@ class NotificationCheckWorker(
         runCheck("checkGoalsOffTrack") { checkGoalsOffTrack(db) }
         runCheck("syncBillTasks") { syncBillTasks(db, insights) }
 
-        return Result.success()
+        Result.success()
     }
 
     private suspend fun runCheck(name: String, block: suspend () -> Unit) {
