@@ -193,6 +193,31 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
     }
 }
 
+/**
+ * Bug fix (found via a real user report, 2026-07): merchant_rules had no way to enforce "one
+ * rule per merchant pattern" - see MerchantRuleEntity's kdoc for the full story. Existing
+ * installs may already have accumulated contradictory duplicate rules for the same merchant
+ * (e.g. correcting a mis-tap creates a second row instead of replacing the first), so the
+ * unique index can't just be added - it would fail to create over existing duplicate data.
+ * This keeps only the most recently created rule per pattern (highest id = latest correction,
+ * matching what the user most recently told the app) before adding the index that prevents the
+ * duplication from recurring.
+ */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            DELETE FROM merchant_rules WHERE id NOT IN (
+                SELECT MAX(id) FROM merchant_rules GROUP BY merchantPattern
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_merchant_rules_merchantPattern` ON `merchant_rules` (`merchantPattern`)"
+        )
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -215,7 +240,7 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         ShoppingItemEntity::class,
         CrashLogEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -255,7 +280,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

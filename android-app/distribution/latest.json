@@ -1,6 +1,6 @@
 {
-  "versionCode": 15,
-  "versionName": "0.15.0-pilot",
+  "versionCode": 16,
+  "versionName": "0.16.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Needs attention now names the specific category when one's over its own budget, instead of just the overall total. Also added a gentle nudge when transactions pile up uncategorized, pointing you to Ledger so budgets and insights stay accurate."
+  "notes": "Fixed a bug where correcting the same merchant's category twice (including fixing a mis-tap) could leave contradictory rules behind, causing that merchant's future transactions to categorize unpredictably. Existing rules are automatically cleaned up on update."
 }
