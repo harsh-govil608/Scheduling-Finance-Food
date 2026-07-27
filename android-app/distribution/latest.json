@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "0.12.0-pilot",
+  "versionCode": 13,
+  "versionName": "0.13.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "You'll now get an instant alert the moment an unusually large charge is captured, instead of waiting for the next check. Any savings goal with a target amount and date also gets a proactive nudge if it's falling behind pace."
+  "notes": "Behind-the-scenes reliability work: the app now keeps a local, private log if anything goes wrong (Profile > Diagnostics), and background checks are more resilient so one hiccup can't silently stop the others."
 }
