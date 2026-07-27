@@ -15,5 +15,10 @@ data class ShoppingItemEntity(
     val name: String,
     val quantity: String = "",
     val checked: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** AI Transformation Plan F2 (recurring pattern intelligence, generalized): when an item was
+     * last checked off, so repeated check events for the same item name over time can suggest
+     * "about due" - the same interval-averaging shape RecurringPatternDetector already applies to
+     * transactions, applied here to shopping items instead. Null until first checked. */
+    val checkedAt: Long? = null
 )

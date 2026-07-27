@@ -189,6 +189,14 @@ private fun SubscriptionCard(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(statusText(item, dateFormat), style = MaterialTheme.typography.bodySmall)
+            item.priceDrift?.let { drift ->
+                Text(
+                    "The last charge was ₹${"%.2f".format(drift.latestAmount)} - it's usually " +
+                        "around ₹${"%.2f".format(drift.priorAverageAmount)}, worth a look",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
 
             when (item.displayStatus) {
                 SubscriptionDisplayStatus.UNCONFIRMED -> {

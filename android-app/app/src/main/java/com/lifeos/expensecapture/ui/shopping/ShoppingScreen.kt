@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -45,6 +47,7 @@ import com.lifeos.expensecapture.App
 fun ShoppingScreen(app: App, onBack: () -> Unit) {
     val viewModel = remember { ShoppingViewModel(app.database.shoppingItemDao()) }
     val items by viewModel.items.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -64,34 +67,55 @@ fun ShoppingScreen(app: App, onBack: () -> Unit) {
             }
         }
     ) { padding ->
-        if (items.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Your list is empty. Tap + to add something.")
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(items, key = { it.id }) { item ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { viewModel.toggleChecked(item) },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(checked = item.checked, onCheckedChange = { viewModel.toggleChecked(item) })
-                        Text(
-                            if (item.quantity.isBlank()) item.name else "${item.name} (${item.quantity})",
-                            style = MaterialTheme.typography.bodyLarge,
-                            textDecoration = if (item.checked) TextDecoration.LineThrough else null,
-                            color = if (item.checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (suggestions.isNotEmpty()) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(suggestions, key = { it.name }) { suggestion ->
+                        // AI Transformation Plan F2: a soft suggestion from real buying cadence,
+                        // not a prediction stated as fact - and never auto-added, tapping is what
+                        // adds it (reuses the normal addItem path via acceptSuggestion).
+                        AssistChip(
+                            onClick = { viewModel.acceptSuggestion(suggestion) },
+                            label = {
+                                Text("${suggestion.name} · last bought ${suggestion.daysSinceLastBought}d ago")
+                            }
                         )
-                        IconButton(onClick = { viewModel.delete(item) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete item")
+                    }
+                }
+            }
+
+            if (items.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Your list is empty. Tap + to add something.")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(items, key = { it.id }) { item ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { viewModel.toggleChecked(item) },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(checked = item.checked, onCheckedChange = { viewModel.toggleChecked(item) })
+                            Text(
+                                if (item.quantity.isBlank()) item.name else "${item.name} (${item.quantity})",
+                                style = MaterialTheme.typography.bodyLarge,
+                                textDecoration = if (item.checked) TextDecoration.LineThrough else null,
+                                color = if (item.checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = { viewModel.delete(item) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete item")
+                            }
                         }
                     }
                 }
