@@ -38,6 +38,7 @@ fun ProfileScreen(
     onBack: () -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenAutomationRules: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
     onDataDeleted: () -> Unit
 ) {
     val context = LocalContext.current
@@ -85,6 +86,7 @@ fun ProfileScreen(
 
             TextButton(onClick = onOpenPermissions) { Text("Manage permissions") }
             TextButton(onClick = onOpenAutomationRules) { Text("Automation rules") }
+            TextButton(onClick = onOpenDiagnostics) { Text("Diagnostics") }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 

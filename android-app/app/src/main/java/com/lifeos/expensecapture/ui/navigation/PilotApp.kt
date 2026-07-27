@@ -31,6 +31,7 @@ import com.lifeos.expensecapture.ui.notifications.NotificationCenterScreen
 import com.lifeos.expensecapture.ui.onboarding.PermissionScreen
 import com.lifeos.expensecapture.ui.permissions.PermissionsScreen
 import com.lifeos.expensecapture.ui.productivity.ProductivityHomeScreen
+import com.lifeos.expensecapture.ui.diagnostics.DiagnosticsScreen
 import com.lifeos.expensecapture.ui.profile.ProfileScreen
 import com.lifeos.expensecapture.ui.projects.ProjectDetailScreen
 import com.lifeos.expensecapture.ui.projects.ProjectsScreen
@@ -212,6 +213,7 @@ fun PilotApp(app: App) {
                 onBack = { navController.popBackStack() },
                 onOpenPermissions = { navController.navigate("permissions") },
                 onOpenAutomationRules = { navController.navigate("rules") },
+                onOpenDiagnostics = { navController.navigate("diagnostics") },
                 onDataDeleted = {
                     navController.navigate("permission") {
                         popUpTo(0)
@@ -224,6 +226,9 @@ fun PilotApp(app: App) {
         }
         composable("rules") {
             AutomationRulesScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("diagnostics") {
+            DiagnosticsScreen(app = app, onBack = { navController.popBackStack() })
         }
     }
 }

@@ -7,6 +7,7 @@ import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.NotificationType
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
+import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.notifications.NotificationSender
 import com.lifeos.expensecapture.util.Prefs
 import com.lifeos.expensecapture.widget.SpendWidgetProvider
@@ -35,15 +36,40 @@ class ParseIncomingSmsWorker(
         val body = inputData.getString(KEY_BODY) ?: return Result.failure()
 
         val db = AppDatabase.getInstance(applicationContext)
-        val transaction = TransactionIngestor.ingest(db, sender, body, System.currentTimeMillis())
-        SpendWidgetProvider.updateAll(applicationContext)
+
+        // Pre-beta hardening (Priority 4 - reliability): this is the single most important
+        // capture path in the app, running on every incoming bank SMS, and it previously had no
+        // error handling at all - an exception here (a genuine bug, not a malformed-SMS case,
+        // since TransactionParser already handles those via ParseResult.Unparsed) would silently
+        // drop that one transaction forever with zero record and no retry, the same class of
+        // silent-data-loss bug this project has already hit twice before (see day-3.md). Now
+        // logged with context and actually retried via WorkManager's own backoff instead of lost.
+        val transaction = try {
+            TransactionIngestor.ingest(db, sender, body, System.currentTimeMillis())
+        } catch (e: Exception) {
+            AppLogger.e("ParseIncomingSmsWorker", "ingest failed for sender=$sender", e)
+            return Result.retry()
+        }
+
+        try {
+            SpendWidgetProvider.updateAll(applicationContext)
+        } catch (e: Exception) {
+            // The transaction is already safely committed at this point - a widget refresh
+            // failure is cosmetic and must never turn into a lost/retried transaction.
+            AppLogger.e("ParseIncomingSmsWorker", "widget update failed", e)
+        }
 
         // The one genuinely real-time proactive signal in this app: react to a transaction the
         // moment it's captured, not on the next 2-hour periodic check. Deliberately only reached
         // from this live path - see TransactionIngestor.ingest's kdoc for why the history-backfill
-        // path must never trigger this.
+        // path must never trigger this. Wrapped separately so a failure here can never affect the
+        // already-successful capture above.
         if (transaction != null) {
-            checkAnomalyAndNotify(db, transaction)
+            try {
+                checkAnomalyAndNotify(db, transaction)
+            } catch (e: Exception) {
+                AppLogger.e("ParseIncomingSmsWorker", "anomaly check failed for transaction=${transaction.id}", e)
+            }
         }
 
         return Result.success()

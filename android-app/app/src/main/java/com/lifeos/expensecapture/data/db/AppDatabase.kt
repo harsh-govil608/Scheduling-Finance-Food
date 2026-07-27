@@ -13,6 +13,7 @@ import com.lifeos.expensecapture.data.db.dao.BudgetDao
 import com.lifeos.expensecapture.data.db.dao.CategoryDao
 import com.lifeos.expensecapture.data.db.dao.ConsentDao
 import com.lifeos.expensecapture.data.db.dao.CorrectionDao
+import com.lifeos.expensecapture.data.db.dao.CrashLogDao
 import com.lifeos.expensecapture.data.db.dao.GoalDao
 import com.lifeos.expensecapture.data.db.dao.HabitCompletionDao
 import com.lifeos.expensecapture.data.db.dao.HabitDao
@@ -32,6 +33,7 @@ import com.lifeos.expensecapture.data.db.entity.BudgetEntity
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.db.entity.ConsentEntity
 import com.lifeos.expensecapture.data.db.entity.CorrectionEntity
+import com.lifeos.expensecapture.data.db.entity.CrashLogEntity
 import com.lifeos.expensecapture.data.db.entity.GoalEntity
 import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
@@ -169,6 +171,28 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+/** Pre-beta hardening (Priority 2): local crash/handled-exception log - see CrashLogEntity's
+ * kdoc for why this exists and why it never leaves the device. */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `crash_logs` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `timestamp` INTEGER NOT NULL,
+                `fatal` INTEGER NOT NULL,
+                `threadName` TEXT NOT NULL,
+                `exceptionType` TEXT NOT NULL,
+                `message` TEXT,
+                `stackTrace` TEXT NOT NULL,
+                `appVersionName` TEXT NOT NULL,
+                `source` TEXT
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -188,9 +212,10 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         ProjectEntity::class,
         GoalEntity::class,
         NoteEntity::class,
-        ShoppingItemEntity::class
+        ShoppingItemEntity::class,
+        CrashLogEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -214,6 +239,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun noteDao(): NoteDao
     abstract fun shoppingItemDao(): ShoppingItemDao
+    abstract fun crashLogDao(): CrashLogDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -229,7 +255,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

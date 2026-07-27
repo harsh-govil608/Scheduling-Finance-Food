@@ -16,6 +16,7 @@ import com.lifeos.expensecapture.data.db.entity.NotificationType
 import com.lifeos.expensecapture.data.db.entity.TaskEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
@@ -74,15 +75,20 @@ class NotificationCheckWorker(
     }
 
     override suspend fun doWork(): Result {
-        // Safety net for the SmsHistoryScanner interruption class of bug (see its kdoc): every
-        // periodic run and every Home open (runOnce is called from both) also catches up on any
-        // SMS the live receiver path might have missed, instead of relying solely on the
-        // one-shot onboarding scan ever finishing in one pass.
+        // Pre-beta hardening (Priority 4 - reliability): every check below used to run as one
+        // unbroken sequence of suspend calls - a single exception anywhere (say, checkBills
+        // hitting a null it didn't expect) silently aborted every check after it in that pass,
+        // with zero record of what happened. WorkManager catches the resulting failure internally
+        // (it doesn't crash the app), but the practical effect was identical: half the proactive
+        // signals this app is built on could silently stop firing with nothing to show for it.
+        // Each check now runs in its own try/catch via runCheck(), logged with AppLogger so a
+        // failure is visible (see the Diagnostics screen) instead of just vanishing, and one
+        // check's failure can no longer take out every other one in the same pass.
         val hasSmsPermission = ContextCompat.checkSelfPermission(
             applicationContext, Manifest.permission.READ_SMS
         ) == PackageManager.PERMISSION_GRANTED
         if (hasSmsPermission) {
-            SmsHistoryScanner.scanIfNeeded(applicationContext)
+            runCheck("smsHistoryScan") { SmsHistoryScanner.scanIfNeeded(applicationContext) }
         }
 
         val db = AppDatabase.getInstance(applicationContext)
@@ -93,22 +99,30 @@ class NotificationCheckWorker(
             subscriptionDao = db.subscriptionDao(),
             billDao = db.billDao()
         )
-        insights.refreshRecurringDetection()
+        runCheck("refreshRecurringDetection") { insights.refreshRecurringDetection() }
 
-        checkBills(db, insights)
-        checkSubscriptions(db, insights)
-        checkBudgets(db, insights)
-        checkBudgetPace(db, insights)
-        checkTasks(db)
-        checkTasksDueSoon(db)
-        checkHabits(db)
-        checkHabitsAtRisk(db)
-        checkNightSummary(db)
-        checkMorningHeadsUp(db, insights)
-        checkGoalsOffTrack(db)
-        syncBillTasks(db, insights)
+        runCheck("checkBills") { checkBills(db, insights) }
+        runCheck("checkSubscriptions") { checkSubscriptions(db, insights) }
+        runCheck("checkBudgets") { checkBudgets(db, insights) }
+        runCheck("checkBudgetPace") { checkBudgetPace(db, insights) }
+        runCheck("checkTasks") { checkTasks(db) }
+        runCheck("checkTasksDueSoon") { checkTasksDueSoon(db) }
+        runCheck("checkHabits") { checkHabits(db) }
+        runCheck("checkHabitsAtRisk") { checkHabitsAtRisk(db) }
+        runCheck("checkNightSummary") { checkNightSummary(db) }
+        runCheck("checkMorningHeadsUp") { checkMorningHeadsUp(db, insights) }
+        runCheck("checkGoalsOffTrack") { checkGoalsOffTrack(db) }
+        runCheck("syncBillTasks") { syncBillTasks(db, insights) }
 
         return Result.success()
+    }
+
+    private suspend fun runCheck(name: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            AppLogger.e("NotificationCheckWorker", "check failed: $name", e)
+        }
     }
 
     private suspend fun checkBills(db: AppDatabase, insights: FinanceInsightsRepository) {
