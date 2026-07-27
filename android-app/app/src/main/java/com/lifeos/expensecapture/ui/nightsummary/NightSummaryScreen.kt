@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingFlat
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +32,7 @@ import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.ui.common.AccentInfoCard
 import com.lifeos.expensecapture.ui.common.HeroMoneyCard
+import com.lifeos.expensecapture.ui.common.rememberSpeaker
 
 /**
  * Night Summary PRD, Phase 3 Doc 02: closes the day as evidence the AI was paying attention,
@@ -56,6 +58,7 @@ fun NightSummaryScreen(app: App, onBack: () -> Unit) {
         )
     }
     val uiState by viewModel.uiState.collectAsState()
+    val speak = rememberSpeaker()
 
     Scaffold(
         topBar = {
@@ -64,6 +67,11 @@ fun NightSummaryScreen(app: App, onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { speak(daySummaryForSpeech(uiState)) }) {
+                        Icon(Icons.Filled.VolumeUp, contentDescription = "Read my day aloud")
                     }
                 }
             )
@@ -136,4 +144,39 @@ fun NightSummaryScreen(app: App, onBack: () -> Unit) {
             }
         }
     }
+}
+
+/** "Voice everywhere": the exact same numbers already on this screen, just narrated in order
+ * instead of requiring the user to read four cards - reuses each card's own copy rather than
+ * writing a separate script that could drift out of sync with what's shown. */
+private fun daySummaryForSpeech(uiState: NightSummaryUiState): String {
+    val todayLine = if (uiState.todayCount == 0) {
+        "Today was quiet - nothing captured, nothing missed."
+    } else {
+        "Today you spent ${uiState.todaySpend.toInt()} rupees across ${uiState.todayCount} transactions, " +
+            "${uiState.autoCapturedCount} of them captured automatically."
+    }
+
+    val beyondFinanceLine = if (uiState.tasksCompletedToday > 0 || uiState.totalHabits > 0) {
+        buildString {
+            if (uiState.tasksCompletedToday > 0) append("You completed ${uiState.tasksCompletedToday} tasks today. ")
+            if (uiState.totalHabits > 0) append("${uiState.habitsMaintainedToday} of ${uiState.totalHabits} habits kept up.")
+        }
+    } else null
+
+    val diff = uiState.todaySpend - uiState.yesterdaySpend
+    val comparedLine = when {
+        uiState.yesterdaySpend == 0.0 && uiState.todaySpend == 0.0 -> "Both today and yesterday were quiet."
+        diff > 0 -> "That's ${diff.toInt()} rupees more than yesterday."
+        diff < 0 -> "That's ${(-diff).toInt()} rupees less than yesterday."
+        else -> "About the same as yesterday."
+    }
+
+    val tomorrowLine = if (uiState.billsDueTomorrow.isEmpty()) {
+        "Nothing due tomorrow that we know of."
+    } else {
+        "Tomorrow, keep an eye on: ${uiState.billsDueTomorrow.joinToString(", ")}."
+    }
+
+    return listOfNotNull(todayLine, beyondFinanceLine, comparedLine, tomorrowLine).joinToString(" ")
 }

@@ -1,5 +1,10 @@
 package com.lifeos.expensecapture.ui.tasks
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -175,6 +181,13 @@ private fun AddTaskDialog(
     var priorityMenuExpanded by remember { mutableStateOf(false) }
     var dueInDays by remember { mutableStateOf<Int?>(null) }
 
+    val voiceLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val heard = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!heard.isNullOrBlank()) title = heard
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("New task") },
@@ -184,7 +197,22 @@ private fun AddTaskDialog(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("What needs doing?") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak the task")
+                            }
+                            try {
+                                voiceLauncher.launch(intent)
+                            } catch (e: ActivityNotFoundException) {
+                                // No voice recognition app on this device - typing still works.
+                            }
+                        }) {
+                            Icon(Icons.Default.Mic, contentDescription = "Speak to add")
+                        }
+                    }
                 )
                 Spacer(Modifier.height(8.dp))
                 Box {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Inbox
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
@@ -52,9 +54,11 @@ import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.ui.common.AccentInfoCard
+import com.lifeos.expensecapture.ui.common.AiInsightCard
 import com.lifeos.expensecapture.ui.common.EntryRow
 import com.lifeos.expensecapture.ui.common.HeroMoneyCard
 import com.lifeos.expensecapture.ui.common.SectionLabel
+import com.lifeos.expensecapture.ui.common.rememberSpeaker
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
 import com.lifeos.expensecapture.ui.theme.Warning
@@ -99,6 +103,8 @@ fun HomeScreen(
             unparsedMessageDao = app.database.unparsedMessageDao(),
             notificationDao = app.database.notificationDao(),
             consentDao = app.database.consentDao(),
+            categoryDao = app.database.categoryDao(),
+            goalDao = app.database.goalDao(),
             insightsRepository = FinanceInsightsRepository(
                 transactionDao = app.database.transactionDao(),
                 categoryDao = app.database.categoryDao(),
@@ -130,6 +136,7 @@ fun HomeScreen(
 
     val updateViewModel = remember { UpdateViewModel(context) }
     val updateState by updateViewModel.uiState.collectAsState()
+    val speak = rememberSpeaker()
 
     Scaffold(
         topBar = {
@@ -222,10 +229,27 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        TextButton(
-                            onClick = { morningViewModel.dismiss() },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                        ) { Text("Got it") }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(
+                                onClick = { morningViewModel.dismiss() },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) { Text("Got it") }
+                            TextButton(
+                                onClick = {
+                                    val lines = listOfNotNull(
+                                        morningState.leadItem ?: "Nothing needs your attention this morning.",
+                                        morningState.homeLine,
+                                        morningState.yesterdaySpendLine
+                                    )
+                                    speak(lines.joinToString(". "))
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Read aloud")
+                            }
+                        }
                     }
                 }
             }
@@ -268,6 +292,15 @@ fun HomeScreen(
                     },
                     trend = uiState.last7DaysSpend
                 )
+            }
+
+            uiState.spendingInsight?.let { insight ->
+                item {
+                    AiInsightCard(
+                        title = "What changed",
+                        body = spendingInsightText(insight)
+                    )
+                }
             }
 
             uiState.attentionItem?.let { attention ->
@@ -326,6 +359,28 @@ fun HomeScreen(
             }
         }
     }
+}
+
+private fun spendingInsightText(insight: com.lifeos.expensecapture.finance.SpendingInsightEngine.SpendingInsight): String {
+    val driverText = if (insight.topMerchants.isNotEmpty()) {
+        " mostly ${insight.topMerchants.joinToString(" and ")}"
+    } else {
+        ""
+    }
+    val base = "Spending on ${insight.categoryName} is up ${insight.increasePercent.toInt()}% this month" +
+        " (~₹${"%.0f".format(insight.increaseAmount)} more) -$driverText." +
+        " Matching last month's pace here would free up ~₹${"%.0f".format(insight.monthlySavingsIfMatchLastMonth)} this month."
+
+    val goalLine = insight.goalAcceleration?.let { acceleration ->
+        val monthsText = if (acceleration.monthsSooner >= 1.0) {
+            "${acceleration.monthsSooner.toInt()} month${if (acceleration.monthsSooner.toInt() == 1) "" else "s"}"
+        } else {
+            "a few weeks"
+        }
+        " At your current saving pace, that alone could get you to \"${acceleration.goalTitle}\" roughly $monthsText sooner."
+    } ?: ""
+
+    return base + goalLine
 }
 
 private fun attentionItemText(item: AttentionItem): String = when (item) {

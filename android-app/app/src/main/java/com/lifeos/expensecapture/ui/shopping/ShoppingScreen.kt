@@ -1,5 +1,10 @@
 package com.lifeos.expensecapture.ui.shopping
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
@@ -126,6 +132,12 @@ fun ShoppingScreen(app: App, onBack: () -> Unit) {
     if (showAddDialog) {
         var name by remember { mutableStateOf("") }
         var quantity by remember { mutableStateOf("") }
+        val voiceLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            val heard = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (!heard.isNullOrBlank()) name = heard
+        }
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
             title = { Text("Add item") },
@@ -135,7 +147,22 @@ fun ShoppingScreen(app: App, onBack: () -> Unit) {
                         value = name,
                         onValueChange = { name = it },
                         label = { Text("Item") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak the item")
+                                }
+                                try {
+                                    voiceLauncher.launch(intent)
+                                } catch (e: ActivityNotFoundException) {
+                                    // No voice recognition app on this device - typing still works.
+                                }
+                            }) {
+                                Icon(Icons.Default.Mic, contentDescription = "Speak to add")
+                            }
+                        }
                     )
                     OutlinedTextField(
                         value = quantity,

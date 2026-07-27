@@ -10,7 +10,23 @@ import androidx.room.PrimaryKey
  * since there's no backend and no arbitration engine (Phase 2 Notification System was never
  * implemented as code). See docs/coders-documentation/day-2.md for that scope boundary.
  */
-enum class NotificationType { BILL_DUE, SUBSCRIPTION_RENEWAL, BUDGET_OVER_LIMIT, NIGHT_SUMMARY_READY, TASK_DUE, HABIT_REMINDER }
+enum class NotificationType {
+    BILL_DUE, SUBSCRIPTION_RENEWAL, BUDGET_OVER_LIMIT, NIGHT_SUMMARY_READY, TASK_DUE, HABIT_REMINDER,
+    /** "Reminders everywhere" push: a task's due date is a few hours away, not yet overdue -
+     * distinct from TASK_DUE (which only fires once it's actually late) so both can coexist with
+     * their own cooldowns instead of one suppressing the other. */
+    TASK_DUE_SOON,
+    /** A single proactive push in the early morning summarizing the day ahead (due tasks, open
+     * habits, bills due soon) - unlike the in-app Morning Briefing card, this fires whether or not
+     * the user ever opens the app that day. */
+    MORNING_HEADSUP,
+    /** Forward-looking prediction, not a retrospective "you're over budget": current spend pace
+     * projects hitting the limit before the month ends. */
+    BUDGET_PACE_WARNING,
+    /** Forward-looking, supportive - a habit's own typical rhythm suggests it's due for a
+     * check-in, phrased the same non-punitive way as HABIT_REMINDER, never "you're failing." */
+    HABIT_AT_RISK
+}
 
 @Entity(tableName = "app_notifications")
 data class NotificationEntity(
