@@ -25,7 +25,15 @@ enum class NotificationType {
     BUDGET_PACE_WARNING,
     /** Forward-looking, supportive - a habit's own typical rhythm suggests it's due for a
      * check-in, phrased the same non-punitive way as HABIT_REMINDER, never "you're failing." */
-    HABIT_AT_RISK
+    HABIT_AT_RISK,
+    /** Event-driven, not periodic: fires the moment a captured transaction is a real statistical
+     * outlier versus that category's own history - the one genuinely real-time proactive signal
+     * in this app, everything else only runs on the periodic worker's schedule. */
+    UNUSUAL_TRANSACTION,
+    /** A Goal with both a rupee target and a target date, whose current savings pace (the same
+     * proxy SpendingInsightEngine's goal-acceleration line uses) won't realistically get there in
+     * time - supportive framing, a check-in prompt, not a countdown to failure. */
+    GOAL_OFF_TRACK
 }
 
 @Entity(tableName = "app_notifications")

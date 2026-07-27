@@ -13,6 +13,11 @@ import com.lifeos.expensecapture.sms.parser.TransactionParser
  * (ParseIncomingSmsWorker, for messages arriving after install) and the one-time inbox
  * history scan (SmsHistoryScanner, for messages already on the device before install) -
  * so the two capture paths can never silently drift apart.
+ *
+ * Returns the inserted TransactionEntity (or null if unparsed/a duplicate) so a caller can react
+ * to it - deliberately NOT doing that reaction here, since this same function backfills months of
+ * history on first install; anomaly detection or a notification belongs only on the live path
+ * (see ParseIncomingSmsWorker), or the very first scan would fire dozens of stale alerts at once.
  */
 object TransactionIngestor {
 
@@ -22,25 +27,25 @@ object TransactionIngestor {
         body: String,
         timestamp: Long,
         parser: TransactionParser = TransactionParser()
-    ) {
+    ): TransactionEntity? {
         val categorizationEngine = CategorizationEngine(db.merchantRuleDao(), db.categoryDao())
 
         when (val result = parser.parse(sender, body)) {
             is ParseResult.Parsed -> {
                 val categoryId = categorizationEngine.categorize(result.merchantRaw)
-                db.transactionDao().insert(
-                    TransactionEntity(
-                        amount = result.amount,
-                        direction = result.direction,
-                        merchantRaw = result.merchantRaw,
-                        merchantNormalized = result.merchantRaw.trim().lowercase(),
-                        categoryId = categoryId,
-                        date = timestamp,
-                        source = TransactionSource.SMS_AUTO,
-                        confidenceScore = result.confidence,
-                        sourceHash = "$sender::$body"
-                    )
+                val entity = TransactionEntity(
+                    amount = result.amount,
+                    direction = result.direction,
+                    merchantRaw = result.merchantRaw,
+                    merchantNormalized = result.merchantRaw.trim().lowercase(),
+                    categoryId = categoryId,
+                    date = timestamp,
+                    source = TransactionSource.SMS_AUTO,
+                    confidenceScore = result.confidence,
+                    sourceHash = "$sender::$body"
                 )
+                val insertedId = db.transactionDao().insert(entity)
+                return if (insertedId > 0) entity.copy(id = insertedId) else null // 0 means the unique-index IGNORE rejected a duplicate
             }
             is ParseResult.Unparsed -> {
                 // Fixed Day 2 (see docs/coders-documentation/day-2.md): previously discarded,
@@ -55,6 +60,7 @@ object TransactionIngestor {
                         sourceHash = "$sender::$body"
                     )
                 )
+                return null
             }
         }
     }

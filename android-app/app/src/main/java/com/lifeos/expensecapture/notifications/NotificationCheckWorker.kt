@@ -1,13 +1,8 @@
 package com.lifeos.expensecapture.notifications
 
 import android.Manifest
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -15,12 +10,11 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.lifeos.expensecapture.MainActivity
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.BillStatus
-import com.lifeos.expensecapture.data.db.entity.NotificationEntity
 import com.lifeos.expensecapture.data.db.entity.NotificationType
 import com.lifeos.expensecapture.data.db.entity.TaskEntity
+import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.flow.first
@@ -59,6 +53,7 @@ class NotificationCheckWorker(
         private const val MIN_COMPLETIONS_FOR_RHYTHM = 3
         private const val MIN_GAP_DAYS_FOR_RISK_CHECK = 2.0 // below this it's daily-ish - checkHabits already owns that
         private const val RISK_GAP_MULTIPLIER = 1.5
+        private const val GOAL_ON_TRACK_RATIO = 0.7 // pace below 70% of what's needed counts as "off track"
         private val DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d")
 
         fun schedulePeriodic(context: Context) {
@@ -110,6 +105,7 @@ class NotificationCheckWorker(
         checkHabitsAtRisk(db)
         checkNightSummary(db)
         checkMorningHeadsUp(db, insights)
+        checkGoalsOffTrack(db)
         syncBillTasks(db, insights)
 
         return Result.success()
@@ -449,10 +445,57 @@ class NotificationCheckWorker(
         )
     }
 
-    private suspend fun recentlyNotified(db: AppDatabase, type: NotificationType, cooldownKey: String): Boolean {
-        val since = System.currentTimeMillis() - COOLDOWN_MILLIS
-        return db.notificationDao().countRecent(type, cooldownKey, since) > 0
+    /**
+     * Closes the loop on the Goal targetAmount field added for the Spending Insight card's
+     * goal-acceleration line: that line only ever appears passively, inside a Finance insight
+     * that may not fire this month. This proactively flags a goal on its own, on a schedule,
+     * when the current savings pace genuinely won't reach the target amount by its target date -
+     * same "current monthly pace from net cash flow" estimate as SpendingInsightEngine's own
+     * goal-acceleration math (kept as its own small copy here rather than a shared extraction -
+     * both are a handful of lines, not worth the indirection for two call sites). Supportive
+     * framing - "worth a check-in," never a countdown to failure.
+     */
+    private suspend fun checkGoalsOffTrack(db: AppDatabase) {
+        val goals = db.goalDao().observeAll().first()
+            .filter { !it.completed && (it.targetAmount ?: 0.0) > 0.0 && it.targetDate != null }
+        if (goals.isEmpty()) return
+
+        val now = System.currentTimeMillis()
+        val monthStart = LocalDate.now(ZoneId.systemDefault()).withDayOfMonth(1)
+            .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val daysElapsed = ((now - monthStart) / 86_400_000.0).coerceAtLeast(1.0)
+        val thisMonthTxns = db.transactionDao().getSince(monthStart)
+        val credits = thisMonthTxns.filter { it.direction == TransactionDirection.CREDIT }.sumOf { it.amount }
+        val debits = thisMonthTxns.filter { it.direction == TransactionDirection.DEBIT }.sumOf { it.amount }
+        val currentMonthlyPace = ((credits - debits) / daysElapsed) * 30.0
+
+        for (goal in goals) {
+            val targetAmount = goal.targetAmount ?: continue
+            val targetDate = goal.targetDate ?: continue
+            if (targetDate <= now) continue // already past due - a different concern than "off track"
+
+            val monthsRemaining = (targetDate - now) / (30.0 * 86_400_000L)
+            val requiredMonthlyPace = targetAmount / monthsRemaining
+            if (currentMonthlyPace >= requiredMonthlyPace * GOAL_ON_TRACK_RATIO) continue
+
+            val route = "goals"
+            val cooldownKey = "offtrack" + goal.id
+            if (recentlyNotified(db, NotificationType.GOAL_OFF_TRACK, cooldownKey)) continue
+
+            notify(
+                type = NotificationType.GOAL_OFF_TRACK,
+                title = "\"${goal.title}\" might need a closer look",
+                body = "At your current saving pace, this could be tight to reach by its target date - worth a check-in, no pressure.",
+                route = route,
+                cooldownKey = cooldownKey
+            )
+        }
     }
+
+    /** Delegates to the shared NotificationSender (see its kdoc) - kept as thin wrappers here so
+     * every existing check function below didn't need to change its call site. */
+    private suspend fun recentlyNotified(db: AppDatabase, type: NotificationType, cooldownKey: String): Boolean =
+        NotificationSender.recentlyNotified(db, type, cooldownKey)
 
     private suspend fun notify(
         type: NotificationType,
@@ -461,33 +504,5 @@ class NotificationCheckWorker(
         route: String,
         cooldownKey: String,
         channel: String = NotificationChannels.REMINDERS
-    ) {
-        val db = AppDatabase.getInstance(applicationContext)
-        db.notificationDao().insert(
-            NotificationEntity(type = type, title = title, body = body, deepLinkRoute = route, sourceKey = cooldownKey)
-        )
-
-        val hasPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (!hasPermission) return // Recorded in the Center regardless; system push just skipped.
-
-        val intent = Intent(applicationContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            applicationContext, cooldownKey.hashCode(), intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val notification = NotificationCompat.Builder(applicationContext, channel)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .build()
-
-        NotificationManagerCompat.from(applicationContext).notify(cooldownKey.hashCode(), notification)
-    }
+    ) = NotificationSender.notify(applicationContext, type, title, body, route, cooldownKey, channel)
 }
