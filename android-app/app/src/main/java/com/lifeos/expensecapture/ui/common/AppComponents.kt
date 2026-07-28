@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -82,23 +83,48 @@ fun IconBadge(
     }
 }
 
-/** A plain Canvas line chart - no charting library needed for a 7-point trend line. */
+/**
+ * A plain Canvas line chart - no charting library needed for a 7-point trend line.
+ *
+ * Threshold marker added (found via a real user report, 2026-07 - "adding a threshold mark"):
+ * previously just a bare line with no reference point, so there was no visual answer to "is this
+ * pace okay?" without reading the numbers elsewhere. [threshold] draws a dashed reference line
+ * (typically the daily budget pace) at its own position on the same scale as the data - if it
+ * falls outside the data's own min/max range, the range is widened to include it so the line is
+ * always visible rather than clipped off-canvas.
+ */
 @Composable
 fun Sparkline(
     values: List<Float>,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary
+    color: Color = MaterialTheme.colorScheme.primary,
+    threshold: Float? = null,
+    thresholdColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     if (values.size < 2) return
-    val max = values.max()
-    val min = values.min()
+    val max = maxOf(values.max(), threshold ?: values.max())
+    val min = minOf(values.min(), threshold ?: values.min())
     val range = max - min
     Canvas(modifier = modifier) {
         val stepX = size.width / (values.size - 1)
+        fun yFor(value: Float) =
+            if (range < 0.0001f) size.height / 2f else size.height - ((value - min) / range) * size.height
+
+        threshold?.let {
+            val y = yFor(it)
+            drawLine(
+                color = thresholdColor,
+                start = androidx.compose.ui.geometry.Offset(0f, y),
+                end = androidx.compose.ui.geometry.Offset(size.width, y),
+                strokeWidth = 2f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+            )
+        }
+
         val path = Path()
         values.forEachIndexed { index, value ->
             val x = index * stepX
-            val y = if (range < 0.0001f) size.height / 2f else size.height - ((value - min) / range) * size.height
+            val y = yFor(value)
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         drawPath(
@@ -120,7 +146,10 @@ fun HeroMoneyCard(
     // Today's-spend line (found via a real user report, 2026-07): the hero card only ever showed
     // the month total, with no lower-effort way to see "how much today alone" without doing the
     // Ledger math yourself. Optional so other HeroMoneyCard call sites (Night Summary) are unaffected.
-    secondaryLine: String? = null
+    secondaryLine: String? = null,
+    // Threshold mark for the trend line (found via a real user report, 2026-07) - see
+    // Sparkline's kdoc. Optional, same reasoning as secondaryLine.
+    trendThreshold: Float? = null
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -128,7 +157,13 @@ fun HeroMoneyCard(
         colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(Modifier.padding(24.dp)) {
+        // Padding trimmed from 24dp/14dp/10dp (found via a real user report, 2026-07 - "give
+        // more space to other cards or buttons"): this card could stack above the Morning
+        // Briefing, AI Insight, and Needs Attention cards on Home, pushing the actual navigation
+        // entries (Ledger, Budgets, etc.) further down before any scrolling. A more compact hero
+        // card leaves more of the screen for everything below it without losing legibility -
+        // the amount itself is still the largest text on the page.
+        Column(Modifier.padding(20.dp)) {
             Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             Text("₹${"%.2f".format(amount)}", style = AmountHero)
@@ -137,14 +172,15 @@ fun HeroMoneyCard(
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (trend.size >= 2) {
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Sparkline(
                     values = trend,
-                    modifier = Modifier.fillMaxWidth().height(36.dp),
-                    color = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.fillMaxWidth().height(32.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    threshold = trendThreshold
                 )
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

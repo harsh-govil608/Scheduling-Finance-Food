@@ -1,6 +1,6 @@
 {
-  "versionCode": 18,
-  "versionName": "0.18.0-pilot",
+  "versionCode": 19,
+  "versionName": "0.19.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Budgets can now be edited in place, transactions can be deleted from the Ledger, manual entries support picking a past date, and Home now shows today's spend alongside this month's. OTP/promotional texts no longer clutter Needs Review. Fixed a bug where month totals could go stale if the app sat open across a month change, and export now lets you choose this month vs all time instead of always dumping everything."
+  "notes": "The 7-day spend graph on Finance now shows a threshold line for your daily budget pace, and takes up a little less space so the cards below it aren't pushed down as far. Morning Briefing and your day-in-review, read aloud, now open and close like an actual summary instead of just reciting the on-screen text."
 }

@@ -148,7 +148,14 @@ fun NightSummaryScreen(app: App, onBack: () -> Unit) {
 
 /** "Voice everywhere": the exact same numbers already on this screen, just narrated in order
  * instead of requiring the user to read four cards - reuses each card's own copy rather than
- * writing a separate script that could drift out of sync with what's shown. */
+ * writing a separate script that could drift out of sync with what's shown.
+ *
+ * Warmer framing added (found via a real user report, 2026-07 - "audio should come as welcoming
+ * and giving summaries"): before this, speak() got the same four independent factual sentences
+ * shown on-screen, space-joined with no framing - technically a summary, but it read like a
+ * report being recited, not a narrated recap. An opening and closing line around the same facts
+ * (nothing factual changes) gives it a beginning and an end, the way a person telling you about
+ * your day would, rather than a list of sentences with nowhere to start or stop. */
 private fun daySummaryForSpeech(uiState: NightSummaryUiState): String {
     val todayLine = if (uiState.todayCount == 0) {
         "Today was quiet - nothing captured, nothing missed."
@@ -178,5 +185,9 @@ private fun daySummaryForSpeech(uiState: NightSummaryUiState): String {
         "Tomorrow, keep an eye on: ${uiState.billsDueTomorrow.joinToString(", ")}."
     }
 
-    return listOfNotNull(todayLine, beyondFinanceLine, comparedLine, tomorrowLine).joinToString(" ")
+    val opening = "Here's a quick summary of your day."
+    val closing = "That's everything for today - rest well."
+
+    return listOfNotNull(opening, todayLine, beyondFinanceLine, comparedLine, tomorrowLine, closing)
+        .joinToString(" ")
 }

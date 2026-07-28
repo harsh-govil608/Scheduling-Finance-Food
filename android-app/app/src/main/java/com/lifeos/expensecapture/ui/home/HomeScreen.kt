@@ -278,7 +278,14 @@ fun HomeScreen(
                             ) { Text("Got it") }
                             TextButton(
                                 onClick = {
+                                    // Warmer framing (found via a real user report, 2026-07 -
+                                    // "audio should come as welcoming and giving summaries"):
+                                    // this used to speak the same three card sentences with no
+                                    // greeting - nothing factual changes, just an opening line so
+                                    // it starts like a greeting rather than launching straight
+                                    // into information.
                                     val lines = listOfNotNull(
+                                        "Good morning!",
                                         morningState.leadItem ?: "Nothing needs your attention this morning.",
                                         morningState.homeLine,
                                         morningState.yesterdaySpendLine
@@ -333,7 +340,8 @@ fun HomeScreen(
                         "Last 7 days"
                     },
                     trend = uiState.last7DaysSpend,
-                    secondaryLine = if (uiState.hasAnyData) "Today: ₹${"%.2f".format(uiState.spentToday)}" else null
+                    secondaryLine = if (uiState.hasAnyData) "Today: ₹${"%.2f".format(uiState.spentToday)}" else null,
+                    trendThreshold = uiState.dailySpendThreshold
                 )
             }
 

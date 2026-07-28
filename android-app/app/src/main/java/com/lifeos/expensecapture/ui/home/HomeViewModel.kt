@@ -51,6 +51,11 @@ data class HomeUiState(
     /** Found via a real user report, 2026-07: the month total alone didn't answer "how much did
      * I spend just today" - same day-boundary math NightSummaryViewModel already uses. */
     val spentToday: Double = 0.0,
+    /** Threshold mark for the Last 7 Days trend graph (found via a real user report, 2026-07) -
+     * the Overall budget's own monthly limit divided into a daily pace, so the trend line has a
+     * reference for "is this an okay day" instead of being purely decorative. Null when no
+     * Overall budget is set - there's nothing to project a pace against. */
+    val dailySpendThreshold: Float? = null,
     val attentionItem: AttentionItem? = null,
     val hasAnyData: Boolean = false,
     val unreadNotifications: Int = 0,
@@ -153,6 +158,9 @@ class HomeViewModel(
                 .sumOf { it.amount }
                 .toFloat()
         }
+        val dailySpendThreshold = finance.budgets
+            .firstOrNull { it.budget.categoryId == null }
+            ?.let { (it.budget.monthlyLimit / today.lengthOfMonth()).toFloat() }
 
         val overdueBill = finance.bills.firstOrNull { it.displayStatus == FinanceInsightsRepository.BillDisplayStatus.OVERDUE }
         val overBudgets = finance.budgets.filter { it.spentThisMonth > it.budget.monthlyLimit }
@@ -184,6 +192,7 @@ class HomeViewModel(
         HomeUiState(
             spentThisMonth = spent,
             spentToday = spentToday,
+            dailySpendThreshold = dailySpendThreshold,
             attentionItem = attentionItem,
             hasAnyData = finance.transactions.isNotEmpty(),
             unreadNotifications = status.unreadNotifications,
