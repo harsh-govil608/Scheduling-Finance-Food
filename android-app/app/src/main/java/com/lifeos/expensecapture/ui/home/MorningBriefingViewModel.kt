@@ -140,6 +140,25 @@ class MorningBriefingViewModel(
         _dismissed.value = true
     }
 
+    /**
+     * Proactive audio welcome (found via a real user request, 2026-07 - "at the very beginning
+     * audio should come to welcome the guest and summarize as proactive step"): this app's
+     * "Read aloud" has always been manual-tap-only until now. Rather than build a separate
+     * always-speak-on-launch mechanism, this reuses the exact same "first open of the day" gate
+     * `visible` already uses - tracked with its own preference key rather than reusing
+     * last_shown_date, since "spoken" and "shown/dismissed" are conceptually distinct even though
+     * they usually happen together (a user could plausibly dismiss the visual card without ever
+     * getting the audio, or vice versa, across app restarts on the same day).
+     */
+    fun alreadySpokenToday(): Boolean {
+        val lastSpoken = prefs().getString("last_spoken_date", null)
+        return lastSpoken == LocalDate.now(ZoneId.systemDefault()).toString()
+    }
+
+    fun markSpokenToday() {
+        prefs().edit().putString("last_spoken_date", LocalDate.now(ZoneId.systemDefault()).toString()).apply()
+    }
+
     private fun prefs() = context.getSharedPreferences("morning_briefing", Context.MODE_PRIVATE)
 
     private fun alreadyShownToday(): Boolean {

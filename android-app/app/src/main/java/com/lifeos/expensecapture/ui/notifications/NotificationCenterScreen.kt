@@ -32,6 +32,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.NotificationEntity
+import com.lifeos.expensecapture.ui.common.CategoryVisuals
+import com.lifeos.expensecapture.ui.common.IconBadge
+import com.lifeos.expensecapture.ui.common.NotificationVisuals
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -127,6 +130,12 @@ private fun NotificationRow(notification: NotificationEntity, onClick: () -> Uni
             .padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Icon badge added (found via a real user report, 2026-07 - "the UI is looking too
+        // basic"): this row had zero visual differentiation between notification types beyond
+        // a read/unread tint - see NotificationVisuals' kdoc.
+        val (tint, container) = CategoryVisuals.colorPairFor(notification.type.name)
+        IconBadge(icon = NotificationVisuals.iconFor(notification.type), tint = tint, containerColor = container, size = 40.dp)
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(notification.title, style = MaterialTheme.typography.bodyLarge)
             Text(notification.body, style = MaterialTheme.typography.bodyMedium)

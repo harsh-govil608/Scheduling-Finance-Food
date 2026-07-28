@@ -30,9 +30,12 @@ import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +48,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.ui.common.AccentInfoCard
@@ -70,8 +75,10 @@ import com.lifeos.expensecapture.ui.theme.WarningStrong
 import com.lifeos.expensecapture.update.UpdateViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZoneOffset
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.size
@@ -144,6 +151,27 @@ fun HomeScreen(
     val updateState by updateViewModel.uiState.collectAsState()
     val speak = rememberSpeaker()
 
+    // Proactive audio welcome (found via a real user request, 2026-07 - "at the very beginning
+    // audio should come to welcome the guest and summarize as proactive step"): reuses the
+    // Morning Briefing's own "first open of the day" gate (visible only flips true once per
+    // calendar day, see MorningBriefingViewModel's kdoc) rather than a new mechanism. Keyed on
+    // morningState.visible so this LaunchedEffect body only re-runs when that value actually
+    // changes (Compose won't rerun on every recomposition while it stays true) - the
+    // alreadySpokenToday()/markSpokenToday() pair on top of that guards the case a fresh app
+    // launch recreates this composable while the same calendar day's card is still unspoken.
+    LaunchedEffect(morningState.visible) {
+        if (morningState.visible && !morningViewModel.alreadySpokenToday()) {
+            val lines = listOfNotNull(
+                "Good morning!",
+                morningState.leadItem ?: "Nothing needs your attention this morning.",
+                morningState.homeLine,
+                morningState.yesterdaySpendLine
+            )
+            speak(lines.joinToString(". "))
+            morningViewModel.markSpokenToday()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -154,10 +182,29 @@ fun HomeScreen(
                     }
                     // Export range choice (found via a real user report, 2026-07 - "csv file not
                     // arranged, options needed"): this used to export every transaction ever
-                    // captured with no way to scope it, which is both a less useful default (most
-                    // requests are "this month's spend for my records") and a slower one as the
-                    // ledger grows. "All time" is still available for the less common full-history case.
+                    // captured with no way to scope it. Quick presets stay for the common cases,
+                    // plus a genuine custom range (a second real user report: "give user
+                    // flexibility to decide time range" - a fixed two-option choice still wasn't
+                    // enough) via two sequential date pickers, same DatePickerDialog pattern
+                    // already proven in ManualEntryDialog.
                     var showExportMenu by remember { mutableStateOf(false) }
+                    var showExportStartPicker by remember { mutableStateOf(false) }
+                    var showExportEndPicker by remember { mutableStateOf(false) }
+                    var exportRangeStartMillis by remember { mutableStateOf<Long?>(null) }
+
+                    suspend fun exportAndShare(transactions: List<TransactionEntity>) {
+                        val categories = app.database.categoryDao().observeAll().first()
+                        val uri = CsvExporter.exportTransactions(context, transactions) { categoryId ->
+                            categories.firstOrNull { it.id == categoryId }?.name ?: "Uncategorized"
+                        }
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/csv"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Export transactions"))
+                    }
+
                     IconButton(onClick = { showExportMenu = true }) {
                         Icon(Icons.Default.Share, contentDescription = "Export your data")
                     }
@@ -172,16 +219,7 @@ fun HomeScreen(
                                         .atStartOfDay(zone).toInstant().toEpochMilli()
                                     val transactions = app.database.transactionDao().observeAll().first()
                                         .filter { it.date >= monthStart }
-                                    val categories = app.database.categoryDao().observeAll().first()
-                                    val uri = CsvExporter.exportTransactions(context, transactions) { categoryId ->
-                                        categories.firstOrNull { it.id == categoryId }?.name ?: "Uncategorized"
-                                    }
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/csv"
-                                        putExtra(Intent.EXTRA_STREAM, uri)
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Export transactions"))
+                                    exportAndShare(transactions)
                                 }
                             }
                         )
@@ -191,19 +229,67 @@ fun HomeScreen(
                                 showExportMenu = false
                                 coroutineScope.launch {
                                     val transactions = app.database.transactionDao().observeAll().first()
-                                    val categories = app.database.categoryDao().observeAll().first()
-                                    val uri = CsvExporter.exportTransactions(context, transactions) { categoryId ->
-                                        categories.firstOrNull { it.id == categoryId }?.name ?: "Uncategorized"
-                                    }
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/csv"
-                                        putExtra(Intent.EXTRA_STREAM, uri)
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Export transactions"))
+                                    exportAndShare(transactions)
                                 }
                             }
                         )
+                        DropdownMenuItem(
+                            text = { Text("Export a custom range (CSV)…") },
+                            onClick = {
+                                showExportMenu = false
+                                showExportStartPicker = true
+                            }
+                        )
+                    }
+
+                    if (showExportStartPicker) {
+                        val startPickerState = rememberDatePickerState()
+                        DatePickerDialog(
+                            onDismissRequest = { showExportStartPicker = false },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    exportRangeStartMillis = startPickerState.selectedDateMillis
+                                    showExportStartPicker = false
+                                    showExportEndPicker = true
+                                }) { Text("Next: end date") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showExportStartPicker = false }) { Text("Cancel") }
+                            }
+                        ) { DatePicker(state = startPickerState) }
+                    }
+
+                    if (showExportEndPicker) {
+                        val endPickerState = rememberDatePickerState()
+                        DatePickerDialog(
+                            onDismissRequest = { showExportEndPicker = false },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    val startMillis = exportRangeStartMillis
+                                    val endMillis = endPickerState.selectedDateMillis
+                                    showExportEndPicker = false
+                                    if (startMillis != null && endMillis != null) {
+                                        // DatePickerState.selectedDateMillis is UTC midnight for
+                                        // the picked calendar date - recover that date, then
+                                        // build the actual filter range in the device's own zone
+                                        // so "end date" means through the end of that real day.
+                                        val zone = ZoneId.systemDefault()
+                                        val startDate = Instant.ofEpochMilli(startMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                                        val endDate = Instant.ofEpochMilli(endMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                                        val rangeStart = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
+                                        val rangeEndExclusive = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                                        coroutineScope.launch {
+                                            val transactions = app.database.transactionDao().observeAll().first()
+                                                .filter { it.date in rangeStart until rangeEndExclusive }
+                                            exportAndShare(transactions)
+                                        }
+                                    }
+                                }) { Text("Export") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showExportEndPicker = false }) { Text("Cancel") }
+                            }
+                        ) { DatePicker(state = endPickerState) }
                     }
                     IconButton(onClick = onOpenNotifications) {
                         BadgedBox(badge = {

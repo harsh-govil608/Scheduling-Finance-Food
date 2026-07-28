@@ -1,16 +1,13 @@
 package com.lifeos.expensecapture.ui.review
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.* // weight() resolves per-receiver (RowScope/ColumnScope);
+// importing it by name alone resolved to an internal symbol during the real build - see
+// android-app/README.md "Known gaps" if this surfaces again after a Compose version bump.
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +31,7 @@ import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.db.entity.UnparsedMessageEntity
 import com.lifeos.expensecapture.data.repository.TransactionRepository
+import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.ledger.ManualEntryDialog
 
 /**
@@ -89,12 +87,23 @@ fun UnparsedReviewScreen(app: App, onBack: () -> Unit) {
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
                 items(unresolved, key = { it.id }) { message ->
-                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                        Text(message.sender, style = MaterialTheme.typography.bodySmall)
-                        Text(message.body, style = MaterialTheme.typography.bodyMedium)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { selectedMessage = message }) { Text("Convert") }
-                            TextButton(onClick = { viewModel.dismiss(message) }) { Text("Dismiss") }
+                    // Icon badge added (found via a real user report, 2026-07 - "the UI is
+                    // looking too basic"): this row was plain text with no visual accent at all.
+                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                        IconBadge(
+                            icon = Icons.AutoMirrored.Filled.Message,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            size = 40.dp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(message.sender, style = MaterialTheme.typography.bodySmall)
+                            Text(message.body, style = MaterialTheme.typography.bodyMedium)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(onClick = { selectedMessage = message }) { Text("Convert") }
+                                TextButton(onClick = { viewModel.dismiss(message) }) { Text("Dismiss") }
+                            }
                         }
                     }
                     HorizontalDivider()

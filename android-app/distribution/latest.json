@@ -1,6 +1,6 @@
 {
-  "versionCode": 20,
-  "versionName": "0.20.0-pilot",
+  "versionCode": 21,
+  "versionName": "0.21.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Search now actually matches category names (\"food\") and month names (\"july\"), not just merchant text. Ledger and Search rows also get a category icon badge, matching the polish already on Home and Night Summary."
+  "notes": "CSV export now lets you pick a custom date range, not just this month or all time. The app now greets you with a spoken summary the first time you open it each day, no tap needed. Notifications and Needs Review also get category/type icon badges, matching the rest of the app."
 }
