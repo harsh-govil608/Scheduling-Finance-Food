@@ -1,6 +1,6 @@
 {
-  "versionCode": 19,
-  "versionName": "0.19.0-pilot",
+  "versionCode": 20,
+  "versionName": "0.20.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "The 7-day spend graph on Finance now shows a threshold line for your daily budget pace, and takes up a little less space so the cards below it aren't pushed down as far. Morning Briefing and your day-in-review, read aloud, now open and close like an actual summary instead of just reciting the on-screen text."
+  "notes": "Search now actually matches category names (\"food\") and month names (\"july\"), not just merchant text. Ledger and Search rows also get a category icon badge, matching the polish already on Home and Night Summary."
 }

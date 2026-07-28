@@ -14,7 +14,24 @@ import java.util.Locale
  */
 object TransactionSearch {
 
-    fun search(query: String, transactions: List<TransactionEntity>): List<TransactionEntity> {
+    private val MONTH_NAMES = listOf(
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december"
+    )
+
+    /**
+     * Bug fix (found via a real user report, 2026-07): search only ever matched merchant text -
+     * typing a category name ("food") never matched anything, since TransactionEntity only
+     * carries a categoryId, and this function had no way to resolve it to a name. Also, only the
+     * three literal phrases "this week"/"last month"/"this month" were recognized as time
+     * expressions - an actual month name ("july") fell through to the merchant-text filter and
+     * matched nothing, since no merchant is ever literally named "july".
+     */
+    fun search(
+        query: String,
+        transactions: List<TransactionEntity>,
+        categoryNameFor: (Long) -> String = { "" }
+    ): List<TransactionEntity> {
         val lower = query.trim().lowercase(Locale.getDefault())
         if (lower.isBlank()) return emptyList()
 
@@ -33,6 +50,9 @@ object TransactionSearch {
 
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
+        // Word-boundary, not plain contains(): a short month name like "may" would otherwise
+        // false-match inside an unrelated merchant/name like "Mayank" or "Maytas".
+        val matchedMonthName = MONTH_NAMES.firstOrNull { Regex("\\b${it}\\b").containsMatchIn(lower) }
         when {
             lower.contains("this week") -> {
                 val weekAgo = today.minusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -48,15 +68,31 @@ object TransactionSearch {
                 val startOfThisMonth = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
                 results = results.filter { it.date >= startOfThisMonth }
             }
+            matchedMonthName != null -> {
+                // A bare month name ("july") has no year to go on - every transaction in this
+                // app is necessarily in the past, so the most recent occurrence of that month is
+                // the only sensible reading: this year's if it's already happened, else last year's.
+                val monthNumber = MONTH_NAMES.indexOf(matchedMonthName) + 1
+                val year = if (monthNumber <= today.monthValue) today.year else today.year - 1
+                val startOfMatchedMonth = LocalDate.of(year, monthNumber, 1)
+                val start = startOfMatchedMonth.atStartOfDay(zone).toInstant().toEpochMilli()
+                val end = startOfMatchedMonth.plusMonths(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                results = results.filter { it.date in start until end }
+            }
         }
 
         var remainder = lower
         overMatch?.let { remainder = remainder.replace(it.value, "") }
         underMatch?.let { remainder = remainder.replace(it.value, "") }
-        remainder = remainder.replace("this week", "").replace("last month", "").replace("this month", "").trim()
+        remainder = remainder.replace("this week", "").replace("last month", "").replace("this month", "")
+        matchedMonthName?.let { remainder = remainder.replace(Regex("\\b${it}\\b"), "") }
+        remainder = remainder.trim()
 
         if (remainder.isNotBlank()) {
-            results = results.filter { it.merchantRaw.lowercase(Locale.getDefault()).contains(remainder) }
+            results = results.filter { txn ->
+                txn.merchantRaw.lowercase(Locale.getDefault()).contains(remainder) ||
+                    categoryNameFor(txn.categoryId).lowercase(Locale.getDefault()).contains(remainder)
+            }
         }
 
         return results.sortedByDescending { it.date }.toList()

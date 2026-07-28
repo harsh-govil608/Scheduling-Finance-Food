@@ -31,6 +31,8 @@ import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.data.repository.TransactionRepository
+import com.lifeos.expensecapture.ui.common.CategoryVisuals
+import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.theme.AmountBody
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -124,6 +126,11 @@ fun LedgerScreen(app: App, onBack: () -> Unit) {
     }
 }
 
+/**
+ * Category icon badge added (found via a real user report, 2026-07 - "the UI is looking too
+ * basic"): this row used to be plain text with no visual accent at all, unlike Home's polished
+ * treatment - see CategoryVisuals' kdoc.
+ */
 @Composable
 private fun TransactionRow(
     transaction: TransactionEntity,
@@ -136,8 +143,17 @@ private fun TransactionRow(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        val (tint, container) = CategoryVisuals.colorPairFor(categoryName)
+        IconBadge(
+            icon = CategoryVisuals.iconFor(categoryName),
+            tint = tint,
+            containerColor = container,
+            size = 40.dp
+        )
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(transaction.merchantRaw, style = MaterialTheme.typography.bodyLarge)
             Text(
