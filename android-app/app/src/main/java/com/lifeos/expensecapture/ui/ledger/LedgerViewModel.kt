@@ -45,15 +45,27 @@ class LedgerViewModel(
         }
     }
 
-    fun addManual(amount: Double, merchant: String, direction: TransactionDirection, categoryId: Long) {
+    fun addManual(
+        amount: Double,
+        merchant: String,
+        direction: TransactionDirection,
+        categoryId: Long,
+        date: Long
+    ) {
         viewModelScope.launch {
             repository.addManualTransaction(
                 amount = amount,
                 direction = direction,
                 merchant = merchant,
                 categoryId = categoryId,
-                date = System.currentTimeMillis()
+                date = date
             )
+        }
+    }
+
+    fun deleteTransaction(transaction: TransactionEntity) {
+        viewModelScope.launch {
+            repository.deleteTransaction(transaction)
         }
     }
 }

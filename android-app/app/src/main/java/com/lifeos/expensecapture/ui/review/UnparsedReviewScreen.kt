@@ -106,8 +106,9 @@ fun UnparsedReviewScreen(app: App, onBack: () -> Unit) {
     selectedMessage?.let { message ->
         ManualEntryDialog(
             categories = categories,
-            onConfirm = { amount, merchant, direction, categoryId ->
-                viewModel.convertToTransaction(message, amount, merchant, direction, categoryId)
+            initialDateMillis = message.receivedAt,
+            onConfirm = { amount, merchant, direction, categoryId, date ->
+                viewModel.convertToTransaction(message, amount, merchant, direction, categoryId, date)
                 selectedMessage = null
             },
             onDismiss = { selectedMessage = null }

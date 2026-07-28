@@ -16,6 +16,10 @@ class TransactionParser(
     private val templates: List<BankTemplate> = BankTemplates.all
 ) {
     fun parse(sender: String, body: String): ParseResult {
+        if (looksLikeOtpOrVerification(body)) {
+            return ParseResult.Ignored(reason = "otp_or_verification")
+        }
+
         val candidateTemplates = templates.filter { template ->
             template.senderPatterns.any { it.containsMatchIn(sender) } || looksLikeTransactionSms(body)
         }
@@ -60,5 +64,13 @@ class TransactionParser(
     private fun looksLikeTransactionSms(body: String): Boolean {
         val keywords = listOf("debited", "credited", "debit", "credit", "upi", "a/c", "account")
         return keywords.any { body.contains(it, ignoreCase = true) }
+    }
+
+    /** See ParseResult.Ignored's kdoc. Checked before any candidate matching so an OTP SMS from
+     * a real bank sender (which often shares its sender ID with genuine debit/credit alerts)
+     * can't be misread as a transaction just because it mentions the same amount/merchant. */
+    private fun looksLikeOtpOrVerification(body: String): Boolean {
+        val signals = listOf("otp", "one time password", "one-time password", "verification code", "do not share", "don't share")
+        return signals.any { body.contains(it, ignoreCase = true) }
     }
 }

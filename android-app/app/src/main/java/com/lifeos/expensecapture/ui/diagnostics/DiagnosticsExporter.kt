@@ -14,7 +14,12 @@ import java.util.Locale
 object DiagnosticsExporter {
 
     fun export(context: Context, entries: List<CrashLogEntity>): Uri {
-        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        // Own subdirectory (not shared with CsvExporter's "exports/transactions") so clearing
+        // old diagnostics exports below can never race with a CSV export in flight.
+        val dir = File(context.cacheDir, "exports/diagnostics").apply { mkdirs() }
+        // Bug fix (found via a real user report, 2026-07 - "check storage/cache"): same
+        // unbounded-cache-growth issue as CsvExporter - see its kdoc.
+        dir.listFiles()?.forEach { it.delete() }
         val file = File(dir, "diagnostics_${System.currentTimeMillis()}.txt")
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 

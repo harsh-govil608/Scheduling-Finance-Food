@@ -62,6 +62,14 @@ object TransactionIngestor {
                 )
                 return null
             }
+            is ParseResult.Ignored -> {
+                // Bug fix (found via a real user report, 2026-07): unlike Unparsed, this means
+                // the parser is confident this was never a transaction attempt at all (OTP,
+                // promotional text) - see ParseResult.Ignored's kdoc. Correctly not landing in
+                // the Needs Review queue, same as any other non-financial SMS never reaching
+                // this pipeline's output.
+                return null
+            }
         }
     }
 }

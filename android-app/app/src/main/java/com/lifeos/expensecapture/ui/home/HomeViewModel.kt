@@ -18,6 +18,7 @@ import com.lifeos.expensecapture.finance.SpendingInsightEngine
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
 import com.lifeos.expensecapture.ui.onboarding.CONSENT_SMS
 import com.lifeos.expensecapture.util.ConnectivityObserver
+import com.lifeos.expensecapture.util.tickerFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -47,6 +48,9 @@ sealed class AttentionItem {
 
 data class HomeUiState(
     val spentThisMonth: Double = 0.0,
+    /** Found via a real user report, 2026-07: the month total alone didn't answer "how much did
+     * I spend just today" - same day-boundary math NightSummaryViewModel already uses. */
+    val spentToday: Double = 0.0,
     val attentionItem: AttentionItem? = null,
     val hasAnyData: Boolean = false,
     val unreadNotifications: Int = 0,
@@ -126,15 +130,21 @@ class HomeViewModel(
     ) { categories, goals -> InsightInputsSnapshot(categories, goals) }
 
     val uiState: StateFlow<HomeUiState> = combine(
-        financeSnapshot, statusSnapshot, insightInputsSnapshot
-    ) { finance, status, insightInputs ->
+        financeSnapshot, statusSnapshot, insightInputsSnapshot, tickerFlow()
+        // see TickerFlow's kdoc - "month wise not updating" bug fix: spentThisMonth/spentToday
+        // are derived from LocalDate.now() inside this block, which only re-runs on data change,
+        // not on time passing.
+    ) { finance, status, insightInputs, _ ->
         val zone = ZoneId.systemDefault()
-        val monthStart = LocalDate.now(zone).withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val today = LocalDate.now(zone)
+        val monthStart = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val todayStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
         val spent = finance.transactions
             .filter { it.direction == TransactionDirection.DEBIT && it.date >= monthStart }
             .sumOf { it.amount }
-
-        val today = LocalDate.now(zone)
+        val spentToday = finance.transactions
+            .filter { it.direction == TransactionDirection.DEBIT && it.date >= todayStart }
+            .sumOf { it.amount }
         val last7DaysSpend = (6 downTo 0).map { today.minusDays(it.toLong()) }.map { day ->
             val start = day.atStartOfDay(zone).toInstant().toEpochMilli()
             val end = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -173,6 +183,7 @@ class HomeViewModel(
 
         HomeUiState(
             spentThisMonth = spent,
+            spentToday = spentToday,
             attentionItem = attentionItem,
             hasAnyData = finance.transactions.isNotEmpty(),
             unreadNotifications = status.unreadNotifications,

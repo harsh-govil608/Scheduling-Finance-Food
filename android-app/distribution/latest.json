@@ -1,6 +1,6 @@
 {
-  "versionCode": 17,
-  "versionName": "0.17.0-pilot",
+  "versionCode": 18,
+  "versionName": "0.18.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "You can now remove notifications instead of them piling up forever - each one has its own remove (X) button, or use the new menu (top right of Notifications) to clear everything at once."
+  "notes": "Budgets can now be edited in place, transactions can be deleted from the Ledger, manual entries support picking a past date, and Home now shows today's spend alongside this month's. OTP/promotional texts no longer clutter Needs Review. Fixed a bug where month totals could go stale if the app sat open across a month change, and export now lets you choose this month vs all time instead of always dumping everything."
 }

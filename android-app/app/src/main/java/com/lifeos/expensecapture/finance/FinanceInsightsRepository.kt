@@ -11,6 +11,7 @@ import com.lifeos.expensecapture.data.db.entity.BudgetEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionStatus
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
+import com.lifeos.expensecapture.util.tickerFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -66,8 +67,9 @@ class FinanceInsightsRepository(
         return combine(
             budgetDao.observeAll(),
             transactionDao.observeAll(),
-            categoryDao.observeAll()
-        ) { budgets, transactions, categories ->
+            categoryDao.observeAll(),
+            tickerFlow() // see TickerFlow's kdoc - "month wise not updating" bug fix
+        ) { budgets, transactions, categories, _ ->
             val monthStart = startOfCurrentMonthMillis()
             val now = System.currentTimeMillis()
             val daysElapsed = ((now - monthStart) / 86_400_000.0).coerceAtLeast(1.0)

@@ -26,7 +26,14 @@ object CsvExporter {
         transactions: List<TransactionEntity>,
         categoryNameFor: (Long) -> String
     ): Uri {
-        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        // Own subdirectory (not shared with DiagnosticsExporter's "exports/diagnostics") so
+        // clearing old CSV exports below can never race with a diagnostics export in flight.
+        val dir = File(context.cacheDir, "exports/transactions").apply { mkdirs() }
+        // Bug fix (found via a real user report, 2026-07 - "check storage/cache"): every export
+        // wrote a new timestamped file and nothing ever removed the old ones, so cache grew
+        // without bound the more this button got tapped. These are single-use share artifacts,
+        // not a history worth keeping - clearing the folder first keeps exactly one around.
+        dir.listFiles()?.forEach { it.delete() }
         val file = File(dir, "transactions_${System.currentTimeMillis()}.csv")
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
 

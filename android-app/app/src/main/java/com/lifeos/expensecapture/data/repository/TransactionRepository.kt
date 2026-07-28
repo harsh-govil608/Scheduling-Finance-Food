@@ -66,4 +66,10 @@ class TransactionRepository(
             )
         )
     }
+
+    /** Ledger deletion (found via a real user report, 2026-07): no way existed to remove a
+     * transaction (a mis-entered manual one, a duplicate, etc.) once it was captured. */
+    suspend fun deleteTransaction(transaction: TransactionEntity) {
+        transactionDao.delete(transaction)
+    }
 }

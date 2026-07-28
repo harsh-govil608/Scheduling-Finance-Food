@@ -1,6 +1,7 @@
 package com.lifeos.expensecapture.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -16,6 +17,11 @@ interface TransactionDao {
 
     @Update
     suspend fun update(transaction: TransactionEntity)
+
+    /** Ledger deletion (found via a real user report, 2026-07): there was previously no way to
+     * remove a transaction at all, e.g. a manually mis-entered one or a duplicate. */
+    @Delete
+    suspend fun delete(transaction: TransactionEntity)
 
     @Query("SELECT * FROM transactions ORDER BY date DESC")
     fun observeAll(): Flow<List<TransactionEntity>>

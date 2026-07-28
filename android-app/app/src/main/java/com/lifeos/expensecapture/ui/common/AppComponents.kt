@@ -116,7 +116,11 @@ fun HeroMoneyCard(
     amount: Double,
     caption: String,
     trend: List<Float> = emptyList(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Today's-spend line (found via a real user report, 2026-07): the hero card only ever showed
+    // the month total, with no lower-effort way to see "how much today alone" without doing the
+    // Ledger math yourself. Optional so other HeroMoneyCard call sites (Night Summary) are unaffected.
+    secondaryLine: String? = null
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -128,6 +132,10 @@ fun HeroMoneyCard(
             Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             Text("₹${"%.2f".format(amount)}", style = AmountHero)
+            secondaryLine?.let {
+                Spacer(Modifier.height(2.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             if (trend.size >= 2) {
                 Spacer(Modifier.height(14.dp))
                 Sparkline(

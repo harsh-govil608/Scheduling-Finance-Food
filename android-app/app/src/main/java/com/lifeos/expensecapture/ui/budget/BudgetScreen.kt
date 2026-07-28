@@ -71,6 +71,12 @@ fun BudgetScreen(app: App, onBack: () -> Unit) {
     val budgets by viewModel.budgets.collectAsState()
     val categories by viewModel.categories.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    // Editable budgets (found via a real user report, 2026-07): BudgetCard previously only had
+    // "Remove" - changing a limit meant deleting and recreating the whole budget. The DAO's
+    // upsert already updates in place when a matching category's budget exists (see setBudget's
+    // findByCategory/findOverall reuse), so this only needed a UI path to invoke it with the
+    // current limit pre-filled.
+    var editTarget by remember { mutableStateOf<FinanceInsightsRepository.BudgetProgress?>(null) }
 
     Scaffold(
         topBar = {
@@ -103,27 +109,37 @@ fun BudgetScreen(app: App, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(budgets, key = { it.budget.id }) { progress ->
-                    BudgetCard(progress, onDelete = { viewModel.deleteBudget(progress) })
+                    BudgetCard(
+                        progress,
+                        onEdit = { editTarget = progress },
+                        onDelete = { viewModel.deleteBudget(progress) }
+                    )
                 }
             }
         }
     }
 
-    if (showAddDialog) {
+    if (showAddDialog || editTarget != null) {
         BudgetEditDialog(
             categories = categories,
+            editTarget = editTarget,
             onSuggestedDefault = { categoryId -> viewModel.suggestedDefault(categoryId) },
             onConfirm = { categoryId, limit ->
                 viewModel.setBudget(categoryId, limit)
                 showAddDialog = false
+                editTarget = null
             },
-            onDismiss = { showAddDialog = false }
+            onDismiss = { showAddDialog = false; editTarget = null }
         )
     }
 }
 
 @Composable
-private fun BudgetCard(progress: FinanceInsightsRepository.BudgetProgress, onDelete: () -> Unit) {
+private fun BudgetCard(
+    progress: FinanceInsightsRepository.BudgetProgress,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     val ratio = (progress.spentThisMonth / progress.budget.monthlyLimit).coerceIn(0.0, 1.0)
     // "Over budget" is informational, not a system failure - deliberately stays in the amber
     // family rather than escalating to MaterialTheme.colorScheme.error's alarm-red, per the
@@ -141,7 +157,10 @@ private fun BudgetCard(progress: FinanceInsightsRepository.BudgetProgress, onDel
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(progress.categoryName, style = MaterialTheme.typography.bodyLarge)
-                TextButton(onClick = onDelete) { Text("Remove") }
+                Row {
+                    TextButton(onClick = onEdit) { Text("Edit") }
+                    TextButton(onClick = onDelete) { Text("Remove") }
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -174,17 +193,31 @@ private fun projectionText(progress: FinanceInsightsRepository.BudgetProgress): 
     }
 }
 
+/**
+ * Doubles as both "set a new budget" (editTarget == null) and "edit an existing one"
+ * (editTarget != null) - found via a real user report, 2026-07, that there was no way to change
+ * a budget's limit without deleting and recreating it. When editing, the category is locked
+ * (the underlying upsert always keys off categoryId, so silently letting an edit also move the
+ * budget to a different category would be a confusing side effect of what looks like just
+ * changing a number).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BudgetEditDialog(
     categories: List<CategoryEntity>,
+    editTarget: FinanceInsightsRepository.BudgetProgress? = null,
     onSuggestedDefault: suspend (Long?) -> Double,
     onConfirm: (categoryId: Long?, monthlyLimit: Double) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) } // null = Overall
+    val editingCategoryId = editTarget?.budget?.categoryId
+    var selectedCategory by remember {
+        mutableStateOf(categories.firstOrNull { it.id == editingCategoryId }) // null = Overall
+    }
     var expanded by remember { mutableStateOf(false) }
-    var limitText by remember { mutableStateOf("") }
+    var limitText by remember {
+        mutableStateOf(editTarget?.budget?.monthlyLimit?.let { "%.2f".format(it) } ?: "")
+    }
     var suggested by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(selectedCategory) {
@@ -193,23 +226,31 @@ private fun BudgetEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set a budget") },
+        title = { Text(if (editTarget != null) "Edit budget" else "Set a budget") },
         text = {
             Column {
-                Box {
-                    TextButton(onClick = { expanded = true }) {
-                        Text(selectedCategory?.name ?: "Overall (all categories)")
-                    }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Overall (all categories)") },
-                            onClick = { selectedCategory = null; expanded = false }
-                        )
-                        categories.forEach { category ->
+                if (editTarget != null) {
+                    Text(
+                        editTarget.categoryName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                } else {
+                    Box {
+                        TextButton(onClick = { expanded = true }) {
+                            Text(selectedCategory?.name ?: "Overall (all categories)")
+                        }
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             DropdownMenuItem(
-                                text = { Text(category.name) },
-                                onClick = { selectedCategory = category; expanded = false }
+                                text = { Text("Overall (all categories)") },
+                                onClick = { selectedCategory = null; expanded = false }
                             )
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category.name) },
+                                    onClick = { selectedCategory = category; expanded = false }
+                                )
+                            }
                         }
                     }
                 }

@@ -28,10 +28,11 @@ class UnparsedReviewViewModel(
         amount: Double,
         merchant: String,
         direction: TransactionDirection,
-        categoryId: Long
+        categoryId: Long,
+        date: Long
     ) {
         viewModelScope.launch {
-            transactionRepository.addManualTransaction(amount, direction, merchant, categoryId, message.receivedAt)
+            transactionRepository.addManualTransaction(amount, direction, merchant, categoryId, date)
             unparsedMessageDao.markResolved(message.id)
         }
     }

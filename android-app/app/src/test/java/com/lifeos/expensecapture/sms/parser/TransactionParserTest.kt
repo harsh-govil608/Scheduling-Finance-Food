@@ -65,4 +65,17 @@ class TransactionParserTest {
 
         assertTrue(result is ParseResult.Unparsed)
     }
+
+    @Test
+    fun `bank OTP SMS is ignored, not flagged for review`() {
+        // Bug fix (found via a real user report, 2026-07): before this, an OTP SMS - even from
+        // a real bank sender, even mentioning the same amount/merchant a genuine debit alert
+        // would - fell through to Unparsed and piled up in the Needs Review queue as noise.
+        val body = "1234 is the OTP for txn of INR 500.00 at Amazon. Valid for 5 mins. " +
+            "Do not share this OTP with anyone. -SBI"
+
+        val result = parser.parse(sender = "AD-SBIUPI-S", body = body)
+
+        assertTrue(result is ParseResult.Ignored)
+    }
 }

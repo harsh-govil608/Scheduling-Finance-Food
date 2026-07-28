@@ -104,6 +104,10 @@ fun LedgerScreen(app: App, onBack: () -> Unit) {
                 viewModel.recategorize(transaction, categoryId)
                 selectedTransaction = null
             },
+            onDelete = {
+                viewModel.deleteTransaction(transaction)
+                selectedTransaction = null
+            },
             onDismiss = { selectedTransaction = null }
         )
     }
@@ -111,8 +115,8 @@ fun LedgerScreen(app: App, onBack: () -> Unit) {
     if (showManualEntry) {
         ManualEntryDialog(
             categories = uiState.categories,
-            onConfirm = { amount, merchant, direction, categoryId ->
-                viewModel.addManual(amount, merchant, direction, categoryId)
+            onConfirm = { amount, merchant, direction, categoryId, date ->
+                viewModel.addManual(amount, merchant, direction, categoryId, date)
                 showManualEntry = false
             },
             onDismiss = { showManualEntry = false }
