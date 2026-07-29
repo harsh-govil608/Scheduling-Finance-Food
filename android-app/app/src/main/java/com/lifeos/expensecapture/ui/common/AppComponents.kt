@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.lifeos.expensecapture.ui.theme.AmountBody
 import com.lifeos.expensecapture.ui.theme.AmountHero
 import com.lifeos.expensecapture.ui.theme.CardSurfaceDark
 import com.lifeos.expensecapture.ui.theme.CardSurfaceLight
@@ -143,12 +145,16 @@ fun HeroMoneyCard(
     caption: String,
     trend: List<Float> = emptyList(),
     modifier: Modifier = Modifier,
-    // Today's-spend line (found via a real user report, 2026-07): the hero card only ever showed
+    // Today's-spend stat (found via a real user report, 2026-07): the hero card only ever showed
     // the month total, with no lower-effort way to see "how much today alone" without doing the
-    // Ledger math yourself. Optional so other HeroMoneyCard call sites (Night Summary) are unaffected.
-    secondaryLine: String? = null,
+    // Ledger math yourself. Rendered beside the main label/amount, not underneath it (a second
+    // real user report, 2026-07 - "spent this month ke baaju me spent today aana chahiye, side
+    // me hona chahiye") so it reads as a companion stat rather than a caption. Optional so other
+    // HeroMoneyCard call sites (Night Summary) are unaffected.
+    secondaryLabel: String? = null,
+    secondaryAmount: Double? = null,
     // Threshold mark for the trend line (found via a real user report, 2026-07) - see
-    // Sparkline's kdoc. Optional, same reasoning as secondaryLine.
+    // Sparkline's kdoc. Optional, same reasoning as secondaryLabel/secondaryAmount.
     trendThreshold: Float? = null
 ) {
     Card(
@@ -164,13 +170,27 @@ fun HeroMoneyCard(
         // card leaves more of the screen for everything below it without losing legibility -
         // the amount itself is still the largest text on the page.
         Column(Modifier.padding(20.dp)) {
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // Splitting the hero amount itself into a half-width column (an earlier version of
+            // this layout) wrapped multi-digit totals onto two lines at AmountHero's 42sp - found
+            // by actually running the app against real device data (₹61429.24 wrapped to
+            // "₹61429.2" / "4"). The secondary stat sits beside the *label* line instead, so the
+            // hero amount keeps the full card width it always had.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (secondaryLabel != null && secondaryAmount != null) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            secondaryLabel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("₹${"%.2f".format(secondaryAmount)}", style = AmountBody)
+                    }
+                }
+            }
             Spacer(Modifier.height(4.dp))
             Text("₹${"%.2f".format(amount)}", style = AmountHero)
-            secondaryLine?.let {
-                Spacer(Modifier.height(2.dp))
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
             if (trend.size >= 2) {
                 Spacer(Modifier.height(10.dp))
                 Sparkline(

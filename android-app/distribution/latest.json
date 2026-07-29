@@ -1,6 +1,6 @@
 {
-  "versionCode": 25,
-  "versionName": "0.25.0-pilot",
+  "versionCode": 26,
+  "versionName": "0.26.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixed: Needs Review was showing every SMS the app couldn't parse, including recharge alerts, delivery updates, and marketing texts - not just real bank/payment activity. The app still reads every message the same as before, but Needs Review now only surfaces ones that actually look like a bank or payment app trying to tell you something. This update also does a one-time cleanup of everything already sitting in your Needs Review list, so you'll immediately see it shrink to just the genuine ones instead of only affecting messages from now on."
+  "notes": "Added: a profile photo - tap Add photo on the Profile & Settings screen to pick one, or Remove photo to go back to the default. Also: Home now shows how much you've spent today right next to this month's total, so you don't have to do the math yourself."
 }

@@ -440,7 +440,8 @@ fun HomeScreen(
                         "Last 7 days"
                     },
                     trend = uiState.last7DaysSpend,
-                    secondaryLine = if (uiState.hasAnyData) "Today: ₹${"%.2f".format(uiState.spentToday)}" else null,
+                    secondaryLabel = if (uiState.hasAnyData) "Today" else null,
+                    secondaryAmount = if (uiState.hasAnyData) uiState.spentToday else null,
                     trendThreshold = uiState.dailySpendThreshold
                 )
             }

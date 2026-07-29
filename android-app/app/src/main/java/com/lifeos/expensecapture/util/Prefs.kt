@@ -11,6 +11,7 @@ object Prefs {
     private const val FILE = "app_prefs"
     private const val KEY_DISPLAY_NAME = "display_name"
     private const val KEY_CAPTURE_PAUSED = "capture_paused"
+    private const val KEY_PROFILE_PHOTO_PATH = "profile_photo_path"
 
     private fun prefs(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
@@ -18,6 +19,14 @@ object Prefs {
 
     fun setDisplayName(context: Context, name: String) {
         prefs(context).edit().putString(KEY_DISPLAY_NAME, name).apply()
+    }
+
+    /** Local file path (app-internal storage, not the picker's own content:// Uri - that grant
+     * isn't guaranteed to survive a reboot) to the copy made in ProfileViewModel.setProfilePhoto. */
+    fun getProfilePhotoPath(context: Context): String? = prefs(context).getString(KEY_PROFILE_PHOTO_PATH, null)
+
+    fun setProfilePhotoPath(context: Context, path: String?) {
+        prefs(context).edit().putString(KEY_PROFILE_PHOTO_PATH, path).apply()
     }
 
     fun isCapturePaused(context: Context): Boolean = prefs(context).getBoolean(KEY_CAPTURE_PAUSED, false)
