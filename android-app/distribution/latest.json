@@ -1,6 +1,6 @@
 {
-  "versionCode": 22,
-  "versionName": "0.22.0-pilot",
+  "versionCode": 23,
+  "versionName": "0.23.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "New: an Assistant (chat bubble on Home/Home tabs) you can type or speak to - \"spent 200 on lunch\", \"add task call mom tomorrow\", \"set food budget to 5000\" - and it does it directly, no forms. Your best habit streak now shows on Home too. Also fixed: the delete option on a transaction was buried at the bottom of the category list - it's now a fixed icon next to the title, always one tap away."
+  "notes": "New: Backup & Restore (Profile > Backup & Restore). Back up now saves a full copy of your data that you choose where to share (Google Drive, email to yourself, etc.) - if your phone is ever lost or broken, your history isn't gone with it. Restore lets you bring a backup back, with a clear warning before anything is replaced."
 }

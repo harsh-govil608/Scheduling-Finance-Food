@@ -18,6 +18,7 @@ import androidx.navigation.navArgument
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import com.lifeos.expensecapture.ui.assistant.AssistantScreen
+import com.lifeos.expensecapture.ui.backup.BackupRestoreScreen
 import com.lifeos.expensecapture.ui.bills.BillsScreen
 import com.lifeos.expensecapture.ui.budget.BudgetScreen
 import com.lifeos.expensecapture.ui.goals.GoalsScreen
@@ -220,6 +221,7 @@ fun PilotApp(app: App) {
                 onOpenPermissions = { navController.navigate("permissions") },
                 onOpenAutomationRules = { navController.navigate("rules") },
                 onOpenDiagnostics = { navController.navigate("diagnostics") },
+                onOpenBackupRestore = { navController.navigate("backup_restore") },
                 onDataDeleted = {
                     navController.navigate("permission") {
                         popUpTo(0)
@@ -235,6 +237,9 @@ fun PilotApp(app: App) {
         }
         composable("diagnostics") {
             DiagnosticsScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("backup_restore") {
+            BackupRestoreScreen(app = app, onBack = { navController.popBackStack() })
         }
     }
 }

@@ -276,15 +276,40 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun shoppingItemDao(): ShoppingItemDao
     abstract fun crashLogDao(): CrashLogDao
 
+    /** Backup & Restore (built via a real user request, 2026-07): Room runs in WAL mode, so the
+     * most recent writes can sit in the `.db-wal` sidecar file rather than the main `.db` file
+     * itself - confirmed the hard way earlier this session while inspecting a pulled DB copy
+     * that looked stale until its WAL was checkpointed. A raw file copy of just the main `.db`
+     * file could silently miss recent transactions unless this runs first. */
+    fun checkpoint() {
+        // Bug fix (found via a real device test, 2026-07): execSQL() is for statements with no
+        // return value - PRAGMA wal_checkpoint actually returns a result row (busy, log,
+        // checkpointed), which made execSQL throw here every time, silently breaking every
+        // backup attempt before this fix. query() + consuming the cursor is the correct call.
+        openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use { it.moveToFirst() }
+    }
+
     companion object {
+        const val DATABASE_NAME = "expense_capture_pilot.db"
+
         @Volatile private var INSTANCE: AppDatabase? = null
+
+        /** Restore (built via a real user request, 2026-07): the live singleton holds an open
+         * connection to the old file - swapping the file underneath it without closing this
+         * first would leave Room operating on stale handles. The caller is expected to kill and
+         * restart the process right after this, since a mid-life database swap isn't something
+         * any of this app's ViewModels/Flows are built to detect and re-subscribe to. */
+        fun closeAndClearInstance() {
+            INSTANCE?.close()
+            INSTANCE = null
+        }
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "expense_capture_pilot.db"
+                    DATABASE_NAME
                 )
                     // Real migration path for every version gap so far (see each Migration's
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
