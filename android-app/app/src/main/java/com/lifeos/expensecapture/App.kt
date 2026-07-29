@@ -6,6 +6,7 @@ import com.lifeos.expensecapture.data.seed.DefaultCategories
 import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.logging.CrashHandler
 import com.lifeos.expensecapture.notifications.NotificationChannels
+import com.lifeos.expensecapture.sms.parser.TransactionParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,9 +43,31 @@ class App : Application() {
                 if (database.categoryDao().count() == 0) {
                     database.categoryDao().insertAll(DefaultCategories.asEntities())
                 }
+                cleanUpExistingReviewNoiseOnce()
             } catch (e: Exception) {
                 AppLogger.e("App", "startup initialization failed", e)
             }
         }
+    }
+
+    /**
+     * One-time migration (2026-07): the institutional-sender noise filter in
+     * TransactionIngestor only stops NEW non-bank messages from being added to Needs Review -
+     * it doesn't touch rows already sitting there from before this update. Without this, a user
+     * upgrading would see no visible change (see the real user report that caught this: "nothing
+     * seemed to change, what is the change"). Runs once per install, guarded by a SharedPreferences
+     * flag so it never re-scans on every launch.
+     */
+    private suspend fun cleanUpExistingReviewNoiseOnce() {
+        val prefs = getSharedPreferences("app_migrations", MODE_PRIVATE)
+        if (prefs.getBoolean("needs_review_noise_cleanup_v1_done", false)) return
+
+        val noiseIds = database.unparsedMessageDao().getAllUnresolved()
+            .filterNot { TransactionParser.looksLikeInstitutionalSender(it.sender) }
+            .map { it.id }
+        if (noiseIds.isNotEmpty()) {
+            database.unparsedMessageDao().deleteByIds(noiseIds)
+        }
+        prefs.edit().putBoolean("needs_review_noise_cleanup_v1_done", true).apply()
     }
 }

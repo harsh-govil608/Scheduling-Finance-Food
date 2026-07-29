@@ -18,4 +18,10 @@ interface UnparsedMessageDao {
 
     @Query("UPDATE unparsed_messages SET resolved = 1 WHERE id = :id")
     suspend fun markResolved(id: Long)
+
+    @Query("SELECT * FROM unparsed_messages WHERE resolved = 0")
+    suspend fun getAllUnresolved(): List<UnparsedMessageEntity>
+
+    @Query("DELETE FROM unparsed_messages WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
 }
