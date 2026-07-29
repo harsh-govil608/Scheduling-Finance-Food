@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
+import com.lifeos.expensecapture.ui.assistant.AssistantScreen
 import com.lifeos.expensecapture.ui.bills.BillsScreen
 import com.lifeos.expensecapture.ui.budget.BudgetScreen
 import com.lifeos.expensecapture.ui.goals.GoalsScreen
@@ -114,6 +115,7 @@ fun PilotApp(app: App) {
                 onOpenNightSummary = { navController.navigate("night_summary") },
                 onOpenProfile = { navController.navigate("profile") },
                 onOpenPermissionsReview = { navController.navigate("permissions") },
+                onOpenAssistant = { navController.navigate("assistant") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
             )
         }
@@ -129,8 +131,12 @@ fun PilotApp(app: App) {
                 onOpenJournal = { navController.navigate("journal") },
                 onOpenShopping = { navController.navigate("shopping") },
                 onOpenTimeline = { navController.navigate("timeline") },
+                onOpenAssistant = { navController.navigate("assistant") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
             )
+        }
+        composable("assistant") {
+            AssistantScreen(app = app, onBack = { navController.popBackStack() })
         }
         composable("notes") {
             NotesScreen(app = app, type = NoteType.NOTE, screenTitle = "Notes", onBack = { navController.popBackStack() })

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Folder
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -65,6 +68,7 @@ fun ProductivityHomeScreen(
     onOpenJournal: () -> Unit,
     onOpenShopping: () -> Unit,
     onOpenTimeline: () -> Unit,
+    onOpenAssistant: () -> Unit,
     onSelectPillar: (Pillar) -> Unit
 ) {
     val viewModel = remember {
@@ -78,7 +82,15 @@ fun ProductivityHomeScreen(
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
-        bottomBar = { PillarBottomBar(current = Pillar.HOME, onSelect = onSelectPillar) }
+        bottomBar = { PillarBottomBar(current = Pillar.HOME, onSelect = onSelectPillar) },
+        // Assistant entry point (built via a real user request, 2026-07): a FAB, not an
+        // EntryRow buried in the Explore list - the whole point is fewer manual taps, so it
+        // needs to be the most reachable thing on the screen, not the least.
+        floatingActionButton = {
+            FloatingActionButton(onClick = onOpenAssistant) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Open assistant")
+            }
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),

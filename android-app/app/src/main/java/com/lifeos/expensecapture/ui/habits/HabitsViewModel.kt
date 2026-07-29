@@ -6,6 +6,7 @@ import com.lifeos.expensecapture.data.db.dao.HabitCompletionDao
 import com.lifeos.expensecapture.data.db.dao.HabitDao
 import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
+import com.lifeos.expensecapture.productivity.HabitStreakCalculator
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -43,7 +44,7 @@ class HabitsViewModel(
             HabitRow(
                 habit = habit,
                 doneToday = days.contains(today),
-                currentStreak = currentStreak(days, today)
+                currentStreak = HabitStreakCalculator.currentStreak(days, today)
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -66,25 +67,5 @@ class HabitsViewModel(
 
     fun archive(habit: HabitEntity) {
         viewModelScope.launch { habitDao.update(habit.copy(archived = true)) }
-    }
-
-    /**
-     * Counts backward from today (or from yesterday, if today just hasn't happened yet -
-     * that's not a miss, the day isn't over). Only actually broken once a full day passes with
-     * no completion at all, at which point this returns 0 - the "ready when you are" copy lives
-     * in the UI layer, not here, since a streak COUNT can be honest while the FRAMING around a
-     * 0 stays supportive.
-     */
-    private fun currentStreak(days: Set<Long>, today: Long): Int {
-        if (days.isEmpty()) return 0
-        val mostRecent = days.max()
-        if (mostRecent < today - 1) return 0
-        var streak = 0
-        var day = if (days.contains(today)) today else today - 1
-        while (days.contains(day)) {
-            streak++
-            day--
-        }
-        return streak
     }
 }

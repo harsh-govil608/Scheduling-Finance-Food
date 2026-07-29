@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PieChart
@@ -36,6 +38,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -105,6 +108,7 @@ fun HomeScreen(
     onOpenNightSummary: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenPermissionsReview: () -> Unit,
+    onOpenAssistant: () -> Unit,
     onSelectPillar: (Pillar) -> Unit
 ) {
     val context = LocalContext.current
@@ -118,6 +122,8 @@ fun HomeScreen(
             consentDao = app.database.consentDao(),
             categoryDao = app.database.categoryDao(),
             goalDao = app.database.goalDao(),
+            habitDao = app.database.habitDao(),
+            habitCompletionDao = app.database.habitCompletionDao(),
             insightsRepository = FinanceInsightsRepository(
                 transactionDao = app.database.transactionDao(),
                 categoryDao = app.database.categoryDao(),
@@ -304,7 +310,15 @@ fun HomeScreen(
                 }
             )
         },
-        bottomBar = { PillarBottomBar(current = Pillar.FINANCE, onSelect = onSelectPillar) }
+        bottomBar = { PillarBottomBar(current = Pillar.FINANCE, onSelect = onSelectPillar) },
+        // Assistant entry point (built via a real user request, 2026-07): a FAB, not an
+        // EntryRow buried in the Explore list - the whole point is fewer manual taps, so it
+        // needs to be the most reachable thing on the screen, not the least.
+        floatingActionButton = {
+            FloatingActionButton(onClick = onOpenAssistant) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Open assistant")
+            }
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -429,6 +443,21 @@ fun HomeScreen(
                     secondaryLine = if (uiState.hasAnyData) "Today: ₹${"%.2f".format(uiState.spentToday)}" else null,
                     trendThreshold = uiState.dailySpendThreshold
                 )
+            }
+
+            // Engagement hook (found via a real user request, 2026-07): only shown when there's
+            // a genuine streak to celebrate - a "0-day streak" card would read as discouraging,
+            // the exact framing the Habits PRD explicitly calls out to avoid (see
+            // HabitStreakCalculator's kdoc). Absent, not zeroed-out, on a quiet stretch.
+            if (uiState.bestHabitStreak > 0) {
+                item {
+                    AccentInfoCard(
+                        icon = Icons.Filled.LocalFireDepartment,
+                        accentColor = MaterialTheme.colorScheme.tertiary,
+                        title = "${uiState.bestHabitStreak}-day streak",
+                        body = "Your best habit streak right now - keep it going."
+                    )
+                }
             }
 
             uiState.spendingInsight?.let { insight ->

@@ -1,6 +1,6 @@
 {
-  "versionCode": 21,
-  "versionName": "0.21.0-pilot",
+  "versionCode": 22,
+  "versionName": "0.22.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "CSV export now lets you pick a custom date range, not just this month or all time. The app now greets you with a spoken summary the first time you open it each day, no tap needed. Notifications and Needs Review also get category/type icon badges, matching the rest of the app."
+  "notes": "New: an Assistant (chat bubble on Home/Home tabs) you can type or speak to - \"spent 200 on lunch\", \"add task call mom tomorrow\", \"set food budget to 5000\" - and it does it directly, no forms. Your best habit streak now shows on Home too. Also fixed: the delete option on a transaction was buried at the bottom of the category list - it's now a fixed icon next to the title, always one tap away."
 }
