@@ -49,17 +49,25 @@ object TransactionIngestor {
             }
             is ParseResult.Unparsed -> {
                 // Fixed Day 2 (see docs/coders-documentation/day-2.md): previously discarded,
-                // making "parse failed" indistinguishable from "nothing happened." Now
-                // surfaced in the Needs Review queue for manual conversion.
-                db.unparsedMessageDao().insert(
-                    UnparsedMessageEntity(
-                        sender = sender,
-                        body = body,
-                        receivedAt = timestamp,
-                        reason = result.reason,
-                        sourceHash = "$sender::$body"
+                // making "parse failed" indistinguishable from "nothing happened." Surfaced in
+                // the Needs Review queue for manual conversion - but only when the sender
+                // itself looks like a real bank/institutional sender (found via a real user
+                // report, 2026-07 - see TransactionParser.looksLikeInstitutionalSender's kdoc
+                // for why body-keyword matches alone aren't enough reason to interrupt a human).
+                // A promotional text or delivery update that merely mentions "credit" or
+                // "account" is still parsed and still correctly fails to become a transaction -
+                // it's just not worth surfacing as something to review.
+                if (TransactionParser.looksLikeInstitutionalSender(sender)) {
+                    db.unparsedMessageDao().insert(
+                        UnparsedMessageEntity(
+                            sender = sender,
+                            body = body,
+                            receivedAt = timestamp,
+                            reason = result.reason,
+                            sourceHash = "$sender::$body"
+                        )
                     )
-                )
+                }
                 return null
             }
             is ParseResult.Ignored -> {

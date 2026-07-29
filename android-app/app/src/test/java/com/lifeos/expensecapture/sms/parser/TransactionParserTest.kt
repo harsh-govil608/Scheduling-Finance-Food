@@ -2,6 +2,7 @@ package com.lifeos.expensecapture.sms.parser
 
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -77,5 +78,53 @@ class TransactionParserTest {
         val result = parser.parse(sender = "AD-SBIUPI-S", body = body)
 
         assertTrue(result is ParseResult.Ignored)
+    }
+
+    // Product-scale fix (found via a real user report, 2026-07 - "we can't keep showing the
+    // person all the sms, this is going to overload my app"): TransactionIngestor only surfaces
+    // an Unparsed result to the Needs Review queue when the sender itself passes this check -
+    // see looksLikeInstitutionalSender's own kdoc for the DLT-sender-ID reasoning.
+
+    @Test
+    fun `real bank sender IDs are recognized as institutional`() {
+        assertTrue(TransactionParser.looksLikeInstitutionalSender("AD-ICICIT-S"))
+        assertTrue(TransactionParser.looksLikeInstitutionalSender("AX-ICICIT-S"))
+        assertTrue(TransactionParser.looksLikeInstitutionalSender("AX-ICICIT-T"))
+        assertTrue(TransactionParser.looksLikeInstitutionalSender("AD-SBIUPI-S"))
+        assertTrue(TransactionParser.looksLikeInstitutionalSender("AX-AXISBK-S"))
+        assertTrue(TransactionParser.looksLikeInstitutionalSender("VM-HDFCBK"))
+    }
+
+    @Test
+    fun `a saved contact name is not institutional`() {
+        assertFalse(TransactionParser.looksLikeInstitutionalSender("MOM"))
+        assertFalse(TransactionParser.looksLikeInstitutionalSender("Harsh Govil"))
+    }
+
+    @Test
+    fun `a plain phone number is not institutional`() {
+        assertFalse(TransactionParser.looksLikeInstitutionalSender("9876543210"))
+        assertFalse(TransactionParser.looksLikeInstitutionalSender("+919876543210"))
+    }
+
+    @Test
+    fun `DLT-registered non-bank businesses are not institutional, even in the same sender shape`() {
+        // Regression check against real captured noise (2026-07): these are real DLT-registered
+        // senders (telecom, e-commerce, edtech) that share the exact "XX-YYYYYY-Z" shape real
+        // bank senders use - a DLT-shape check alone would have kept all of these in Needs
+        // Review, which is exactly the noise this fix exists to prevent.
+        assertFalse(TransactionParser.looksLikeInstitutionalSender("VK-ViCARE-S")) // Vi telecom balance alert
+        assertFalse(TransactionParser.looksLikeInstitutionalSender("CP-blnkit-S")) // Blinkit order notice
+        assertFalse(TransactionParser.looksLikeInstitutionalSender("VA-UPGRAD-P")) // upGrad course marketing
+        assertFalse(TransactionParser.looksLikeInstitutionalSender("VK-611123-P")) // telecom/data-pack promo
+    }
+
+    @Test
+    fun `a real rent-payment service sender is recognized as institutional`() {
+        // Found in a real user's actual Needs Review data (2026-07): CRIBIN sends genuine
+        // "Payment Successful"/"Payment...has failed" confirmations for real recurring rent
+        // payments (via Urbanroomz) - real money moving, so it belongs in the whitelist even
+        // though it isn't a bank itself.
+        assertTrue(TransactionParser.looksLikeInstitutionalSender("AX-CRIBIN-S"))
     }
 }

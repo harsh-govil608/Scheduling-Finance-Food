@@ -1,6 +1,6 @@
 {
-  "versionCode": 23,
-  "versionName": "0.23.0-pilot",
+  "versionCode": 24,
+  "versionName": "0.24.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "New: Backup & Restore (Profile > Backup & Restore). Back up now saves a full copy of your data that you choose where to share (Google Drive, email to yourself, etc.) - if your phone is ever lost or broken, your history isn't gone with it. Restore lets you bring a backup back, with a clear warning before anything is replaced."
+  "notes": "Fixed: Needs Review was showing every SMS the app couldn't parse, including recharge alerts, delivery updates, and marketing texts - not just real bank/payment activity. The app still reads every message the same as before, but Needs Review now only surfaces ones that actually look like a bank or payment app trying to tell you something, so it won't pile up with noise as you get more everyday SMS."
 }
