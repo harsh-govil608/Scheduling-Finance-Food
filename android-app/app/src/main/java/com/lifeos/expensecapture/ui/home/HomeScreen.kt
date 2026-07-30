@@ -1,8 +1,6 @@
 package com.lifeos.expensecapture.ui.home
 
 import android.content.Intent
-import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,11 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Autorenew
@@ -67,9 +63,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
@@ -80,7 +73,9 @@ import com.lifeos.expensecapture.ui.common.AccentInfoCard
 import com.lifeos.expensecapture.ui.common.AiInsightCard
 import com.lifeos.expensecapture.ui.common.CategoryVisuals
 import com.lifeos.expensecapture.ui.common.EntryRow
+import com.lifeos.expensecapture.ui.common.GreetingTitle
 import com.lifeos.expensecapture.ui.common.HeroMoneyCard
+import com.lifeos.expensecapture.ui.common.ProfileAvatarButton
 import com.lifeos.expensecapture.ui.common.SectionLabel
 import com.lifeos.expensecapture.ui.common.StatTile
 import com.lifeos.expensecapture.ui.common.TransactionRow
@@ -95,10 +90,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Card
@@ -201,29 +194,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    // Greeting header (reference mockups' "Good Morning, Sohom") - real display
-                    // name from Profile, time-of-day-aware greeting, today's date. Falls back to
-                    // "there" rather than an empty string when no display name has been set yet.
-                    Column {
-                        val hour = remember { LocalTime.now().hour }
-                        val timeOfDay = when {
-                            hour < 12 -> "Good Morning"
-                            hour < 17 -> "Good Afternoon"
-                            else -> "Good Evening"
-                        }
-                        val name = uiState.displayName.ifBlank { "there" }
-                        Text("$timeOfDay, $name", style = MaterialTheme.typography.titleMedium)
-                        val today = remember {
-                            LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
-                        }
-                        Text(
-                            today,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
+                title = { GreetingTitle(uiState.displayName) },
                 actions = {
                     IconButton(onClick = onOpenSearch) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
@@ -346,21 +317,7 @@ fun HomeScreen(
                             Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                         }
                     }
-                    IconButton(onClick = onOpenProfile) {
-                        val photoBitmap = remember(uiState.profilePhotoPath) {
-                            uiState.profilePhotoPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() }
-                        }
-                        if (photoBitmap != null) {
-                            Image(
-                                bitmap = photoBitmap,
-                                contentDescription = "Profile & settings",
-                                modifier = Modifier.size(32.dp).clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(Icons.Default.AccountCircle, contentDescription = "Profile & settings")
-                        }
-                    }
+                    ProfileAvatarButton(photoPath = uiState.profilePhotoPath, onClick = onOpenProfile)
                 }
             )
         },

@@ -1,6 +1,6 @@
 {
-  "versionCode": 27,
-  "versionName": "0.27.0-pilot",
+  "versionCode": 28,
+  "versionName": "0.28.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "New look: the whole app is now dark-themed with a mint-green accent, matching a design refresh across Home, Budgets, Bills, Subscriptions, Investments, and more - bolder amounts, ring/bordered summary cards, and colored status badges in place of the old plain lists. Nothing about how the app works has changed, just how it looks."
+  "notes": "Continuing the new look: the Home (productivity) tab now matches Finance's redesign too - a greeting header, a bordered 'Today's Focus' card for tasks and habits, a Quick Actions grid, and goal-progress rings. Investments, Goals, and Habits also got the bolder summary-card treatment. Nothing about how the app works has changed, just how it looks."
 }

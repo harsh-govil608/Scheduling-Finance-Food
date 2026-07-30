@@ -43,8 +43,8 @@ import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.InvestmentEntity
 import com.lifeos.expensecapture.ui.common.IconBadge
+import com.lifeos.expensecapture.ui.common.SummaryStatCard
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
-import com.lifeos.expensecapture.ui.theme.AmountHero
 
 /**
  * Investments (Future) PRD, Phase 3 Doc 23. Read-only, manually entered holdings only - no
@@ -77,20 +77,17 @@ fun InvestmentsScreen(app: App, onBack: () -> Unit) {
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
-            ) {
-                Column(Modifier.padding(20.dp)) {
-                    Text(
-                        "Total (manually entered)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text("₹${"%.2f".format(total)}", style = AmountHero)
-                }
-            }
+            SummaryStatCard(
+                icon = Icons.Filled.TrendingUp,
+                label = "Total (manually entered)",
+                value = "₹${"%.2f".format(total)}",
+                caption = if (investments.isNotEmpty()) {
+                    "${investments.size} holding${if (investments.size == 1) "" else "s"}"
+                } else {
+                    null
+                },
+                modifier = Modifier.padding(16.dp)
+            )
             if (investments.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                     Text("No holdings added yet. This is manual, read-only tracking - no brokerage sync.")

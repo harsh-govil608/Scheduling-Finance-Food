@@ -1,59 +1,70 @@
 package com.lifeos.expensecapture.ui.productivity
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.ListAlt
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.ui.common.AiInsightCard
+import com.lifeos.expensecapture.ui.common.ActionTile
 import com.lifeos.expensecapture.ui.common.EntryRow
-import com.lifeos.expensecapture.ui.common.IconBadge
+import com.lifeos.expensecapture.ui.common.GreetingTitle
+import com.lifeos.expensecapture.ui.common.ProfileAvatarButton
+import com.lifeos.expensecapture.ui.common.ProgressRing
 import com.lifeos.expensecapture.ui.common.SectionLabel
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.Alignment
 
 /**
  * "Home" pillar landing surface - Task Management (Doc 10) + Habits (Doc 13) + Daily Planning
  * (Doc 14, folded in - see ProductivityHomeViewModel). Deliberately structured like Finance's
  * HomeScreen (a snapshot/list per feature, then entry points) so the two pillars feel like one
- * app, not two bolted-together prototypes.
+ * app, not two bolted-together prototypes - now sharing the exact same greeting header, and the
+ * same "Today's Focus"/dashboard-card visual language, after the 2026-07-31 design refresh (see
+ * Color.kt's kdoc).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,20 +79,33 @@ fun ProductivityHomeScreen(
     onOpenJournal: () -> Unit,
     onOpenShopping: () -> Unit,
     onOpenTimeline: () -> Unit,
+    onOpenLedger: () -> Unit,
+    onOpenProfile: () -> Unit,
     onOpenAssistant: () -> Unit,
     onSelectPillar: (Pillar) -> Unit
 ) {
+    val context = LocalContext.current
     val viewModel = remember {
         ProductivityHomeViewModel(
+            context = context,
             taskDao = app.database.taskDao(),
             habitDao = app.database.habitDao(),
-            habitCompletionDao = app.database.habitCompletionDao()
+            habitCompletionDao = app.database.habitCompletionDao(),
+            projectDao = app.database.projectDao(),
+            goalDao = app.database.goalDao()
         )
     }
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Home") }) },
+        topBar = {
+            TopAppBar(
+                title = { GreetingTitle(uiState.displayName) },
+                actions = {
+                    ProfileAvatarButton(photoPath = uiState.profilePhotoPath, onClick = onOpenProfile)
+                }
+            )
+        },
         bottomBar = { PillarBottomBar(current = Pillar.HOME, onSelect = onSelectPillar) },
         // Assistant entry point (built via a real user request, 2026-07): a FAB, not an
         // EntryRow buried in the Explore list - the whole point is fewer manual taps, so it
@@ -97,76 +121,102 @@ fun ProductivityHomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            uiState.insight?.let { insight ->
-                item {
-                    AiInsightCard(title = "What's working", body = insight)
+            item {
+                TodaysFocusCard(
+                    uiState = uiState,
+                    onOpenTasks = onOpenTasks,
+                    onOpenHabits = onOpenHabits
+                )
+            }
+
+            item { SectionLabel("Quick actions") }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        ActionTile(Icons.Filled.Receipt, "Add Expense", onOpenLedger, Modifier.weight(1f))
+                        ActionTile(Icons.Filled.NoteAdd, "Create Note", onOpenNotes, Modifier.weight(1f))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        ActionTile(Icons.Filled.PlaylistAdd, "Add Habit", onOpenHabits, Modifier.weight(1f))
+                        ActionTile(Icons.Filled.CheckBoxOutlineBlank, "Add Task", onOpenTasks, Modifier.weight(1f))
+                    }
                 }
             }
 
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTasks),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconBadge(Icons.Filled.ListAlt, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, size = 32.dp)
-                            Spacer(Modifier.width(10.dp))
-                            Text("Due today", style = MaterialTheme.typography.titleMedium)
+            uiState.insight?.let { insight ->
+                item {
+                    AiInsightCard(title = "AI Suggestions", body = insight)
+                }
+            }
+
+            if (uiState.projects.isNotEmpty()) {
+                item { SectionLabel("Projects") }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        uiState.projects.take(2).forEach { row ->
+                            val progress = if (row.totalTaskCount > 0) {
+                                (row.totalTaskCount - row.openTaskCount).toFloat() / row.totalTaskCount
+                            } else {
+                                0f
+                            }
+                            Card(
+                                modifier = Modifier.weight(1f).clickable(onClick = onOpenProjects),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text(
+                                        row.project.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(Modifier.height(10.dp))
+                                    Text(
+                                        "${(progress * 100).toInt()}%",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    LinearProgressIndicator(
+                                        progress = { progress },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
-                        Spacer(Modifier.height(10.dp))
-                        if (uiState.todayTasks.isEmpty()) {
-                            Text(
-                                if (uiState.totalOpenTasks == 0) "Nothing on your list - tap to add something." else "Nothing due today, ${uiState.totalOpenTasks} open in total",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            uiState.todayTasks.take(5).forEach { task ->
-                                Text("• ${task.title}", style = MaterialTheme.typography.bodyMedium)
-                            }
-                            if (uiState.todayTasks.size > 5) {
-                                Text(
-                                    "+${uiState.todayTasks.size - 5} more",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        if (uiState.projects.size == 1) {
+                            Spacer(Modifier.weight(1f))
                         }
                     }
                 }
             }
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenHabits),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconBadge(Icons.Filled.CheckCircle, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.tertiaryContainer, size = 32.dp)
-                            Spacer(Modifier.width(10.dp))
-                            Text("Habits for today", style = MaterialTheme.typography.titleMedium)
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        if (uiState.totalHabits == 0) {
-                            Text(
-                                "No habits yet - tap to start one.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else if (uiState.pendingHabitsToday.isEmpty()) {
-                            Text(
-                                "All ${uiState.totalHabits} checked off for today",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            uiState.pendingHabitsToday.take(5).forEach { habit ->
-                                Text("• ${habit.name}", style = MaterialTheme.typography.bodyMedium)
+
+            if (uiState.goals.isNotEmpty()) {
+                item { SectionLabel("Goal progress") }
+                item {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.clickable(onClick = onOpenGoals)
+                    ) {
+                        // Real completion only (0%/100%) - GoalEntity has no numeric progress
+                        // field to derive a partial ring from, see ProductivityHomeUiState's kdoc.
+                        uiState.goals.take(4).forEach { goal ->
+                            val progress = if (goal.completed) 1f else 0f
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                ProgressRing(progress = progress, modifier = Modifier.size(64.dp)) {
+                                    Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    goal.title,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.width(64.dp)
+                                )
                             }
                         }
                     }
@@ -176,26 +226,14 @@ fun ProductivityHomeScreen(
             item { SectionLabel("Explore") }
             item {
                 EntryRow(
-                    Icons.Filled.Flag, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
-                    "Goals", "Longer-term targets you're working toward", onOpenGoals
-                )
-            }
-            item {
-                EntryRow(
-                    Icons.Filled.Folder, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
-                    "Projects", "Group related tasks together", onOpenProjects
-                )
-            }
-            item {
-                EntryRow(
                     Icons.Filled.Timeline, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.tertiaryContainer,
                     "Timeline", "Today, across Finance and Home together", onOpenTimeline
                 )
             }
             item {
                 EntryRow(
-                    Icons.Filled.StickyNote2, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
-                    "Notes", "Quick things worth writing down", onOpenNotes
+                    Icons.Filled.Folder, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
+                    "Projects", "Group related tasks together", onOpenProjects
                 )
             }
             item {
@@ -215,6 +253,91 @@ fun ProductivityHomeScreen(
                     Icons.Filled.Assessment, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
                     "Review", "How the last week or month went, in real numbers", onOpenReview
                 )
+            }
+        }
+    }
+}
+
+/**
+ * The reference mockups' "Today's Focus" bordered card - combines what used to be two separate
+ * cards (Due today, Habits for today) into sub-sections of one, each with its own "View all" link
+ * rather than a whole-card tap target (avoids nesting a clickable Row inside a clickable Card).
+ * Deliberately does NOT include a "Schedule" section like the reference - TaskEntity has no
+ * time-of-day field, only a due *date*, so a list of clock times would be fabricated, not real
+ * data (see ProductivityHomeUiState's kdoc on the same principle for Goal Progress).
+ */
+@Composable
+private fun TodaysFocusCard(
+    uiState: ProductivityHomeUiState,
+    onOpenTasks: () -> Unit,
+    onOpenHabits: () -> Unit
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(28.dp)),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Text("Today's Focus", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(16.dp))
+
+            SectionLabel("Tasks due")
+            if (uiState.todayTasks.isEmpty()) {
+                Text(
+                    if (uiState.totalOpenTasks == 0) "Nothing on your list." else "Nothing due today, ${uiState.totalOpenTasks} open in total",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                uiState.todayTasks.take(5).forEach { task ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                        Icon(
+                            Icons.Filled.CheckBoxOutlineBlank,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(task.title, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                if (uiState.todayTasks.size > 5) {
+                    Text(
+                        "+${uiState.todayTasks.size - 5} more",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            TextButton(onClick = onOpenTasks, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
+                Text("View all tasks")
+            }
+
+            Spacer(Modifier.height(12.dp))
+            SectionLabel("Habits progress")
+            if (uiState.totalHabits == 0) {
+                Text(
+                    "No habits yet.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    "${uiState.doneTodayHabitsCount} of ${uiState.totalHabits} done today",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { uiState.doneTodayHabitsCount.toFloat() / uiState.totalHabits },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = accent
+                )
+            }
+            TextButton(onClick = onOpenHabits, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
+                Text("View all habits")
             }
         }
     }

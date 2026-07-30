@@ -132,6 +132,8 @@ fun PilotApp(app: App) {
                 onOpenJournal = { navController.navigate("journal") },
                 onOpenShopping = { navController.navigate("shopping") },
                 onOpenTimeline = { navController.navigate("timeline") },
+                onOpenLedger = { navController.navigate("ledger") },
+                onOpenProfile = { navController.navigate("profile") },
                 onOpenAssistant = { navController.navigate("assistant") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
             )

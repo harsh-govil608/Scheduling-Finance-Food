@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -44,7 +46,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.GoalEntity
+import com.lifeos.expensecapture.ui.common.ProgressRing
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
+import com.lifeos.expensecapture.ui.theme.AmountHero
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -85,11 +89,39 @@ fun GoalsScreen(app: App, onBack: () -> Unit) {
                 Text("No goals yet. Tap + to set one.")
             }
         } else {
+            val completedCount = goals.count { it.completed }
+            val ratio = completedCount.toFloat() / goals.size
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ProgressRing(progress = ratio, modifier = Modifier.size(84.dp)) {
+                                Text("${(ratio * 100).toInt()}%", style = MaterialTheme.typography.titleMedium)
+                            }
+                            Spacer(Modifier.width(20.dp))
+                            Column {
+                                Text(
+                                    "Goals completed",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text("$completedCount of ${goals.size}", style = AmountHero)
+                            }
+                        }
+                    }
+                }
                 items(goals, key = { it.id }) { goal ->
                     GoalCard(
                         goal = goal,

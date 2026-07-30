@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.runtime.Composable
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -509,5 +511,79 @@ fun StatusChip(text: String, color: Color, modifier: Modifier = Modifier) {
             .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
         Text(text, style = MaterialTheme.typography.labelMedium, color = color)
+    }
+}
+
+/**
+ * The greeting header (reference mockups' "Good Morning, Sohom" / "Hello Sohom") shared between
+ * Finance's HomeScreen and Home pillar's ProductivityHomeScreen, so the two pillar landing
+ * screens read as one app - see ProductivityHomeScreen's kdoc. Time-of-day-aware, falls back to
+ * "there" rather than an empty string when no display name has been set yet.
+ */
+@Composable
+fun GreetingTitle(displayName: String) {
+    Column {
+        val hour = remember { java.time.LocalTime.now().hour }
+        val timeOfDay = when {
+            hour < 12 -> "Good Morning"
+            hour < 17 -> "Good Afternoon"
+            else -> "Good Evening"
+        }
+        val name = displayName.ifBlank { "there" }
+        Text("$timeOfDay, $name", style = MaterialTheme.typography.titleMedium)
+        val today = remember {
+            java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+        }
+        Text(today, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** The profile entry point beside GreetingTitle - the real photo from Profile when one's set,
+ * the default icon otherwise. See ProfileScreen's photo picker. */
+@Composable
+fun ProfileAvatarButton(photoPath: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.material3.IconButton(onClick = onClick, modifier = modifier) {
+        val photoBitmap = remember(photoPath) {
+            photoPath?.let { android.graphics.BitmapFactory.decodeFile(it)?.asImageBitmap() }
+        }
+        if (photoBitmap != null) {
+            androidx.compose.foundation.Image(
+                bitmap = photoBitmap,
+                contentDescription = "Profile & settings",
+                modifier = Modifier.size(32.dp).clip(CircleShape),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            Icon(Icons.Filled.AccountCircle, contentDescription = "Profile & settings")
+        }
+    }
+}
+
+/**
+ * A tappable icon+label tile (reference mockups' "Quick Actions" 2x2 grid) - a lighter-weight
+ * cousin of EntryRow with no subtitle/chevron, for a shortcut grid rather than a list.
+ */
+@Composable
+fun ActionTile(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            IconBadge(
+                icon = icon,
+                tint = MaterialTheme.colorScheme.primary,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                size = 36.dp
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        }
     }
 }

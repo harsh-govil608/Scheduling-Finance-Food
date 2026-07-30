@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.ui.common.SummaryStatCard
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 
 /**
@@ -83,11 +85,21 @@ fun HabitsScreen(app: App, onBack: () -> Unit) {
                 Text("No habits yet. Tap + to start one - small and specific works best.")
             }
         } else {
+            val doneTodayCount = habits.count { it.doneToday }
+            val bestStreak = habits.maxOf { it.currentStreak }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item {
+                    SummaryStatCard(
+                        icon = Icons.Filled.LocalFireDepartment,
+                        label = "Today's progress",
+                        value = "$doneTodayCount of ${habits.size} kept up",
+                        caption = if (bestStreak > 0) "Best streak: $bestStreak day${if (bestStreak == 1) "" else "s"}" else null
+                    )
+                }
                 items(habits, key = { it.habit.id }) { row ->
                     HabitCard(
                         row = row,
