@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
@@ -31,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,10 +61,11 @@ fun PermissionsScreen(app: App, onBack: () -> Unit) {
             items(uiState.rows) { row ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
                     colors = if (row.wasRevoked) {
                         CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                     } else {
-                        CardDefaults.cardColors()
+                        CardDefaults.cardColors(containerColor = cardSurfaceColor())
                     }
                 ) {
                     Column(Modifier.padding(16.dp)) {

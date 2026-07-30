@@ -7,12 +7,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,11 +39,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository.BillDisplayStatus
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository.BillWithComputedStatus
+import com.lifeos.expensecapture.ui.common.IconBadge
+import com.lifeos.expensecapture.ui.common.StatusChip
+import com.lifeos.expensecapture.ui.common.SummaryStatCard
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
+import com.lifeos.expensecapture.ui.theme.AmountLarge
 
 /**
  * Bills PRD, Phase 3 Doc 22. Detection comes from RecurringPatternDetector (higher amount
@@ -92,11 +103,26 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
                 )
             }
         } else {
+            val trackedBills = bills.filter { it.displayStatus != BillDisplayStatus.CANCELLED }
+            val totalTypical = trackedBills.sumOf { it.bill.typicalAmount }
+            val overdueCount = bills.count { it.displayStatus == BillDisplayStatus.OVERDUE }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item {
+                    SummaryStatCard(
+                        icon = Icons.Filled.Payments,
+                        label = "Tracked bills, typical total",
+                        value = "₹${"%.2f".format(totalTypical)}",
+                        caption = if (overdueCount > 0) {
+                            "$overdueCount past due - worth a look"
+                        } else {
+                            "${trackedBills.size} bill${if (trackedBills.size == 1) "" else "s"} tracked"
+                        }
+                    )
+                }
                 items(bills, key = { it.bill.id }) { item ->
                     BillCard(
                         item = item,
@@ -176,20 +202,68 @@ private fun BillCard(item: BillWithComputedStatus, onConfirm: () -> Unit, onDism
     val containerColor = when (item.displayStatus) {
         BillDisplayStatus.OVERDUE -> MaterialTheme.colorScheme.errorContainer
         BillDisplayStatus.DUE_TODAY -> MaterialTheme.colorScheme.secondaryContainer
-        else -> MaterialTheme.colorScheme.surface
+        else -> cardSurfaceColor()
+    }
+
+    val (chipLabel, chipColor) = when (item.displayStatus) {
+        BillDisplayStatus.UNCONFIRMED -> "New" to MaterialTheme.colorScheme.tertiary
+        BillDisplayStatus.UPCOMING -> "Upcoming" to MaterialTheme.colorScheme.onSurfaceVariant
+        BillDisplayStatus.DUE_TODAY -> "Due today" to MaterialTheme.colorScheme.secondary
+        BillDisplayStatus.OVERDUE -> "Overdue" to MaterialTheme.colorScheme.error
+        BillDisplayStatus.PAID_THIS_CYCLE -> "Paid" to MaterialTheme.colorScheme.primary
+        BillDisplayStatus.CANCELLED -> "Not tracked" to MaterialTheme.colorScheme.outline
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text(bill.payeeDisplay, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                "~₹${"%.2f".format(bill.typicalAmount)} · usually around day ${bill.dueDayOfMonth} of the month",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(statusText(item.displayStatus), style = MaterialTheme.typography.bodySmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBadge(
+                    icon = Icons.Filled.Payments,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    size = 40.dp
+                )
+                Spacer(Modifier.width(12.dp))
+                // weight(1f) + ellipsis - see SubscriptionCard's kdoc for the same fix and why
+                // (found by actually running this against real device data: a long payee name
+                // wrapped unpredictably and left a blank gap before the amount).
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        bill.payeeDisplay,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "Usually around day ${bill.dueDayOfMonth}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text("₹${"%.2f".format(bill.typicalAmount)}", style = AmountLarge)
+            }
+            Spacer(Modifier.height(12.dp))
+            StatusChip(chipLabel, chipColor)
+            if (item.displayStatus == BillDisplayStatus.UNCONFIRMED || item.displayStatus == BillDisplayStatus.OVERDUE) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (item.displayStatus == BillDisplayStatus.UNCONFIRMED) {
+                        "Looks like a recurring bill - is this right?"
+                    } else {
+                        "Past its usual due date - worth checking"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             when (item.displayStatus) {
                 BillDisplayStatus.UNCONFIRMED -> {
@@ -205,13 +279,4 @@ private fun BillCard(item: BillWithComputedStatus, onConfirm: () -> Unit, onDism
             }
         }
     }
-}
-
-private fun statusText(status: BillDisplayStatus): String = when (status) {
-    BillDisplayStatus.UNCONFIRMED -> "Looks like a recurring bill - is this right?"
-    BillDisplayStatus.UPCOMING -> "Upcoming this cycle"
-    BillDisplayStatus.DUE_TODAY -> "Due today"
-    BillDisplayStatus.OVERDUE -> "Past its usual due date - worth checking"
-    BillDisplayStatus.PAID_THIS_CYCLE -> "Paid this cycle"
-    BillDisplayStatus.CANCELLED -> "No longer tracked"
 }

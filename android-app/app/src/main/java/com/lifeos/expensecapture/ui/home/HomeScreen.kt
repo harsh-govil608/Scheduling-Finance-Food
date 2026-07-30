@@ -1,6 +1,8 @@
 package com.lifeos.expensecapture.ui.home
 
 import android.content.Intent
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,9 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Download
@@ -23,9 +28,11 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.WbSunny
@@ -39,6 +46,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +67,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
@@ -67,9 +78,13 @@ import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.ui.common.AccentInfoCard
 import com.lifeos.expensecapture.ui.common.AiInsightCard
+import com.lifeos.expensecapture.ui.common.CategoryVisuals
 import com.lifeos.expensecapture.ui.common.EntryRow
 import com.lifeos.expensecapture.ui.common.HeroMoneyCard
 import com.lifeos.expensecapture.ui.common.SectionLabel
+import com.lifeos.expensecapture.ui.common.StatTile
+import com.lifeos.expensecapture.ui.common.TransactionRow
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.common.rememberSpeaker
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
@@ -80,9 +95,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.size
 
@@ -124,6 +143,7 @@ fun HomeScreen(
             goalDao = app.database.goalDao(),
             habitDao = app.database.habitDao(),
             habitCompletionDao = app.database.habitCompletionDao(),
+            investmentDao = app.database.investmentDao(),
             insightsRepository = FinanceInsightsRepository(
                 transactionDao = app.database.transactionDao(),
                 categoryDao = app.database.categoryDao(),
@@ -181,7 +201,29 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Finance") },
+                title = {
+                    // Greeting header (reference mockups' "Good Morning, Sohom") - real display
+                    // name from Profile, time-of-day-aware greeting, today's date. Falls back to
+                    // "there" rather than an empty string when no display name has been set yet.
+                    Column {
+                        val hour = remember { LocalTime.now().hour }
+                        val timeOfDay = when {
+                            hour < 12 -> "Good Morning"
+                            hour < 17 -> "Good Afternoon"
+                            else -> "Good Evening"
+                        }
+                        val name = uiState.displayName.ifBlank { "there" }
+                        Text("$timeOfDay, $name", style = MaterialTheme.typography.titleMedium)
+                        val today = remember {
+                            LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+                        }
+                        Text(
+                            today,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 actions = {
                     IconButton(onClick = onOpenSearch) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
@@ -305,7 +347,19 @@ fun HomeScreen(
                         }
                     }
                     IconButton(onClick = onOpenProfile) {
-                        Icon(Icons.Default.AccountCircle, contentDescription = "Profile & settings")
+                        val photoBitmap = remember(uiState.profilePhotoPath) {
+                            uiState.profilePhotoPath?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() }
+                        }
+                        if (photoBitmap != null) {
+                            Image(
+                                bitmap = photoBitmap,
+                                contentDescription = "Profile & settings",
+                                modifier = Modifier.size(32.dp).clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.AccountCircle, contentDescription = "Profile & settings")
+                        }
                     }
                 }
             )
@@ -446,6 +500,59 @@ fun HomeScreen(
                 )
             }
 
+            // Stat-tile grid (reference mockups' Income/Expenses/Savings/Investments 2x2 grid,
+            // see `ui/` folder) - real numbers from HomeViewModel, not placeholders. Only shown
+            // once there's at least one transaction, same gate HeroMoneyCard's caption already
+            // uses, so a fresh install doesn't show four ₹0.00 tiles before there's anything to
+            // show at all.
+            if (uiState.hasAnyData) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            StatTile(
+                                icon = Icons.Filled.TrendingUp,
+                                iconTint = MaterialTheme.colorScheme.primary,
+                                iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                label = "Income",
+                                value = "₹${"%.2f".format(uiState.incomeThisMonth)}",
+                                deltaText = uiState.incomeDeltaPercent?.let { "${if (it >= 0) "▲" else "▼"} ${"%.1f".format(kotlin.math.abs(it))}%" },
+                                deltaPositive = (uiState.incomeDeltaPercent ?: 0f) >= 0f,
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatTile(
+                                icon = Icons.Filled.TrendingDown,
+                                iconTint = MaterialTheme.colorScheme.error,
+                                iconContainerColor = MaterialTheme.colorScheme.errorContainer,
+                                label = "Expenses",
+                                value = "₹${"%.2f".format(uiState.spentThisMonth)}",
+                                // Rising spend is the "bad" direction here, opposite of income's polarity.
+                                deltaText = uiState.expensesDeltaPercent?.let { "${if (it >= 0) "▲" else "▼"} ${"%.1f".format(kotlin.math.abs(it))}%" },
+                                deltaPositive = (uiState.expensesDeltaPercent ?: 0f) < 0f,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            StatTile(
+                                icon = Icons.Filled.Savings,
+                                iconTint = MaterialTheme.colorScheme.tertiary,
+                                iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                label = "Savings",
+                                value = "₹${"%.2f".format(uiState.savingsThisMonth)}",
+                                modifier = Modifier.weight(1f)
+                            )
+                            StatTile(
+                                icon = Icons.Filled.AccountBalanceWallet,
+                                iconTint = MaterialTheme.colorScheme.secondary,
+                                iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                label = "Investments",
+                                value = "₹${"%.2f".format(uiState.investmentsTotal)}",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Engagement hook (found via a real user request, 2026-07): only shown when there's
             // a genuine streak to celebrate - a "0-day streak" card would read as discouraging,
             // the exact framing the Habits PRD explicitly calls out to avoid (see
@@ -478,6 +585,44 @@ fun HomeScreen(
                         title = "Needs attention",
                         body = attentionItemText(attention)
                     )
+                }
+            }
+
+            // Recent Transactions preview (reference mockups' "Recent Active Flow"/"Recent
+            // Transactions") - the newest few real rows, same TransactionRow Ledger uses (moved
+            // to ui/common so both share one implementation). "View All" opens the full Ledger
+            // rather than duplicating its filtering/search here.
+            if (uiState.recentTransactions.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SectionLabel("Recent Transactions")
+                        TextButton(onClick = onOpenLedger) { Text("View All") }
+                    }
+                }
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                    ) {
+                        Column {
+                            uiState.recentTransactions.forEachIndexed { index, transaction ->
+                                TransactionRow(
+                                    transaction = transaction,
+                                    categoryName = uiState.categories.firstOrNull { it.id == transaction.categoryId }?.name
+                                        ?: "Uncategorized",
+                                    onClick = onOpenLedger
+                                )
+                                if (index != uiState.recentTransactions.lastIndex) {
+                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

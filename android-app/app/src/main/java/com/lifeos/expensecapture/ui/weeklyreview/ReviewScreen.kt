@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -26,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 
 /** Weekly/Monthly Review, Phase 3 Docs 15/16 - see ReviewViewModel.kt for the real-numbers-only
  * scope (no AI-generated narrative). */
@@ -73,7 +76,11 @@ fun ReviewScreen(app: App, onBack: () -> Unit) {
                 }
             }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                ) {
                     Column(Modifier.padding(16.dp)) {
                         Text("Tasks", style = MaterialTheme.typography.titleMedium)
                         Text(
@@ -84,7 +91,11 @@ fun ReviewScreen(app: App, onBack: () -> Unit) {
                 }
             }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                ) {
                     Column(Modifier.padding(16.dp)) {
                         Text("Habits", style = MaterialTheme.typography.titleMedium)
                         Text(

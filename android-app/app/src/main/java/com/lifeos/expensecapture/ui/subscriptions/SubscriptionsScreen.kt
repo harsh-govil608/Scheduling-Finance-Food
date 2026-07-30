@@ -8,13 +8,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,11 +39,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository.SubscriptionDisplayStatus
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository.SubscriptionWithComputedStatus
+import com.lifeos.expensecapture.ui.common.IconBadge
+import com.lifeos.expensecapture.ui.common.StatusChip
+import com.lifeos.expensecapture.ui.common.SummaryStatCard
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
+import com.lifeos.expensecapture.ui.theme.AmountLarge
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -94,11 +106,28 @@ fun SubscriptionsScreen(app: App, onBack: () -> Unit) {
                 )
             }
         } else {
+            // Monthly-equivalent total (annual/quarterly subscriptions normalized to a per-month
+            // figure via cadenceDays) across everything actually being tracked - excludes
+            // UNCONFIRMED (not yet confirmed as real) and CANCELLED (no longer active).
+            val activeSubs = subscriptions.filter {
+                it.displayStatus == SubscriptionDisplayStatus.TRACKED ||
+                    it.displayStatus == SubscriptionDisplayStatus.RENEWAL_UPCOMING ||
+                    it.displayStatus == SubscriptionDisplayStatus.POSSIBLY_LAPSED
+            }
+            val monthlyTotal = activeSubs.sumOf { it.subscription.amount * (30.0 / it.subscription.cadenceDays) }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item {
+                    SummaryStatCard(
+                        icon = Icons.Filled.Autorenew,
+                        label = "Recurring spend, ~per month",
+                        value = "₹${"%.2f".format(monthlyTotal)}",
+                        caption = "${activeSubs.size} active subscription${if (activeSubs.size == 1) "" else "s"}"
+                    )
+                }
                 items(subscriptions, key = { it.subscription.id }) { item ->
                     SubscriptionCard(
                         item = item,
@@ -180,15 +209,60 @@ private fun SubscriptionCard(
 ) {
     val dateFormat = remember { SimpleDateFormat("dd MMM", Locale.getDefault()) }
     val sub = item.subscription
+    val (chipLabel, chipColor) = when (item.displayStatus) {
+        SubscriptionDisplayStatus.UNCONFIRMED -> "New" to MaterialTheme.colorScheme.tertiary
+        SubscriptionDisplayStatus.TRACKED -> "Active" to MaterialTheme.colorScheme.primary
+        SubscriptionDisplayStatus.RENEWAL_UPCOMING -> "Renewing soon" to MaterialTheme.colorScheme.secondary
+        SubscriptionDisplayStatus.POSSIBLY_LAPSED -> "Possibly lapsed" to MaterialTheme.colorScheme.tertiary
+        SubscriptionDisplayStatus.CANCELLED -> "Not tracked" to MaterialTheme.colorScheme.outline
+    }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
         Column(Modifier.padding(16.dp)) {
-            Text(sub.merchantDisplay, style = MaterialTheme.typography.bodyLarge)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBadge(
+                    icon = Icons.Filled.Autorenew,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    size = 40.dp
+                )
+                Spacer(Modifier.width(12.dp))
+                // weight(1f) + a single-line ellipsis (found by actually running the app: real
+                // SMS-derived merchant strings can be long/messy - an earlier version without
+                // this wrapped unpredictably and left a large blank gap before the amount, the
+                // same class of bug HeroMoneyCard's kdoc above describes for unconstrained Row
+                // content) - this keeps the amount on the same line, always visible.
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        sub.merchantDisplay,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "Every ${sub.cadenceDays} days",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text("₹${"%.2f".format(sub.amount)}", style = AmountLarge)
+            }
+            Spacer(Modifier.height(12.dp))
+            StatusChip(chipLabel, chipColor)
+            Spacer(Modifier.height(6.dp))
             Text(
-                "₹${"%.2f".format(sub.amount)} · roughly every ${sub.cadenceDays} days",
-                style = MaterialTheme.typography.bodyMedium
+                statusText(item, dateFormat),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(statusText(item, dateFormat), style = MaterialTheme.typography.bodySmall)
             item.priceDrift?.let { drift ->
                 Text(
                     "The last charge was ₹${"%.2f".format(drift.latestAmount)} - it's usually " +

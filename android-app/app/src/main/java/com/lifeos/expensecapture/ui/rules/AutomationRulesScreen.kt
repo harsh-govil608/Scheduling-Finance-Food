@@ -13,8 +13,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,7 +115,11 @@ private fun RuleCard(
     var expanded by remember { mutableStateOf(false) }
     val origin = if (row.rule.isManuallyAuthored) "You created this" else "Learned from a correction"
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
         Column(Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("\"${row.rule.merchantPattern}\" → always ${row.categoryName}", style = MaterialTheme.typography.bodyLarge)

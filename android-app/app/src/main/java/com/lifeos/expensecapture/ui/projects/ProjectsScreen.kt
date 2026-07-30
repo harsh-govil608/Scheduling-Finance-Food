@@ -13,8 +13,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -35,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 
 /** Projects PRD, Phase 3 Doc 11 - see ProjectEntity.kt for scope cuts. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +81,9 @@ fun ProjectsScreen(app: App, onBack: () -> Unit, onOpenProject: (Long) -> Unit) 
             ) {
                 items(projects, key = { it.project.id }) { row ->
                     Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onOpenProject(row.project.id) }
+                        modifier = Modifier.fillMaxWidth().clickable { onOpenProject(row.project.id) },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
                     ) {
                         Column(Modifier.padding(16.dp)) {
                             Text(row.project.name, style = MaterialTheme.typography.titleMedium)

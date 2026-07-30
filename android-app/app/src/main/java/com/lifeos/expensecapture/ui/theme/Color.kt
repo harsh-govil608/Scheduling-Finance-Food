@@ -3,66 +3,43 @@ package com.lifeos.expensecapture.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Design System PRD (Phase 7) Docs 02/04: "calm authority, quiet competence" as the visual
- * identity, with semantic colors that "encourage, never guilt" - a missed budget or an overdue
- * bill should never render with the same alarm-red urgency as a real system error. The docs
- * specify intent and roles, not literal hex values (there was nothing to copy - see
- * docs/coders-documentation for the design pass that produced these), so these are one concrete
- * realization of that intent: a deep teal-green primary (trust/money without corporate-blue
- * cliche), warm off-white surfaces instead of stark white, and a muted amber Warning role kept
- * deliberately separate from Material3's `error` role so "over budget" and "system broke" never
- * look the same.
+ * Design refresh (2026-07-31), replacing the earlier light/dark-adaptive "premium minimal" pass.
+ * Sourced directly from reference mockups the founder supplied in the repo's top-level `ui/`
+ * folder (dashboard-home, analytics-screen, add-expense, budget-overview, transaction-detail,
+ * finance-dashboard, profile-settings) - those mockups already use ₹ and "Sohom" (the pilot
+ * tester), i.e. they were built as a target for this exact app, not a generic inspiration board.
+ * Always-dark rather than light/dark-adaptive: every reference screen is dark, and the founder's
+ * ask was for the app to look like them, not for a light variant nobody designed. See Theme.kt.
  */
 
-// ---------- Light ----------
-val PrimaryLight = Color(0xFF2E6F58)
-val OnPrimaryLight = Color(0xFFFFFFFF)
-val PrimaryContainerLight = Color(0xFFB7ECDA)
-val OnPrimaryContainerLight = Color(0xFF00201A)
-val SecondaryLight = Color(0xFF4C6355)
-val OnSecondaryLight = Color(0xFFFFFFFF)
-val SecondaryContainerLight = Color(0xFFCEE9DB)
-val OnSecondaryContainerLight = Color(0xFF092017)
-val TertiaryLight = Color(0xFF3D6373)
-val OnTertiaryLight = Color(0xFFFFFFFF)
-val TertiaryContainerLight = Color(0xFFC0E8FB)
-val OnTertiaryContainerLight = Color(0xFF001F29)
-val ErrorLight = Color(0xFFA23B3B)
-val OnErrorLight = Color(0xFFFFFFFF)
-val ErrorContainerLight = Color(0xFFF6D8D4)
-val OnErrorContainerLight = Color(0xFF410E0B)
-val BackgroundLight = Color(0xFFFBFAF7)
-val OnBackgroundLight = Color(0xFF1A1C1A)
-val SurfaceLight = Color(0xFFFBFAF7)
-val OnSurfaceLight = Color(0xFF1A1C1A)
-val SurfaceVariantLight = Color(0xFFDDE5DE)
-val OnSurfaceVariantLight = Color(0xFF414942)
-val OutlineLight = Color(0xFF717971)
-
-// ---------- Dark ----------
-val PrimaryDark = Color(0xFF9BD3C0)
-val OnPrimaryDark = Color(0xFF00382C)
-val PrimaryContainerDark = Color(0xFF145142)
-val OnPrimaryContainerDark = Color(0xFFB7ECDA)
-val SecondaryDark = Color(0xFFB3CCC0)
-val OnSecondaryDark = Color(0xFF1E352C)
-val SecondaryContainerDark = Color(0xFF354B42)
-val OnSecondaryContainerDark = Color(0xFFCEE9DB)
-val TertiaryDark = Color(0xFFA4CCDD)
-val OnTertiaryDark = Color(0xFF063542)
-val TertiaryContainerDark = Color(0xFF244C5A)
-val OnTertiaryContainerDark = Color(0xFFC0E8FB)
-val ErrorDark = Color(0xFFFFB4AB)
-val OnErrorDark = Color(0xFF690005)
-val ErrorContainerDark = Color(0xFF93000A)
+// ---------- Dark (the only scheme in active use - see Theme.kt) ----------
+val PrimaryDark = Color(0xFF2EDDA6) // mint-green accent - buttons, positive amounts, selected nav/tab, progress fill
+val OnPrimaryDark = Color(0xFF04241A) // text/icons drawn on a solid mint fill (FAB, primary button)
+val PrimaryContainerDark = Color(0xFF163229) // dark mint-tinted container - selected chip bg, "Active" plan badge
+val OnPrimaryContainerDark = Color(0xFF7DF2CB)
+// Brightened from an earlier 0xFFB8C4BE (found by actually running the app: icon badges tinted
+// with this color, e.g. Subscriptions/Bills on Home's Explore list, read as nearly invisible
+// against SecondaryContainerDark at real device brightness/compression, unlike the more saturated
+// primary/tertiary hues used everywhere else).
+val SecondaryDark = Color(0xFFD6E3DC)
+val OnSecondaryDark = Color(0xFF16332B)
+val SecondaryContainerDark = Color(0xFF1E2624)
+val OnSecondaryContainerDark = Color(0xFFD3DAD7)
+val TertiaryDark = Color(0xFF8AD1E0) // soft cyan-blue, second accent for variety (Investments, some icon badges)
+val OnTertiaryDark = Color(0xFF06303A)
+val TertiaryContainerDark = Color(0xFF163A42)
+val OnTertiaryContainerDark = Color(0xFFBEE9F2)
+val ErrorDark = Color(0xFFFF6B6E) // delete actions, negative/bad deltas
+val OnErrorDark = Color(0xFF3A0A0A)
+val ErrorContainerDark = Color(0xFF3A1113)
 val OnErrorContainerDark = Color(0xFFFFDAD6)
-val BackgroundDark = Color(0xFF101413)
-val OnBackgroundDark = Color(0xFFE2E3DE)
-val SurfaceDark = Color(0xFF101413)
-val OnSurfaceDark = Color(0xFFE2E3DE)
-val SurfaceVariantDark = Color(0xFF414942)
-val OnSurfaceVariantDark = Color(0xFFC1C9C1)
-val OutlineDark = Color(0xFF8B938B)
+val BackgroundDark = Color(0xFF0B0F0E) // near-black with a faint green tint, not pure black
+val OnBackgroundDark = Color(0xFFF3F5F4)
+val SurfaceDark = Color(0xFF0B0F0E)
+val OnSurfaceDark = Color(0xFFF3F5F4)
+val SurfaceVariantDark = Color(0xFF1B2321) // chip backgrounds, dividers, unselected-track fills
+val OnSurfaceVariantDark = Color(0xFF93A19B) // secondary/caption text - the muted gray-green throughout every reference screen
+val OutlineDark = Color(0xFF3A423F)
 
 /**
  * Not part of Material3's ColorScheme role set (there is no "warning" role), so these are plain
@@ -71,25 +48,24 @@ val OutlineDark = Color(0xFF8B938B)
  * over-budget category, a bill due soon, a subscription renewal. Real errors (a permission
  * getting revoked and breaking capture) still use the ColorScheme's actual `error` role.
  */
-val WarningContainerLight = Color(0xFFFBE7B7)
-val OnWarningContainerLight = Color(0xFF3F2E00)
-val WarningContainerDark = Color(0xFF544000)
-val OnWarningContainerDark = Color(0xFFFBE7B7)
+val WarningContainerDark = Color(0xFF3A2E10)
+val OnWarningContainerDark = Color(0xFFF5C56B)
 
 /** Foreground/accent-strength amber, for things like a progress-bar stroke rather than a card
  * background. Two tiers so "approaching a limit" and "over it" stay legible as different
- * urgency, without either one escalating all the way to alarm-red `error`. */
-val Warning = Color(0xFFB8860B)
-val WarningStrong = Color(0xFFB35C00)
+ * urgency, without either one escalating all the way to alarm-red `error` - matches the amber
+ * "Entertainment" bar in the budget-overview reference vs. the red-bordered Delete button in
+ * transaction-detail. */
+val Warning = Color(0xFFF0A93E)
+val WarningStrong = Color(0xFFF2843B)
 
-/**
- * Dedicated card-background colors (2026-07-26 redesign follow-up), used instead of
- * `colorScheme.surface`/`surfaceVariant` directly. `surface` alone wasn't safe because
- * SurfaceDark and BackgroundDark are the same hex value - a card would blend invisibly into the
- * page in dark mode. `surfaceVariant` fixed that but was too strong a jump from the light theme's
- * off-white background - it read as a highlighter color rather than a subtle card. These sit
- * deliberately between the two: barely-there in light mode (matching what the old
- * elevation-tinted plain Card looked like), genuinely visible in dark mode without being loud.
- */
-val CardSurfaceLight = Color(0xFFF6F5F0)
-val CardSurfaceDark = Color(0xFF1B211F)
+/** Card-background color, distinct from `colorScheme.surface`/`background` (SurfaceDark and
+ * BackgroundDark are deliberately the same near-black hex - see above) - every panel in the
+ * reference screens (This Week's Flow, Recent Active Flow, Category Budgets, Preferences rows)
+ * sits one step lighter than the page behind it. */
+val CardSurfaceDark = Color(0xFF151C1A)
+
+/** A second, slightly lighter card tone for a panel nested inside another card's padding (e.g. a
+ * stat tile within the finance-dashboard reference's 2x2 Income/Expenses/Savings/Investments
+ * grid), so nested panels stay visually distinct from their parent without needing a border. */
+val CardSurfaceRaisedDark = Color(0xFF1B2422)

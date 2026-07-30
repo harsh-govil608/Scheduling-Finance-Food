@@ -12,8 +12,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.CrashLogEntity
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -104,7 +107,11 @@ fun DiagnosticsScreen(app: App, onBack: () -> Unit) {
 
 @Composable
 private fun CrashLogRow(entry: CrashLogEntity, dateFormat: SimpleDateFormat) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
         Column(Modifier.padding(12.dp)) {
             Text(
                 if (entry.fatal) "Fatal - ${entry.exceptionType}" else "Handled - ${entry.exceptionType}",

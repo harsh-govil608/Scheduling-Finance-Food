@@ -91,7 +91,8 @@ fun NightSummaryScreen(app: App, onBack: () -> Unit) {
                     } else {
                         "${uiState.todayCount} transaction${if (uiState.todayCount == 1) "" else "s"} today, " +
                             "${uiState.autoCapturedCount} of them captured automatically - no typing needed."
-                    }
+                    },
+                    accentBorder = false
                 )
             }
             if (uiState.tasksCompletedToday > 0 || uiState.totalHabits > 0) {

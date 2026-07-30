@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.ui.common.ProgressRing
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.theme.AmountBody
 import com.lifeos.expensecapture.ui.theme.Warning
 import com.lifeos.expensecapture.ui.theme.WarningStrong
@@ -108,6 +114,7 @@ fun BudgetScreen(app: App, onBack: () -> Unit) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item { BudgetOverviewCard(budgets) }
                 items(budgets, key = { it.budget.id }) { progress ->
                     BudgetCard(
                         progress,
@@ -134,6 +141,57 @@ fun BudgetScreen(app: App, onBack: () -> Unit) {
     }
 }
 
+/**
+ * Ring summary at the top of the list (Budget Overview reference in `ui/`) - aggregates every
+ * budget shown below into one "% utilized" figure. Sums across all of `budgets` rather than
+ * preferring just the Overall (categoryId == null) entry when one exists, since a pilot user can
+ * set both an Overall budget AND per-category ones simultaneously - the per-category cards below
+ * remain the accurate source for any individual category regardless.
+ */
+@Composable
+private fun BudgetOverviewCard(budgets: List<FinanceInsightsRepository.BudgetProgress>) {
+    val totalSpent = budgets.sumOf { it.spentThisMonth }
+    val totalLimit = budgets.sumOf { it.budget.monthlyLimit }
+    val ratio = if (totalLimit > 0) (totalSpent / totalLimit).coerceIn(0.0, 1.0) else 0.0
+    val ringColor = when {
+        totalSpent > totalLimit -> WarningStrong
+        ratio > 0.7 -> Warning
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ProgressRing(
+                progress = ratio.toFloat(),
+                modifier = Modifier.size(84.dp),
+                progressColor = ringColor
+            ) {
+                Text("${(ratio * 100).toInt()}%", style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.width(20.dp))
+            Column {
+                Text(
+                    "Budget Utilized",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "You spent ₹${"%.2f".format(totalSpent)} of your total ₹${"%.2f".format(totalLimit)} budget limits.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun BudgetCard(
     progress: FinanceInsightsRepository.BudgetProgress,
@@ -150,7 +208,11 @@ private fun BudgetCard(
         else -> MaterialTheme.colorScheme.primary
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
         Column(Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

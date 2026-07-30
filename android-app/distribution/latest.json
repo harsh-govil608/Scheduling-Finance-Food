@@ -1,6 +1,6 @@
 {
-  "versionCode": 26,
-  "versionName": "0.26.0-pilot",
+  "versionCode": 27,
+  "versionName": "0.27.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Added: a profile photo - tap Add photo on the Profile & Settings screen to pick one, or Remove photo to go back to the default. Also: Home now shows how much you've spent today right next to this month's total, so you don't have to do the math yourself."
+  "notes": "New look: the whole app is now dark-themed with a mint-green accent, matching a design refresh across Home, Budgets, Bills, Subscriptions, Investments, and more - bolder amounts, ring/bordered summary cards, and colored status badges in place of the old plain lists. Nothing about how the app works has changed, just how it looks."
 }

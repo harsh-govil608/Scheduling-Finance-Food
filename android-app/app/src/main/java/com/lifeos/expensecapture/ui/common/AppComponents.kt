@@ -4,9 +4,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,23 +42,30 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.lifeos.expensecapture.data.db.entity.TransactionDirection
+import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.ui.theme.AmountBody
 import com.lifeos.expensecapture.ui.theme.AmountHero
 import com.lifeos.expensecapture.ui.theme.CardSurfaceDark
-import com.lifeos.expensecapture.ui.theme.CardSurfaceLight
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * Shared "premium minimal" components (Design System refresh, 2026-07-26): mostly-neutral
- * surfaces, one accent color per element rather than full-bleed colored card backgrounds, real
- * icons instead of text-only rows, and a hero number treatment for the one figure that matters
- * most on a screen. Introduced to replace duplicated plain-`Card`+`Text` blocks across Home,
- * Productivity Home, and Night Summary that all looked like stock Material3 defaults.
+ * Shared components for the dark mint-green design (refresh 2026-07-31, see Color.kt's kdoc for
+ * the reference source): dark cards one step lighter than the page, a single mint accent per
+ * element rather than full-bleed color fills, real icons instead of text-only rows, and a hero
+ * number treatment for the one figure that matters most on a screen. Originally introduced
+ * 2026-07-26 to replace duplicated plain-`Card`+`Text` blocks; carried forward into the dark
+ * refresh since the same component shapes (icon-badge rows, hero cards, accent-bordered
+ * highlight cards) are exactly what the reference mockups use too.
  */
 
-/** See CardSurfaceLight/CardSurfaceDark kdoc - a subtle-but-theme-safe card background, picked
- * directly rather than derived from colorScheme.surface/surfaceVariant. */
+/** See CardSurfaceDark's kdoc - a card background one step lighter than the page background,
+ * picked directly rather than derived from colorScheme.surface/surfaceVariant (which are the same
+ * hex as background - a card would blend invisibly into the page otherwise). */
 @Composable
-fun cardSurfaceColor(): Color = if (isSystemInDarkTheme()) CardSurfaceDark else CardSurfaceLight
+fun cardSurfaceColor(): Color = CardSurfaceDark
 
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
@@ -137,6 +145,37 @@ fun Sparkline(
     }
 }
 
+/**
+ * A circular "donut" progress indicator - the ring treatment the reference mockups use in place
+ * of a plain linear bar wherever a single percentage is the headline figure (Analytics' month
+ * spent ring, Budget Overview's "64% utilized" ring, Home's per-goal rings). Deliberately a plain
+ * Canvas arc, same reasoning as Sparkline above - no charting library needed for one ring.
+ */
+@Composable
+fun ProgressRing(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    strokeWidth: Dp = 10.dp,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    progressColor: Color = MaterialTheme.colorScheme.primary,
+    content: @Composable BoxScope.() -> Unit = {}
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+            drawArc(color = trackColor, startAngle = -90f, sweepAngle = 360f, useCenter = false, style = stroke)
+            drawArc(
+                color = progressColor,
+                startAngle = -90f,
+                sweepAngle = 360f * progress.coerceIn(0f, 1f),
+                useCenter = false,
+                style = stroke
+            )
+        }
+        content()
+    }
+}
+
 /** The one hero number on a landing screen - big, confident, with an optional trend line. */
 @Composable
 fun HeroMoneyCard(
@@ -155,10 +194,25 @@ fun HeroMoneyCard(
     secondaryAmount: Double? = null,
     // Threshold mark for the trend line (found via a real user report, 2026-07) - see
     // Sparkline's kdoc. Optional, same reasoning as secondaryLabel/secondaryAmount.
-    trendThreshold: Float? = null
+    trendThreshold: Float? = null,
+    // Mint border glow (2026-07-31 design refresh, see Color.kt's kdoc) - the reference mockups'
+    // "Monthly Spending"/"This Week's Flow" hero cards have a visible accent border, not a flat
+    // edgeless panel. Defaults on since Home's own spend card is the headline figure on the
+    // screen; Night Summary's reuse of this same component opts out (today's total there is real
+    // but less "the one number that matters" than Home's monthly total is).
+    accentBorder: Boolean = true
 ) {
+    val borderColor = MaterialTheme.colorScheme.primary
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .let {
+                if (accentBorder) {
+                    it.border(1.dp, borderColor.copy(alpha = 0.35f), RoundedCornerShape(28.dp))
+                } else {
+                    it
+                }
+            },
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -307,5 +361,153 @@ fun EntryRow(
             }
             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
         }
+    }
+}
+
+/**
+ * A category-icon-badged transaction row (moved here from LedgerScreen 2026-07-31 so Home's new
+ * Recent Transactions preview - reference mockups' "Recent Active Flow"/"Recent Transactions" -
+ * and Ledger's full list render an identical row instead of two hand-copied versions). Credit
+ * amounts render in the primary mint (a real "+₹X" gain, matching the reference's green
+ * "+₹1,20,000 Salary Credit" row) instead of the default debit text color.
+ */
+@Composable
+fun TransactionRow(
+    transaction: TransactionEntity,
+    categoryName: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dateFormat = remember { SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()) }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        val (tint, container) = CategoryVisuals.colorPairFor(categoryName)
+        IconBadge(
+            icon = CategoryVisuals.iconFor(categoryName),
+            tint = tint,
+            containerColor = container,
+            size = 40.dp
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(transaction.merchantRaw, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "$categoryName · ${dateFormat.format(Date(transaction.date))}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        val isCredit = transaction.direction == TransactionDirection.CREDIT
+        val sign = if (isCredit) "+" else "-"
+        Text(
+            "$sign₹${"%.2f".format(transaction.amount)}",
+            style = AmountBody,
+            color = if (isCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+/**
+ * A small stat card (reference mockups' Income/Expenses/Savings/Investments 2x2 grid on
+ * finance-dashboard) - an icon badge, an optional delta chip, a label, and a value. `deltaText` is
+ * left null wherever there's no genuine prior-period figure to compare against (see HomeViewModel)
+ * rather than showing a fabricated percentage.
+ */
+@Composable
+fun StatTile(
+    icon: ImageVector,
+    iconTint: Color,
+    iconContainerColor: Color,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    deltaText: String? = null,
+    deltaPositive: Boolean = true
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBadge(icon = icon, tint = iconTint, containerColor = iconContainerColor, size = 32.dp)
+                deltaText?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (deltaPositive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(2.dp))
+            Text(value, style = AmountBody)
+        }
+    }
+}
+
+/**
+ * A bordered summary header card - Bills'/Subscriptions' equivalent of Budget's ring summary and
+ * Home's hero card, so every list screen opens on one real aggregate figure in the same "glowing
+ * bordered card" treatment the reference mockups use (e.g. finance-dashboard's "Monthly
+ * Spending"), instead of dropping straight into a plain list. Deliberately generic (icon/label/
+ * value/caption) since Bills and Subscriptions would otherwise duplicate near-identical layout.
+ */
+@Composable
+fun SummaryStatCard(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    caption: String? = null
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(28.dp)),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Row(Modifier.padding(20.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(icon = icon, tint = accent, containerColor = accent.copy(alpha = 0.16f), size = 48.dp)
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(2.dp))
+                Text(value, style = AmountHero)
+                caption?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+/** A colored pill for a short status word (reference mockups' "ACTIVE" plan badge) - replaces a
+ * plain sentence-style status line wherever the status is really a single state word (due today,
+ * overdue, tracked, possibly lapsed) rather than prose. */
+@Composable
+fun StatusChip(text: String, color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = 0.16f))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(text, style = MaterialTheme.typography.labelMedium, color = color)
     }
 }

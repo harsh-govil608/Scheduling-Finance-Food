@@ -11,16 +11,20 @@ import com.lifeos.expensecapture.data.db.dao.ConsentDao
 import com.lifeos.expensecapture.data.db.dao.GoalDao
 import com.lifeos.expensecapture.data.db.dao.HabitCompletionDao
 import com.lifeos.expensecapture.data.db.dao.HabitDao
+import com.lifeos.expensecapture.data.db.dao.InvestmentDao
 import com.lifeos.expensecapture.data.db.dao.NotificationDao
 import com.lifeos.expensecapture.data.db.dao.TransactionDao
 import com.lifeos.expensecapture.data.db.dao.UnparsedMessageDao
+import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
+import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.finance.SpendingInsightEngine
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
 import com.lifeos.expensecapture.productivity.HabitStreakCalculator
 import com.lifeos.expensecapture.ui.onboarding.CONSENT_SMS
 import com.lifeos.expensecapture.util.ConnectivityObserver
+import com.lifeos.expensecapture.util.Prefs
 import com.lifeos.expensecapture.util.tickerFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -50,10 +54,29 @@ sealed class AttentionItem {
 }
 
 data class HomeUiState(
+    /** Reference-mockup dashboard header (2026-07-31 design refresh, see Color.kt's kdoc) - the
+     * founder's own display name/photo from Profile, not placeholder text. Re-read from Prefs on
+     * every recompute rather than via a dedicated Flow (Prefs has none) - cheap local reads, and
+     * the ticker/other flows already re-fire often enough to pick up a Profile change promptly. */
+    val displayName: String = "",
+    val profilePhotoPath: String? = null,
     val spentThisMonth: Double = 0.0,
     /** Found via a real user report, 2026-07: the month total alone didn't answer "how much did
      * I spend just today" - same day-boundary math NightSummaryViewModel already uses. */
     val spentToday: Double = 0.0,
+    /** Stat-tile grid (reference mockups' Income/Expenses/Savings/Investments 2x2 grid) - all
+     * real, derived from the same transactions/investments data as everything else on this
+     * screen, not a new data source. Delta percents are null (not a fabricated 0%/placeholder)
+     * whenever last month had no comparable base to divide by. */
+    val incomeThisMonth: Double = 0.0,
+    val savingsThisMonth: Double = 0.0,
+    val investmentsTotal: Double = 0.0,
+    val incomeDeltaPercent: Float? = null,
+    val expensesDeltaPercent: Float? = null,
+    /** Recent Transactions preview (reference mockups' "Recent Active Flow"/"Recent
+     * Transactions") - the same real rows Ledger shows, just the newest few of them. */
+    val recentTransactions: List<TransactionEntity> = emptyList(),
+    val categories: List<CategoryEntity> = emptyList(),
     /** Threshold mark for the Last 7 Days trend graph (found via a real user report, 2026-07) -
      * the Overall budget's own monthly limit divided into a daily pace, so the trend line has a
      * reference for "is this an okay day" instead of being purely decorative. Null when no
@@ -90,7 +113,8 @@ private data class StatusSnapshot(
 
 private data class InsightInputsSnapshot(
     val categories: List<com.lifeos.expensecapture.data.db.entity.CategoryEntity>,
-    val goals: List<com.lifeos.expensecapture.data.db.entity.GoalEntity>
+    val goals: List<com.lifeos.expensecapture.data.db.entity.GoalEntity>,
+    val investments: List<com.lifeos.expensecapture.data.db.entity.InvestmentEntity>
 )
 
 class HomeViewModel(
@@ -103,6 +127,7 @@ class HomeViewModel(
     goalDao: GoalDao,
     habitDao: HabitDao,
     habitCompletionDao: HabitCompletionDao,
+    investmentDao: InvestmentDao,
     private val insightsRepository: FinanceInsightsRepository
 ) : ViewModel() {
 
@@ -140,8 +165,9 @@ class HomeViewModel(
 
     private val insightInputsSnapshot = combine(
         categoryDao.observeAll(),
-        goalDao.observeAll()
-    ) { categories, goals -> InsightInputsSnapshot(categories, goals) }
+        goalDao.observeAll(),
+        investmentDao.observeAll()
+    ) { categories, goals, investments -> InsightInputsSnapshot(categories, goals, investments) }
 
     /** Engagement hook (found via a real user request, 2026-07 - "increase user engagement"):
      * streaks were tracked and shown only inside the Habits screen itself, invisible anywhere
@@ -187,6 +213,22 @@ class HomeViewModel(
             .firstOrNull { it.budget.categoryId == null }
             ?.let { (it.budget.monthlyLimit / today.lengthOfMonth()).toFloat() }
 
+        // Stat-tile grid (reference mockups' Income/Expenses/Savings/Investments) - see
+        // HomeUiState's kdoc on why delta percents are null rather than a fabricated 0% when
+        // last month has no comparable base.
+        val prevMonthStart = today.minusMonths(1).withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val incomeThisMonth = finance.transactions
+            .filter { it.direction == TransactionDirection.CREDIT && it.date >= monthStart }
+            .sumOf { it.amount }
+        val prevIncome = finance.transactions
+            .filter { it.direction == TransactionDirection.CREDIT && it.date in prevMonthStart until monthStart }
+            .sumOf { it.amount }
+        val prevExpenses = finance.transactions
+            .filter { it.direction == TransactionDirection.DEBIT && it.date in prevMonthStart until monthStart }
+            .sumOf { it.amount }
+        fun deltaPercent(current: Double, previous: Double): Float? =
+            if (previous > 0) ((current - previous) / previous * 100).toFloat() else null
+
         val overdueBill = finance.bills.firstOrNull { it.displayStatus == FinanceInsightsRepository.BillDisplayStatus.OVERDUE }
         val overBudgets = finance.budgets.filter { it.spentThisMonth > it.budget.monthlyLimit }
         // Bug fix (found via a user report): a specific category being over budget is more
@@ -215,8 +257,17 @@ class HomeViewModel(
         }
 
         HomeUiState(
+            displayName = Prefs.getDisplayName(context),
+            profilePhotoPath = Prefs.getProfilePhotoPath(context),
             spentThisMonth = spent,
             spentToday = spentToday,
+            incomeThisMonth = incomeThisMonth,
+            savingsThisMonth = incomeThisMonth - spent,
+            investmentsTotal = insightInputs.investments.sumOf { it.currentValue },
+            incomeDeltaPercent = deltaPercent(incomeThisMonth, prevIncome),
+            expensesDeltaPercent = deltaPercent(spent, prevExpenses),
+            recentTransactions = finance.transactions.take(5),
+            categories = insightInputs.categories,
             dailySpendThreshold = dailySpendThreshold,
             bestHabitStreak = bestStreak,
             attentionItem = attentionItem,
