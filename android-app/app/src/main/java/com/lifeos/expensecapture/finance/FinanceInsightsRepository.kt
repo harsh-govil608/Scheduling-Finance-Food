@@ -324,6 +324,10 @@ class FinanceInsightsRepository(
         billDao.update(bill.copy(status = BillStatus.CANCELLED))
     }
 
+    suspend fun deleteBill(bill: BillEntity) {
+        billDao.delete(bill)
+    }
+
     /** Bills PRD, Doc 22 Feature Scope: "manual bill add/edit" - for bills with no reliable
      * digital trail (cash rent, informal loans) or that haven't recurred often enough to
      * auto-detect yet. */

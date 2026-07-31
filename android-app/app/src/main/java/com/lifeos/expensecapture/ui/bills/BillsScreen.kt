@@ -127,7 +127,8 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
                     BillCard(
                         item = item,
                         onConfirm = { viewModel.confirm(item) },
-                        onDismiss = { viewModel.dismiss(item) }
+                        onDismiss = { viewModel.dismiss(item) },
+                        onDelete = { viewModel.delete(item) }
                     )
                 }
             }
@@ -197,7 +198,12 @@ private fun AddBillDialog(
 }
 
 @Composable
-private fun BillCard(item: BillWithComputedStatus, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun BillCard(
+    item: BillWithComputedStatus,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
+) {
     val bill = item.bill
     val containerColor = when (item.displayStatus) {
         BillDisplayStatus.OVERDUE -> MaterialTheme.colorScheme.errorContainer
@@ -272,9 +278,21 @@ private fun BillCard(item: BillWithComputedStatus, onConfirm: () -> Unit, onDism
                         TextButton(onClick = onDismiss) { Text("Not a bill") }
                     }
                 }
-                BillDisplayStatus.CANCELLED -> { /* no actions */ }
+                // Real removal (found via a real user review - see BillDao.delete's kdoc):
+                // a cancelled bill previously had no action at all, so it just sat in the
+                // list forever with no way to actually clear it out.
+                BillDisplayStatus.CANCELLED -> {
+                    TextButton(onClick = onDelete) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                }
                 else -> {
-                    TextButton(onClick = onDismiss) { Text("Stop tracking") }
+                    Row {
+                        TextButton(onClick = onDismiss) { Text("Stop tracking") }
+                        TextButton(onClick = onDelete) {
+                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 }
             }
         }

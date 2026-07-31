@@ -24,6 +24,10 @@ class BillsViewModel(
         viewModelScope.launch { insightsRepository.dismissBill(item.bill) }
     }
 
+    fun delete(item: FinanceInsightsRepository.BillWithComputedStatus) {
+        viewModelScope.launch { insightsRepository.deleteBill(item.bill) }
+    }
+
     fun addManual(payeeDisplay: String, typicalAmount: Double, dueDayOfMonth: Int) {
         viewModelScope.launch { insightsRepository.addManualBill(payeeDisplay, typicalAmount, dueDayOfMonth) }
     }

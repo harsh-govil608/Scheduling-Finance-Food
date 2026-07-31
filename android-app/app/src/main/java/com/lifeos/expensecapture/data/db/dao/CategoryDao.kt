@@ -1,6 +1,7 @@
 package com.lifeos.expensecapture.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -12,6 +13,20 @@ interface CategoryDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(categories: List<CategoryEntity>)
+
+    /** User-created custom categories (real user review: "give users to add categories they
+     * want or remove categories that they don't want"). */
+    @Insert
+    suspend fun insert(category: CategoryEntity): Long
+
+    /** Deleting a category by itself would leave transactions/merchant rules/budgets pointing at
+     * a categoryId that no longer resolves to anything - CategoriesViewModel.deleteCategory
+     * reassigns/clears all three (via TransactionDao/MerchantRuleDao/BudgetDao's own
+     * reassignCategoryToUncategorized/deleteByCategory) before calling this. "Uncategorized"
+     * itself is guarded against deletion in the UI - it's CategorizationEngine's own fallback,
+     * not just another category. */
+    @Delete
+    suspend fun delete(category: CategoryEntity)
 
     @Query("SELECT * FROM categories ORDER BY name ASC")
     fun observeAll(): Flow<List<CategoryEntity>>

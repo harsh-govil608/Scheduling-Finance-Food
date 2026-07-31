@@ -36,4 +36,12 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET categoryId = :newCategoryId, isUserCorrected = 1 WHERE id = :transactionId")
     suspend fun recategorize(transactionId: Long, newCategoryId: Long)
+
+    /** Category deletion (see CategoryDao.delete's kdoc): every transaction pointing at a
+     * category the user is about to remove needs somewhere real to land, not a dangling
+     * categoryId - reassigned to Uncategorized, same fallback CategorizationEngine already uses
+     * when nothing else matches. Deliberately does NOT set isUserCorrected - this is a removal
+     * side effect, not a correction the user made to this specific transaction. */
+    @Query("UPDATE transactions SET categoryId = :uncategorizedId WHERE categoryId = :deletedCategoryId")
+    suspend fun reassignCategoryToUncategorized(deletedCategoryId: Long, uncategorizedId: Long)
 }

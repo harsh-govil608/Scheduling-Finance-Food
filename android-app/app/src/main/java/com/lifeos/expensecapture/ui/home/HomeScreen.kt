@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
@@ -114,6 +115,7 @@ fun HomeScreen(
     onOpenSubscriptions: () -> Unit,
     onOpenBills: () -> Unit,
     onOpenNeedsReview: () -> Unit,
+    onOpenSplitExpenses: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenInvestments: () -> Unit,
@@ -624,6 +626,12 @@ fun HomeScreen(
                 EntryRow(
                     Icons.Filled.Inbox, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
                     "Needs Review", "Messages the parser couldn't confidently read", onOpenNeedsReview
+                )
+            }
+            item {
+                EntryRow(
+                    Icons.Filled.Groups, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
+                    "Split Expenses", "Log what you paid for a group, track who's paid you back", onOpenSplitExpenses
                 )
             }
         }

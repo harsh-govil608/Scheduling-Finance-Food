@@ -25,4 +25,9 @@ interface BudgetDao {
 
     @Query("SELECT * FROM budgets WHERE categoryId IS NULL LIMIT 1")
     suspend fun findOverall(): BudgetEntity?
+
+    /** Category deletion (see CategoryDao.delete's kdoc) - a budget set for a category that no
+     * longer exists isn't meaningful to keep around. */
+    @Query("DELETE FROM budgets WHERE categoryId = :categoryId")
+    suspend fun deleteByCategory(categoryId: Long)
 }

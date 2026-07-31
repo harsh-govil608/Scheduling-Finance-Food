@@ -1,6 +1,6 @@
 {
-  "versionCode": 28,
-  "versionName": "0.28.0-pilot",
+  "versionCode": 29,
+  "versionName": "0.29.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Continuing the new look: the Home (productivity) tab now matches Finance's redesign too - a greeting header, a bordered 'Today's Focus' card for tasks and habits, a Quick Actions grid, and goal-progress rings. Investments, Goals, and Habits also got the bolder summary-card treatment. Nothing about how the app works has changed, just how it looks."
+  "notes": "New: Split Expenses (Finance > Explore) - log what you paid for a group and track who's paid you back. Custom categories (Profile > Manage categories) - add your own or remove ones you don't use. A built-in Calculator (Profile > Calculator). Bills you've stopped tracking can now actually be deleted, not just hidden. Also fixed the calculator's button layout."
 }

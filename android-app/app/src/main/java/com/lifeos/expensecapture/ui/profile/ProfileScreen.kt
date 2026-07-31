@@ -54,6 +54,8 @@ fun ProfileScreen(
     onBack: () -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenAutomationRules: () -> Unit,
+    onOpenCategories: () -> Unit,
+    onOpenCalculator: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     onOpenBackupRestore: () -> Unit,
     onDataDeleted: () -> Unit
@@ -149,6 +151,8 @@ fun ProfileScreen(
 
             TextButton(onClick = onOpenPermissions) { Text("Manage permissions") }
             TextButton(onClick = onOpenAutomationRules) { Text("Automation rules") }
+            TextButton(onClick = onOpenCategories) { Text("Manage categories") }
+            TextButton(onClick = onOpenCalculator) { Text("Calculator") }
             TextButton(onClick = onOpenDiagnostics) { Text("Diagnostics") }
             TextButton(onClick = onOpenBackupRestore) { Text("Backup & Restore") }
 

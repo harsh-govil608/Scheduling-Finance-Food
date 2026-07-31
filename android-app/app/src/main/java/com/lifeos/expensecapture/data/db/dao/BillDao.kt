@@ -1,6 +1,7 @@
 package com.lifeos.expensecapture.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -16,6 +17,12 @@ interface BillDao {
 
     @Update
     suspend fun update(bill: BillEntity)
+
+    /** Real removal (found via a real user review of a comparable app: "no options to remove
+     * bills which was not to be tracked") - dismissBill only ever marked a bill CANCELLED, which
+     * kept it sitting in the list forever with no way to actually clear it out. */
+    @Delete
+    suspend fun delete(bill: BillEntity)
 
     @Query("SELECT * FROM bills ORDER BY status ASC, dueDayOfMonth ASC")
     fun observeAll(): Flow<List<BillEntity>>

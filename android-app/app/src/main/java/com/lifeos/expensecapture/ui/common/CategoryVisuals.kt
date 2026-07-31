@@ -3,11 +3,13 @@ package com.lifeos.expensecapture.ui.common
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Attractions
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalAtm
 import androidx.compose.material.icons.filled.LocalHospital
@@ -45,6 +47,8 @@ object CategoryVisuals {
         "Transfers" -> Icons.Filled.SwapHoriz
         "ATM & Cash" -> Icons.Filled.LocalAtm
         "Salary/Income" -> Icons.Filled.AttachMoney
+        "Travel" -> Icons.Filled.Flight
+        "Loan & EMI" -> Icons.Filled.AccountBalance
         "Uncategorized" -> Icons.AutoMirrored.Filled.HelpOutline
         else -> Icons.Filled.Category // a user-created custom category
     }

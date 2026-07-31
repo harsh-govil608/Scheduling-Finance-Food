@@ -2,6 +2,7 @@ package com.lifeos.expensecapture
 
 import android.app.Application
 import com.lifeos.expensecapture.data.db.AppDatabase
+import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.seed.DefaultCategories
 import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.logging.CrashHandler
@@ -10,6 +11,7 @@ import com.lifeos.expensecapture.sms.parser.TransactionParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class App : Application() {
@@ -42,12 +44,35 @@ class App : Application() {
                 CrashHandler.adoptPendingCrashIfAny(this@App)
                 if (database.categoryDao().count() == 0) {
                     database.categoryDao().insertAll(DefaultCategories.asEntities())
+                } else {
+                    backfillNewDefaultCategoriesOnce()
                 }
                 cleanUpExistingReviewNoiseOnce()
             } catch (e: Exception) {
                 AppLogger.e("App", "startup initialization failed", e)
             }
         }
+    }
+
+    /**
+     * One-time migration (2026-07-31): DefaultCategories.names only reaches a brand-new install
+     * (categoryDao().count() == 0 branch above) - an existing install's categories table was
+     * already populated long before "Travel"/"Loan & EMI" were added to that list, so it would
+     * never pick them up on its own. Backfills just those two, by name, rather than re-running
+     * the full seed list - inserting the other ten again would either duplicate them (no unique
+     * constraint on name) or silently no-op depending on which row ID conflict fired, neither of
+     * which is what "add two categories" should do to everyone's existing category list.
+     */
+    private suspend fun backfillNewDefaultCategoriesOnce() {
+        val prefs = getSharedPreferences("app_migrations", MODE_PRIVATE)
+        if (prefs.getBoolean("travel_emi_categories_v1_done", false)) return
+
+        val existingNames = database.categoryDao().observeAll().first().map { it.name }.toSet()
+        val missing = listOf("Travel", "Loan & EMI").filterNot { it in existingNames }
+        if (missing.isNotEmpty()) {
+            database.categoryDao().insertAll(missing.map { CategoryEntity(name = it, isSystemDefault = true) })
+        }
+        prefs.edit().putBoolean("travel_emi_categories_v1_done", true).apply()
     }
 
     /**

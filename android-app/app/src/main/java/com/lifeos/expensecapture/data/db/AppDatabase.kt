@@ -23,6 +23,8 @@ import com.lifeos.expensecapture.data.db.dao.NoteDao
 import com.lifeos.expensecapture.data.db.dao.NotificationDao
 import com.lifeos.expensecapture.data.db.dao.ProjectDao
 import com.lifeos.expensecapture.data.db.dao.ShoppingItemDao
+import com.lifeos.expensecapture.data.db.dao.SplitExpenseDao
+import com.lifeos.expensecapture.data.db.dao.SplitParticipantDao
 import com.lifeos.expensecapture.data.db.dao.SubscriptionDao
 import com.lifeos.expensecapture.data.db.dao.TaskDao
 import com.lifeos.expensecapture.data.db.dao.TransactionDao
@@ -45,6 +47,8 @@ import com.lifeos.expensecapture.data.db.entity.NotificationEntity
 import com.lifeos.expensecapture.data.db.entity.NotificationType
 import com.lifeos.expensecapture.data.db.entity.ProjectEntity
 import com.lifeos.expensecapture.data.db.entity.ShoppingItemEntity
+import com.lifeos.expensecapture.data.db.entity.SplitExpenseEntity
+import com.lifeos.expensecapture.data.db.entity.SplitParticipantEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionStatus
 import com.lifeos.expensecapture.data.db.entity.TaskEntity
@@ -228,6 +232,36 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
     }
 }
 
+/** Split Expenses (real user review - see SplitExpenseEntity's kdoc): two new tables, no changes
+ * to any existing one. */
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `split_expenses` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `description` TEXT NOT NULL,
+                `totalAmount` REAL NOT NULL,
+                `date` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `split_participants` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `splitExpenseId` INTEGER NOT NULL,
+                `name` TEXT NOT NULL,
+                `shareAmount` REAL NOT NULL,
+                `settled` INTEGER NOT NULL,
+                `settledAt` INTEGER
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -248,9 +282,11 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
         GoalEntity::class,
         NoteEntity::class,
         ShoppingItemEntity::class,
-        CrashLogEntity::class
+        CrashLogEntity::class,
+        SplitExpenseEntity::class,
+        SplitParticipantEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -275,6 +311,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun shoppingItemDao(): ShoppingItemDao
     abstract fun crashLogDao(): CrashLogDao
+    abstract fun splitExpenseDao(): SplitExpenseDao
+    abstract fun splitParticipantDao(): SplitParticipantDao
 
     /** Backup & Restore (built via a real user request, 2026-07): Room runs in WAL mode, so the
      * most recent writes can sit in the `.db-wal` sidecar file rather than the main `.db` file
@@ -315,7 +353,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

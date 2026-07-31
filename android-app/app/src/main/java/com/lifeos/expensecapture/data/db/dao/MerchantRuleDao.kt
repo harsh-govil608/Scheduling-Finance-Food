@@ -26,4 +26,10 @@ interface MerchantRuleDao {
 
     @Query("SELECT * FROM merchant_rules ORDER BY isManuallyAuthored DESC, merchantPattern ASC")
     fun observeAll(): Flow<List<MerchantRuleEntity>>
+
+    /** Category deletion (see CategoryDao.delete's kdoc) - a rule pointing at a deleted category
+     * would otherwise keep auto-categorizing future transactions into a categoryId that no
+     * longer exists. */
+    @Query("UPDATE merchant_rules SET categoryId = :uncategorizedId WHERE categoryId = :deletedCategoryId")
+    suspend fun reassignCategoryToUncategorized(deletedCategoryId: Long, uncategorizedId: Long)
 }

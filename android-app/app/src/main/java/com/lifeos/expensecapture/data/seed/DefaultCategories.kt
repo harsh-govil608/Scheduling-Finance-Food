@@ -20,6 +20,11 @@ object DefaultCategories {
         "Transfers",
         "ATM & Cash",
         "Salary/Income",
+        // Added 2026-07-31, found via real user reviews of comparable apps asking for these
+        // exact two categories. Existing installs get these backfilled once by
+        // App.backfillNewDefaultCategoriesOnce - this list alone only reaches fresh installs.
+        "Travel",
+        "Loan & EMI",
         "Uncategorized"
     )
 

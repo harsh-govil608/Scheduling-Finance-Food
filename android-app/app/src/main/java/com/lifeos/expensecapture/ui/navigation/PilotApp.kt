@@ -21,6 +21,8 @@ import com.lifeos.expensecapture.ui.assistant.AssistantScreen
 import com.lifeos.expensecapture.ui.backup.BackupRestoreScreen
 import com.lifeos.expensecapture.ui.bills.BillsScreen
 import com.lifeos.expensecapture.ui.budget.BudgetScreen
+import com.lifeos.expensecapture.ui.categories.CategoriesScreen
+import com.lifeos.expensecapture.ui.calculator.CalculatorScreen
 import com.lifeos.expensecapture.ui.goals.GoalsScreen
 import com.lifeos.expensecapture.ui.habits.HabitsScreen
 import com.lifeos.expensecapture.ui.home.HomeScreen
@@ -41,6 +43,9 @@ import com.lifeos.expensecapture.ui.review.UnparsedReviewScreen
 import com.lifeos.expensecapture.ui.rules.AutomationRulesScreen
 import com.lifeos.expensecapture.ui.search.SearchScreen
 import com.lifeos.expensecapture.ui.shopping.ShoppingScreen
+import com.lifeos.expensecapture.ui.splitexpenses.AddSplitExpenseScreen
+import com.lifeos.expensecapture.ui.splitexpenses.SplitExpenseDetailScreen
+import com.lifeos.expensecapture.ui.splitexpenses.SplitExpensesScreen
 import com.lifeos.expensecapture.ui.subscriptions.SubscriptionsScreen
 import com.lifeos.expensecapture.ui.tasks.TaskListScreen
 import com.lifeos.expensecapture.ui.timeline.ContextTimelineScreen
@@ -110,6 +115,7 @@ fun PilotApp(app: App) {
                 onOpenSubscriptions = { navController.navigate("subscriptions") },
                 onOpenBills = { navController.navigate("bills") },
                 onOpenNeedsReview = { navController.navigate("needs_review") },
+                onOpenSplitExpenses = { navController.navigate("split_expenses") },
                 onOpenNotifications = { navController.navigate("notifications") },
                 onOpenSearch = { navController.navigate("search") },
                 onOpenInvestments = { navController.navigate("investments") },
@@ -188,6 +194,27 @@ fun PilotApp(app: App) {
         composable("ledger") {
             LedgerScreen(app = app, onBack = { navController.popBackStack() })
         }
+        composable("split_expenses") {
+            SplitExpensesScreen(
+                app = app,
+                onBack = { navController.popBackStack() },
+                onAddExpense = { navController.navigate("split_expenses/add") },
+                onOpenDetail = { expenseId -> navController.navigate("split_expenses/$expenseId") }
+            )
+        }
+        composable("split_expenses/add") {
+            AddSplitExpenseScreen(
+                app = app,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "split_expenses/{expenseId}",
+            arguments = listOf(navArgument("expenseId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val expenseId = backStackEntry.arguments?.getLong("expenseId") ?: 0L
+            SplitExpenseDetailScreen(app = app, expenseId = expenseId, onBack = { navController.popBackStack() })
+        }
         composable("budgets") {
             BudgetScreen(app = app, onBack = { navController.popBackStack() })
         }
@@ -216,12 +243,20 @@ fun PilotApp(app: App) {
         composable("night_summary") {
             NightSummaryScreen(app = app, onBack = { navController.popBackStack() })
         }
+        composable("categories") {
+            CategoriesScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("calculator") {
+            CalculatorScreen(onBack = { navController.popBackStack() })
+        }
         composable("profile") {
             ProfileScreen(
                 app = app,
                 onBack = { navController.popBackStack() },
                 onOpenPermissions = { navController.navigate("permissions") },
                 onOpenAutomationRules = { navController.navigate("rules") },
+                onOpenCategories = { navController.navigate("categories") },
+                onOpenCalculator = { navController.navigate("calculator") },
                 onOpenDiagnostics = { navController.navigate("diagnostics") },
                 onOpenBackupRestore = { navController.navigate("backup_restore") },
                 onDataDeleted = {
