@@ -66,15 +66,25 @@ class TransactionParser(
         return keywords.any { body.contains(it, ignoreCase = true) }
     }
 
-    /** See ParseResult.Ignored's kdoc. Checked before any candidate matching so an OTP SMS from
-     * a real bank sender (which often shares its sender ID with genuine debit/credit alerts)
-     * can't be misread as a transaction just because it mentions the same amount/merchant. */
-    private fun looksLikeOtpOrVerification(body: String): Boolean {
-        val signals = listOf("otp", "one time password", "one-time password", "verification code", "do not share", "don't share")
-        return signals.any { body.contains(it, ignoreCase = true) }
-    }
-
     companion object {
+        /** See ParseResult.Ignored's kdoc. Checked before any candidate matching so an OTP SMS
+         * from a real bank sender (which often shares its sender ID with genuine debit/credit
+         * alerts) can't be misread as a transaction just because it mentions the same amount/
+         * merchant. In the companion object (not a private instance method, as it originally
+         * was) so App.kt's one-time cleanup migration can reuse this exact check against
+         * messages already sitting in Needs Review from before this filter existed - see that
+         * migration's kdoc for why a live-only fix isn't enough (found via a real user report,
+         * 2026-08: "OTPs are also shown in the app... in needs review").
+         */
+        fun looksLikeOtpOrVerification(body: String): Boolean {
+            val signals = listOf(
+                "otp", "one time password", "one-time password", "one time pin",
+                "verification code", "verification pin", "security code", "auth code",
+                "do not share", "don't share"
+            )
+            return signals.any { body.contains(it, ignoreCase = true) }
+        }
+
         /**
          * Bank/payment sender-code fragments this pass has real evidence for - extend this list
          * as new banks/payment apps show up in a real user's Needs Review queue. Deliberately a

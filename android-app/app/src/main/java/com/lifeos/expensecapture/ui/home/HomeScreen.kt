@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
@@ -116,6 +117,8 @@ fun HomeScreen(
     onOpenBills: () -> Unit,
     onOpenNeedsReview: () -> Unit,
     onOpenSplitExpenses: () -> Unit,
+    onOpenImportStatement: () -> Unit,
+    onOpenPayCycle: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenInvestments: () -> Unit,
@@ -632,6 +635,18 @@ fun HomeScreen(
                 EntryRow(
                     Icons.Filled.Groups, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
                     "Split Expenses", "Log what you paid for a group, track who's paid you back", onOpenSplitExpenses
+                )
+            }
+            item {
+                EntryRow(
+                    Icons.Filled.UploadFile, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
+                    "Import Statement", "Add past transactions from a bank or card CSV export", onOpenImportStatement
+                )
+            }
+            item {
+                EntryRow(
+                    Icons.Filled.AccountBalanceWallet, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.tertiaryContainer,
+                    "Pay Cycle", "Income and spending between salary credits, not calendar months", onOpenPayCycle
                 )
             }
         }

@@ -1,6 +1,6 @@
 {
-  "versionCode": 29,
-  "versionName": "0.29.0-pilot",
+  "versionCode": 30,
+  "versionName": "0.30.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "New: Split Expenses (Finance > Explore) - log what you paid for a group and track who's paid you back. Custom categories (Profile > Manage categories) - add your own or remove ones you don't use. A built-in Calculator (Profile > Calculator). Bills you've stopped tracking can now actually be deleted, not just hidden. Also fixed the calculator's button layout."
+  "notes": "Fixed: the home screen widget wasn't showing up in the Add Widget picker at all - it will now. Fixed: OTP messages that had already piled up in Needs Review from before an earlier filter existed are now cleaned out (new ones were already correctly kept out). New: Import Statement (Finance > Explore) - upload a bank/card CSV export and match its columns to add past transactions. New: Pay Cycle (Finance > Explore) - income and spending between salary credits instead of calendar months (needs at least one transaction categorized as \"Salary/Income\")."
 }

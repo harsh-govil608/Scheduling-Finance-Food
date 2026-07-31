@@ -48,6 +48,7 @@ class App : Application() {
                     backfillNewDefaultCategoriesOnce()
                 }
                 cleanUpExistingReviewNoiseOnce()
+                cleanUpOtpMessagesFromReviewOnce()
             } catch (e: Exception) {
                 AppLogger.e("App", "startup initialization failed", e)
             }
@@ -94,5 +95,28 @@ class App : Application() {
             database.unparsedMessageDao().deleteByIds(noiseIds)
         }
         prefs.edit().putBoolean("needs_review_noise_cleanup_v1_done", true).apply()
+    }
+
+    /**
+     * One-time migration (2026-08): TransactionParser's OTP filter only ever stopped a NEW
+     * OTP/verification SMS from being stored in Needs Review going forward - it never touched
+     * rows already sitting there from before that filter existed (or before its keyword list
+     * covered a given bank's wording). Found via a real user report, 2026-08: "Data privacy
+     * concerns. I see OTPs are also shown in the app... in needs review" - the live filter was
+     * already correct, the gap was purely retroactive, the same shape of bug
+     * cleanUpExistingReviewNoiseOnce fixed for non-institutional-sender noise. Runs once per
+     * install, guarded by its own SharedPreferences flag.
+     */
+    private suspend fun cleanUpOtpMessagesFromReviewOnce() {
+        val prefs = getSharedPreferences("app_migrations", MODE_PRIVATE)
+        if (prefs.getBoolean("needs_review_otp_cleanup_v1_done", false)) return
+
+        val otpIds = database.unparsedMessageDao().getAllUnresolved()
+            .filter { TransactionParser.looksLikeOtpOrVerification(it.body) }
+            .map { it.id }
+        if (otpIds.isNotEmpty()) {
+            database.unparsedMessageDao().deleteByIds(otpIds)
+        }
+        prefs.edit().putBoolean("needs_review_otp_cleanup_v1_done", true).apply()
     }
 }

@@ -43,10 +43,16 @@
             </intent-filter>
         </receiver>
 
-        <!-- Widgets PRD (Phase 3 Doc 04): single home-screen "spent this month" widget. -->
+        <!-- Widgets PRD (Phase 3 Doc 04): single home-screen "spent this month" widget.
+             Bug fix (found via a real user report, 2026-08 - "widget nhi dikh raha", i.e. it
+             never showed up in the home screen's Add Widget picker at all): exported must be
+             true here, not false. A widget provider's receiver is bound to by the launcher app -
+             a different process entirely - so an unexported receiver is invisible to it; this
+             isn't the same "don't export things unnecessarily" rule that applies to most other
+             components, it's a hard requirement for AppWidgetProvider specifically. -->
         <receiver
             android:name=".widget.SpendWidgetProvider"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

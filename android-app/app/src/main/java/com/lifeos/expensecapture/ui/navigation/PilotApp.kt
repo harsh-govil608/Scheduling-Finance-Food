@@ -27,6 +27,8 @@ import com.lifeos.expensecapture.ui.goals.GoalsScreen
 import com.lifeos.expensecapture.ui.habits.HabitsScreen
 import com.lifeos.expensecapture.ui.home.HomeScreen
 import com.lifeos.expensecapture.data.db.entity.NoteType
+import com.lifeos.expensecapture.importer.ImportStatementScreen
+import com.lifeos.expensecapture.ui.paycycle.PayCycleScreen
 import com.lifeos.expensecapture.ui.investments.InvestmentsScreen
 import com.lifeos.expensecapture.ui.ledger.LedgerScreen
 import com.lifeos.expensecapture.ui.nightsummary.NightSummaryScreen
@@ -116,6 +118,8 @@ fun PilotApp(app: App) {
                 onOpenBills = { navController.navigate("bills") },
                 onOpenNeedsReview = { navController.navigate("needs_review") },
                 onOpenSplitExpenses = { navController.navigate("split_expenses") },
+                onOpenImportStatement = { navController.navigate("import_statement") },
+                onOpenPayCycle = { navController.navigate("pay_cycle") },
                 onOpenNotifications = { navController.navigate("notifications") },
                 onOpenSearch = { navController.navigate("search") },
                 onOpenInvestments = { navController.navigate("investments") },
@@ -193,6 +197,12 @@ fun PilotApp(app: App) {
         }
         composable("ledger") {
             LedgerScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("import_statement") {
+            ImportStatementScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("pay_cycle") {
+            PayCycleScreen(app = app, onBack = { navController.popBackStack() })
         }
         composable("split_expenses") {
             SplitExpensesScreen(
