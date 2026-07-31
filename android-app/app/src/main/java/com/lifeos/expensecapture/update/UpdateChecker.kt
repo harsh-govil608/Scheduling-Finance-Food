@@ -4,10 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.content.FileProvider
+import com.lifeos.expensecapture.logging.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
 
 data class UpdateInfo(
@@ -39,9 +41,26 @@ object UpdateChecker {
     private const val MANIFEST_URL =
         "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/latest.json"
 
+    private const val TIMEOUT_MILLIS = 10_000
+
+    /**
+     * Bug fix (found via a real user report, 2026-08 - a tester's update banner never appeared,
+     * and there was no way to find out why): two real gaps here before this fix, not just one.
+     * (1) `URL(...).readText()` used no explicit connect/read timeout at all - on a slow or
+     * flaky connection this could hang far longer than a user would ever wait, rather than
+     * failing fast and letting the check simply run again next app open. (2) every failure was
+     * swallowed into a bare `null` with zero logging, so even this app's own Diagnostics screen
+     * - built specifically so a handled failure is "something that can actually be looked at
+     * later" (see AppLogger's kdoc) - showed nothing when this silently failed. Every exit path
+     * below now either returns a real UpdateInfo or logs specifically why it didn't.
+     */
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
         try {
-            val body = URL(MANIFEST_URL).readText()
+            val connection = (URL(MANIFEST_URL).openConnection() as HttpURLConnection).apply {
+                connectTimeout = TIMEOUT_MILLIS
+                readTimeout = TIMEOUT_MILLIS
+            }
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
             val json = JSONObject(body)
             val remoteVersionCode = json.getInt("versionCode")
             val currentVersionCode = currentVersionCode(context)
@@ -56,7 +75,9 @@ object UpdateChecker {
                 null
             }
         } catch (e: Exception) {
-            // Offline, GitHub unreachable, manifest malformed - never blocks the app over this.
+            // Offline, GitHub unreachable, manifest malformed - never blocks the app over this,
+            // but now at least leaves a real record of which of those it was.
+            AppLogger.e("UpdateChecker", "update check failed", e)
             null
         }
     }

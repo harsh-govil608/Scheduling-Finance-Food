@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
+import com.lifeos.expensecapture.ui.analytics.AnalyticsScreen
 import com.lifeos.expensecapture.ui.assistant.AssistantScreen
 import com.lifeos.expensecapture.ui.backup.BackupRestoreScreen
 import com.lifeos.expensecapture.ui.bills.BillsScreen
@@ -74,6 +75,7 @@ fun PilotApp(app: App) {
         val target = when (pillar) {
             Pillar.FINANCE -> "home"
             Pillar.HOME -> "productivity_home"
+            Pillar.ANALYTICS -> "analytics"
         }
         navController.navigate(target) { launchSingleTop = true }
     }
@@ -146,6 +148,13 @@ fun PilotApp(app: App) {
                 onOpenProfile = { navController.navigate("profile") },
                 onOpenAssistant = { navController.navigate("assistant") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
+            )
+        }
+        composable("analytics") {
+            AnalyticsScreen(
+                app = app,
+                onSelectPillar = { pillar -> selectPillar(pillar) },
+                onOpenProfile = { navController.navigate("profile") }
             )
         }
         composable("assistant") {

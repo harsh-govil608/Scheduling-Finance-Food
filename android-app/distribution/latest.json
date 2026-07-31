@@ -1,6 +1,6 @@
 {
-  "versionCode": 30,
-  "versionName": "0.30.0-pilot",
+  "versionCode": 31,
+  "versionName": "0.31.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixed: the home screen widget wasn't showing up in the Add Widget picker at all - it will now. Fixed: OTP messages that had already piled up in Needs Review from before an earlier filter existed are now cleaned out (new ones were already correctly kept out). New: Import Statement (Finance > Explore) - upload a bank/card CSV export and match its columns to add past transactions. New: Pay Cycle (Finance > Explore) - income and spending between salary credits instead of calendar months (needs at least one transaction categorized as \"Salary/Income\")."
+  "notes": "New: Analytics tab (bottom nav, next to Finance and Home) - category breakdown donut chart, 6-month income vs. expenses trend, and top merchants, all from your real transaction data. Fixed: the in-app update checker could hang or silently fail with no error logged if the update server was slow or unreachable - it now times out after 10s and logs failures. New: your app version is now shown at the bottom of Profile & Settings, so you can confirm which build you're on."
 }

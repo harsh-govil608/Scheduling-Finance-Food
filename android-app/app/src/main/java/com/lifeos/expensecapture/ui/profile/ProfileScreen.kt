@@ -161,6 +161,19 @@ fun ProfileScreen(
             TextButton(onClick = { showDeleteConfirm = true }) {
                 Text("Delete all my data", color = MaterialTheme.colorScheme.error)
             }
+
+            // Real user report, 2026-08: an update banner never showed on a tester's phone, and
+            // there was no way to even ask "what version are you actually on" - the app never
+            // displayed its own version anywhere. A one-line read-only label fixes that; it's
+            // also the fastest sanity check that the in-app updater (UpdateChecker) actually
+            // landed a given release.
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                "Version ${uiState.appVersionName}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 16.dp)
+            )
         }
     }
 

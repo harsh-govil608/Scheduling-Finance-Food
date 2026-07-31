@@ -1,6 +1,7 @@
 package com.lifeos.expensecapture.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CurrencyRupee
 import androidx.compose.material3.Icon
@@ -12,7 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-enum class Pillar { FINANCE, HOME }
+enum class Pillar { FINANCE, HOME, ANALYTICS }
 
 /**
  * First real multi-pillar navigation element in the app - until today every screen was
@@ -49,6 +50,13 @@ fun PillarBottomBar(current: Pillar, onSelect: (Pillar) -> Unit) {
             onClick = { onSelect(Pillar.HOME) },
             icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
             label = { Text("Home") },
+            colors = itemColors
+        )
+        NavigationBarItem(
+            selected = current == Pillar.ANALYTICS,
+            onClick = { onSelect(Pillar.ANALYTICS) },
+            icon = { Icon(Icons.Default.BarChart, contentDescription = null) },
+            label = { Text("Analytics") },
             colors = itemColors
         )
     }

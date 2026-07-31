@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.seed.DefaultCategories
+import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.util.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,8 @@ import java.io.File
 data class ProfileUiState(
     val displayName: String = "",
     val capturePaused: Boolean = false,
-    val profilePhotoPath: String? = null
+    val profilePhotoPath: String? = null,
+    val appVersionName: String = ""
 )
 
 /**
@@ -33,7 +35,8 @@ class ProfileViewModel(private val context: Context, private val database: AppDa
         ProfileUiState(
             displayName = Prefs.getDisplayName(context),
             capturePaused = Prefs.isCapturePaused(context),
-            profilePhotoPath = Prefs.getProfilePhotoPath(context)
+            profilePhotoPath = Prefs.getProfilePhotoPath(context),
+            appVersionName = AppLogger.appVersionName(context)
         )
     )
     val uiState: StateFlow<ProfileUiState> = _uiState
