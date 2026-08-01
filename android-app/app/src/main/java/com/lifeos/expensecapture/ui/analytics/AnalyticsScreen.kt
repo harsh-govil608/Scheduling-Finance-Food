@@ -245,14 +245,16 @@ private fun FinancialHealthScoreCard(score: Int) {
     }
 }
 
-/** Cycles through the theme's own accent roles rather than introducing new ad hoc hex colors -
- * same discipline CategoryVisuals.colorPairFor already applies elsewhere in this app. */
+/** Real user report, 2026-08: the donut's earlier 3-hue-at-two-alphas palette read as barely
+ * differentiated slice to slice. This uses every distinct hue already in the theme (primary,
+ * tertiary, the two warning tones, error, secondary) instead of repeating three at different
+ * opacities - still the app's own named colors, no new ad hoc hex added. */
 @Composable
 private fun chartColors(): List<Color> = listOf(
     MaterialTheme.colorScheme.primary,
     MaterialTheme.colorScheme.tertiary,
-    MaterialTheme.colorScheme.secondary,
-    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f),
-    MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
+    Warning,
+    WarningStrong,
+    MaterialTheme.colorScheme.error,
+    MaterialTheme.colorScheme.secondary
 )

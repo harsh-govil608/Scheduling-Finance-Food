@@ -148,6 +148,10 @@ fun TrendChart(
  * data shape as TrendChart (one value per series per bucket), rendered as paired bars instead of
  * a line since that's what that specific mockup card uses; Finance/Home elsewhere keep using
  * Sparkline/TrendChart's line style for their own trend cards.
+ *
+ * Real user report, 2026-08: the bars had no numeric reference at all, only relative heights - a
+ * ₹0/max-value pair overlaid on the Y-axis gives an actual scale to read the bars against,
+ * without cluttering every individual bar with its own label.
  */
 @Composable
 fun BarChart(
@@ -157,29 +161,43 @@ fun BarChart(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        Canvas(modifier = Modifier.fillMaxWidth().height(140.dp)) {
-            val allValues = series.flatMap { it.second }
-            val maxValue = (allValues.maxOrNull() ?: 0f).coerceAtLeast(1f)
-            val bucketCount = labels.size
-            if (bucketCount == 0) return@Canvas
-            val groupWidth = size.width / bucketCount
-            val barGap = 4.dp.toPx()
-            val barWidth = ((groupWidth - barGap * (series.size + 1)) / series.size).coerceAtLeast(2f)
+        val allValues = series.flatMap { it.second }
+        val maxValue = (allValues.maxOrNull() ?: 0f).coerceAtLeast(1f)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Canvas(modifier = Modifier.fillMaxWidth().height(140.dp)) {
+                val bucketCount = labels.size
+                if (bucketCount == 0) return@Canvas
+                val groupWidth = size.width / bucketCount
+                val barGap = 4.dp.toPx()
+                val barWidth = ((groupWidth - barGap * (series.size + 1)) / series.size).coerceAtLeast(2f)
 
-            for (bucket in 0 until bucketCount) {
-                var x = bucket * groupWidth + barGap
-                series.forEachIndexed { seriesIndex, (_, values) ->
-                    val value = values.getOrElse(bucket) { 0f }
-                    val barHeight = (value / maxValue) * size.height
-                    drawRoundRect(
-                        color = colors.getOrElse(seriesIndex) { Color.Gray },
-                        topLeft = Offset(x, size.height - barHeight),
-                        size = Size(barWidth, barHeight),
-                        cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
-                    )
-                    x += barWidth + barGap
+                for (bucket in 0 until bucketCount) {
+                    var x = bucket * groupWidth + barGap
+                    series.forEachIndexed { seriesIndex, (_, values) ->
+                        val value = values.getOrElse(bucket) { 0f }
+                        val barHeight = (value / maxValue) * size.height
+                        drawRoundRect(
+                            color = colors.getOrElse(seriesIndex) { Color.Gray },
+                            topLeft = Offset(x, size.height - barHeight),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+                        )
+                        x += barWidth + barGap
+                    }
                 }
             }
+            Text(
+                "₹${"%.0f".format(maxValue)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+            Text(
+                "₹0",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
         }
         Spacer(Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

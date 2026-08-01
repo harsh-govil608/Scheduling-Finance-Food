@@ -1,6 +1,6 @@
 {
-  "versionCode": 34,
-  "versionName": "0.34.0-pilot",
+  "versionCode": 36,
+  "versionName": "0.36.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Removed the duplicate 'Split Expenses' entry from Finance's Explore list - it's already a Quick Action at the top of the Finance tab."
+  "notes": "Finance's Quick Actions is now a fixed 2x4 grid (Add Expense/Income, Split Expenses, Search, Import Statement, Pay Cycle, Your Day, Investments) - all 8 visible at once, no side-scrolling. Removed those from Explore below since they're covered here now (Budgets/Bills/Subscriptions/Needs Review stay in Explore). Analytics: the Spending Overview donut now uses distinct colors per category instead of similar shades, and the Income vs Expenses bar chart shows its ₹ scale (top/bottom values)."
 }

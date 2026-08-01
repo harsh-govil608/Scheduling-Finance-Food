@@ -541,35 +541,70 @@ fun HomeScreen(
 
             item { SectionLabel("Quick Actions") }
             item {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    QuickActionButton(
-                        icon = Icons.Filled.Add,
-                        label = "Add Expense",
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        iconTint = MaterialTheme.colorScheme.primary,
-                        onClick = { manualEntryDirection = TransactionDirection.DEBIT }
-                    )
-                    QuickActionButton(
-                        icon = Icons.Filled.ArrowDownward,
-                        label = "Add Income",
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        iconTint = MaterialTheme.colorScheme.secondary,
-                        onClick = { manualEntryDirection = TransactionDirection.CREDIT }
-                    )
-                    QuickActionButton(
-                        icon = Icons.Filled.Groups,
-                        label = "Split Expenses",
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        iconTint = MaterialTheme.colorScheme.tertiary,
-                        onClick = onOpenSplitExpenses
-                    )
-                    QuickActionButton(
-                        icon = Icons.Filled.Search,
-                        label = "Search",
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        onClick = onOpenSearch
-                    )
+                // 2x4 grid, not a scroll row (real user feedback, 2026-08: a horizontally
+                // scrolling row hid the extra four actions instead of making them easier to
+                // reach) - all eight visible at once, two rows of four.
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        QuickActionButton(
+                            icon = Icons.Filled.Add,
+                            label = "Add Expense",
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            iconTint = MaterialTheme.colorScheme.primary,
+                            onClick = { manualEntryDirection = TransactionDirection.DEBIT }
+                        )
+                        QuickActionButton(
+                            icon = Icons.Filled.ArrowDownward,
+                            label = "Add Income",
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            iconTint = MaterialTheme.colorScheme.secondary,
+                            onClick = { manualEntryDirection = TransactionDirection.CREDIT }
+                        )
+                        QuickActionButton(
+                            icon = Icons.Filled.Groups,
+                            label = "Split Expenses",
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            onClick = onOpenSplitExpenses
+                        )
+                        QuickActionButton(
+                            icon = Icons.Filled.Search,
+                            label = "Search",
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            onClick = onOpenSearch
+                        )
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        QuickActionButton(
+                            icon = Icons.Filled.UploadFile,
+                            label = "Import Statement",
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            iconTint = MaterialTheme.colorScheme.primary,
+                            onClick = onOpenImportStatement
+                        )
+                        QuickActionButton(
+                            icon = Icons.Filled.AccountBalanceWallet,
+                            label = "Pay Cycle",
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            onClick = onOpenPayCycle
+                        )
+                        QuickActionButton(
+                            icon = Icons.Filled.Today,
+                            label = "Your Day",
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTint = MaterialTheme.colorScheme.tertiary,
+                            onClick = onOpenNightSummary
+                        )
+                        QuickActionButton(
+                            icon = Icons.Filled.TrendingUp,
+                            label = "Investments",
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            iconTint = MaterialTheme.colorScheme.secondary,
+                            onClick = onOpenInvestments
+                        )
+                    }
                 }
             }
 
@@ -620,12 +655,6 @@ fun HomeScreen(
             }
             item {
                 EntryRow(
-                    Icons.Filled.Today, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.tertiaryContainer,
-                    "Your day", "This morning through tonight, and what's coming up", onOpenNightSummary
-                )
-            }
-            item {
-                EntryRow(
                     Icons.Filled.PieChart, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
                     "Budgets", "Set limits and see where you stand, with a month-end projection", onOpenBudgets
                 )
@@ -644,26 +673,8 @@ fun HomeScreen(
             }
             item {
                 EntryRow(
-                    Icons.Filled.TrendingUp, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.tertiaryContainer,
-                    "Investments", "Manually tracked holdings, read-only", onOpenInvestments
-                )
-            }
-            item {
-                EntryRow(
                     Icons.Filled.Inbox, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
                     "Needs Review", "Messages the parser couldn't confidently read", onOpenNeedsReview
-                )
-            }
-            item {
-                EntryRow(
-                    Icons.Filled.UploadFile, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
-                    "Import Statement", "Add past transactions from a bank or card CSV export", onOpenImportStatement
-                )
-            }
-            item {
-                EntryRow(
-                    Icons.Filled.AccountBalanceWallet, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.tertiaryContainer,
-                    "Pay Cycle", "Income and spending between salary credits, not calendar months", onOpenPayCycle
                 )
             }
         }
