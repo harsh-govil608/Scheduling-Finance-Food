@@ -1,9 +1,11 @@
 package com.lifeos.expensecapture.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CurrencyRupee
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -13,15 +15,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-enum class Pillar { FINANCE, HOME, ANALYTICS }
+enum class Pillar { FINANCE, HOME, ANALYTICS, AI, PROFILE }
 
 /**
- * First real multi-pillar navigation element in the app - until today every screen was
- * implicitly "Finance" (the TopAppBar even says "Finance" outright). Only shown on each pillar's
- * own landing screen (Finance's HomeScreen, Home's ProductivityHomeScreen), not on drill-down
- * detail screens (Ledger, Tasks, etc.) - standard Android practice for tab-style navigation, and
- * avoids needing a nested NavHost/back-stack redesign for a 2-tab pilot. Food is deliberately
- * absent - see docs/coders-documentation/day-3.md's Known Gaps for why it's not started.
+ * Five-tab bottom nav (2026-08 reference mockups, `ui2/` folder) - Finance/Home/Analytics were
+ * already pillars; AI and Profile move here from being a FAB (AssistantScreen) and an avatar-button
+ * destination (ProfileScreen) respectively, matching every one of the new mockups' bottom bar. AI
+ * is still the same rule-based CommandIntent assistant, not a new model - see AssistantScreen's
+ * kdoc; this is a navigation change only. The avatar-button shortcut to Profile and the old
+ * chat-FAB are left in place elsewhere too - both are just additional paths to the same routes,
+ * not a conflict.
  *
  * Selected-tab treatment (2026-07-31 dark refresh) matches the reference mockups' bottom nav: the
  * icon and label simply switch to the mint primary color, no pill-shaped indicator behind them -
@@ -57,6 +60,20 @@ fun PillarBottomBar(current: Pillar, onSelect: (Pillar) -> Unit) {
             onClick = { onSelect(Pillar.ANALYTICS) },
             icon = { Icon(Icons.Default.BarChart, contentDescription = null) },
             label = { Text("Analytics") },
+            colors = itemColors
+        )
+        NavigationBarItem(
+            selected = current == Pillar.AI,
+            onClick = { onSelect(Pillar.AI) },
+            icon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null) },
+            label = { Text("AI") },
+            colors = itemColors
+        )
+        NavigationBarItem(
+            selected = current == Pillar.PROFILE,
+            onClick = { onSelect(Pillar.PROFILE) },
+            icon = { Icon(Icons.Default.Person, contentDescription = null) },
+            label = { Text("Profile") },
             colors = itemColors
         )
     }

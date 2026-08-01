@@ -6,15 +6,22 @@ import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.data.repository.TransactionRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/** All/Income/Expense filter chips (2026-08 reference mockups, `ui2/` folder). */
+enum class LedgerDirectionFilter { ALL, INCOME, EXPENSE }
+
 data class LedgerUiState(
+    val allTransactions: List<TransactionEntity> = emptyList(),
     val transactions: List<TransactionEntity> = emptyList(),
-    val categories: List<CategoryEntity> = emptyList()
+    val categories: List<CategoryEntity> = emptyList(),
+    val searchQuery: String = "",
+    val directionFilter: LedgerDirectionFilter = LedgerDirectionFilter.ALL
 )
 
 /**
@@ -28,16 +35,44 @@ class LedgerViewModel(
     private val repository: TransactionRepository
 ) : ViewModel() {
 
+    private val searchQuery = MutableStateFlow("")
+    private val directionFilter = MutableStateFlow(LedgerDirectionFilter.ALL)
+
     val uiState: StateFlow<LedgerUiState> = combine(
         repository.observeLedger(),
-        repository.observeCategories()
-    ) { transactions, categories ->
-        LedgerUiState(transactions = transactions, categories = categories)
+        repository.observeCategories(),
+        searchQuery,
+        directionFilter
+    ) { transactions, categories, query, filter ->
+        val filtered = transactions
+            .filter {
+                when (filter) {
+                    LedgerDirectionFilter.ALL -> true
+                    LedgerDirectionFilter.INCOME -> it.direction == TransactionDirection.CREDIT
+                    LedgerDirectionFilter.EXPENSE -> it.direction == TransactionDirection.DEBIT
+                }
+            }
+            .filter { query.isBlank() || it.merchantRaw.contains(query, ignoreCase = true) }
+        LedgerUiState(
+            allTransactions = transactions,
+            transactions = filtered,
+            categories = categories,
+            searchQuery = query,
+            directionFilter = filter
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = LedgerUiState()
     )
+
+    fun setSearchQuery(query: String) {
+        searchQuery.value = query
+    }
+
+    fun setDirectionFilter(filter: LedgerDirectionFilter) {
+        directionFilter.value = filter
+    }
 
     fun recategorize(transaction: TransactionEntity, newCategoryId: Long) {
         viewModelScope.launch {

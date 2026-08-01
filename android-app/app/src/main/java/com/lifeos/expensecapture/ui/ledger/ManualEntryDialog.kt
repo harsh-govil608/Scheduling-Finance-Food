@@ -44,13 +44,17 @@ fun ManualEntryDialog(
     // SMS's actual received time instead, since defaulting an old message's review to "today"
     // would be wrong far more often than right.
     initialDateMillis: Long = System.currentTimeMillis(),
+    // Finance Home's Quick Actions row (2026-08 reference mockups, `ui2/` folder) opens this same
+    // dialog for both "Add Expense" and "Add Income" rather than duplicating the form - only the
+    // pre-selected chip differs, still fully editable either way.
+    initialDirection: TransactionDirection = TransactionDirection.DEBIT,
     onConfirm: (amount: Double, merchant: String, direction: TransactionDirection, categoryId: Long, date: Long) -> Unit,
     onDismiss: () -> Unit
 ) {
     var amountText by remember { mutableStateOf("") }
     var merchant by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(categories.firstOrNull()) }
-    var isDebit by remember { mutableStateOf(true) }
+    var isDebit by remember { mutableStateOf(initialDirection == TransactionDirection.DEBIT) }
     var selectedDateMillis by remember { mutableStateOf(initialDateMillis) }
     var showDatePicker by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }

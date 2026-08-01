@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,24 +31,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.ui.common.GreetingTitle
 import com.lifeos.expensecapture.ui.common.ProfileAvatarButton
+import com.lifeos.expensecapture.ui.common.ProgressRing
 import com.lifeos.expensecapture.ui.common.SectionLabel
 import com.lifeos.expensecapture.ui.common.StatTile
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
+import com.lifeos.expensecapture.ui.theme.Warning
+import com.lifeos.expensecapture.ui.theme.WarningStrong
 import com.lifeos.expensecapture.util.Prefs
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.ui.platform.LocalContext
 
 /**
- * Analytics pillar landing surface - see AnalyticsViewModel's kdoc for why this exists as a
- * third pillar alongside Finance and Home rather than folded into either.
+ * Analytics pillar landing surface - dashboards/charts/analysis per the founder's own request,
+ * redesigned 2026-08 to match the `ui2/` reference mockups' time-range chips, Spending Overview
+ * donut, grouped Income vs Expense bars, and Savings Rate / Avg Daily Spend / Financial Health
+ * Score cards - every figure real (see AnalyticsViewModel's kdoc), the health score deterministic
+ * (see FinancialHealthScore's kdoc), not AI/ML.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +60,8 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
     val viewModel = remember {
         AnalyticsViewModel(
             transactionDao = app.database.transactionDao(),
-            categoryDao = app.database.categoryDao()
+            categoryDao = app.database.categoryDao(),
+            budgetDao = app.database.budgetDao()
         )
     }
     val uiState by viewModel.uiState.collectAsState()
@@ -86,28 +93,16 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        StatTile(
-                            icon = Icons.Filled.TrendingUp,
-                            iconTint = MaterialTheme.colorScheme.primary,
-                            iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            label = "Income this month",
-                            value = "₹${"%.2f".format(uiState.totalIncomeThisMonth)}",
-                            modifier = Modifier.weight(1f)
-                        )
-                        StatTile(
-                            icon = Icons.Filled.TrendingDown,
-                            iconTint = MaterialTheme.colorScheme.error,
-                            iconContainerColor = MaterialTheme.colorScheme.errorContainer,
-                            label = "Spent this month",
-                            value = "₹${"%.2f".format(uiState.totalSpentThisMonth)}",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    TimeRangeChipRow(
+                        options = AnalyticsTimeRange.entries,
+                        selected = uiState.selectedRange,
+                        label = { it.label },
+                        onSelect = { viewModel.selectRange(it) }
+                    )
                 }
 
                 if (uiState.categoryBreakdown.isNotEmpty()) {
-                    item { SectionLabel("Category breakdown - this month") }
+                    item { SectionLabel("Spending overview") }
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -142,14 +137,14 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                     }
                 }
 
-                item { SectionLabel("Income vs expenses - last 6 months") }
+                item { SectionLabel("Income vs expenses") }
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
                     ) {
-                        TrendChart(
+                        BarChart(
                             labels = uiState.monthLabels,
                             series = listOf("Income" to uiState.monthlyIncome, "Expenses" to uiState.monthlyExpenses),
                             colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.error),
@@ -158,8 +153,32 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                     }
                 }
 
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        StatTile(
+                            icon = Icons.Filled.TrendingUp,
+                            iconTint = MaterialTheme.colorScheme.primary,
+                            iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            label = "Savings rate",
+                            value = uiState.savingsRatePercent?.let { "${"%.0f".format(it)}%" } ?: "-",
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatTile(
+                            icon = Icons.Filled.TrendingDown,
+                            iconTint = MaterialTheme.colorScheme.secondary,
+                            iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            label = "Avg. daily spend",
+                            value = "₹${"%.0f".format(uiState.avgDailySpend)}",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                item { SectionLabel("Financial health score") }
+                item { FinancialHealthScoreCard(uiState.healthScore) }
+
                 if (uiState.topMerchants.isNotEmpty()) {
-                    item { SectionLabel("Top merchants - this month") }
+                    item { SectionLabel("Top merchants") }
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -167,12 +186,19 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                             colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
                         ) {
                             Column {
-                                uiState.topMerchants.forEachIndexed { index, (merchant, amount) ->
+                                uiState.topMerchants.forEach { (merchant, amount) ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text(merchant, style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            merchant,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(Modifier.width(12.dp))
                                         Text("₹${"%.2f".format(amount)}", style = MaterialTheme.typography.bodyMedium)
                                     }
                                 }
@@ -181,6 +207,40 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                     }
                 }
             }
+        }
+    }
+}
+
+/** Deterministic score (see FinancialHealthScore's kdoc) rendered as a ring + one-line read-out,
+ * matching the reference mockups' card - "great/good/needs attention" wording is a plain
+ * threshold on the same real score, not a separate judgement. */
+@Composable
+private fun FinancialHealthScoreCard(score: Int) {
+    val ringColor = when {
+        score >= 75 -> MaterialTheme.colorScheme.primary
+        score >= 50 -> Warning
+        else -> WarningStrong
+    }
+    val message = when {
+        score >= 75 -> "You're doing great! Keep maintaining your habits."
+        score >= 50 -> "You're doing okay - a few tweaks could help."
+        else -> "Spending is outpacing income or budgets this month."
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Row(modifier = Modifier.padding(20.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            ProgressRing(
+                progress = score / 100f,
+                modifier = Modifier.size(72.dp),
+                progressColor = ringColor
+            ) {
+                Text("$score", style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.width(16.dp))
+            Text(message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         }
     }
 }

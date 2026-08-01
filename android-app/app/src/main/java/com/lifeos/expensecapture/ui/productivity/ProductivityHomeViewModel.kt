@@ -3,14 +3,18 @@ package com.lifeos.expensecapture.ui.productivity
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lifeos.expensecapture.data.db.dao.BudgetDao
 import com.lifeos.expensecapture.data.db.dao.GoalDao
 import com.lifeos.expensecapture.data.db.dao.HabitCompletionDao
 import com.lifeos.expensecapture.data.db.dao.HabitDao
 import com.lifeos.expensecapture.data.db.dao.ProjectDao
 import com.lifeos.expensecapture.data.db.dao.TaskDao
+import com.lifeos.expensecapture.data.db.dao.TransactionDao
 import com.lifeos.expensecapture.data.db.entity.GoalEntity
+import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
 import com.lifeos.expensecapture.data.db.entity.TaskEntity
+import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.productivity.HabitStreakCalculator
 import com.lifeos.expensecapture.productivity.ProductivityInsightEngine
 import com.lifeos.expensecapture.ui.projects.ProjectRow
@@ -36,6 +40,12 @@ data class ProductivityHomeUiState(
      * 0 means no active streak (or no habits at all), rendered as absent rather than a
      * discouraging "0-day streak". */
     val bestHabitStreak: Int = 0,
+    /** Daily Summary row (2026-08 reference mockups, `ui2/` folder) - spend and budget status
+     * are the same real figures Finance's own screens show, cross-read here rather than
+     * recomputed differently. */
+    val spentToday: Double = 0.0,
+    /** Null when no budgets are set at all - nothing real to report "on track" against. */
+    val allBudgetsOnTrack: Boolean? = null,
     /** Reference-mockup "Projects" preview (2026-07-31 design refresh, see Color.kt's kdoc) -
      * reuses ProjectsViewModel's own ProjectRow/progress math rather than a second hand-copied
      * version. */
@@ -44,6 +54,19 @@ data class ProductivityHomeUiState(
      * flag, not a fabricated numeric progress GoalEntity doesn't track. */
     val goals: List<GoalEntity> = emptyList(),
     val insight: String? = null
+)
+
+/** Keeps the top-level combine() to a 4-arg overload instead of an untyped vararg across many
+ * heterogeneous flows - same pattern as HomeViewModel's FinanceSnapshot/StatusSnapshot. */
+private data class TaskHabitSnapshot(
+    val tasks: List<TaskEntity>,
+    val habits: List<HabitEntity>,
+    val completions: List<HabitCompletionEntity>
+)
+
+private data class DailyFinanceSnapshot(
+    val spentToday: Double,
+    val allBudgetsOnTrack: Boolean?
 )
 
 /**
@@ -61,16 +84,47 @@ class ProductivityHomeViewModel(
     habitDao: HabitDao,
     habitCompletionDao: HabitCompletionDao,
     projectDao: ProjectDao,
-    goalDao: GoalDao
+    goalDao: GoalDao,
+    transactionDao: TransactionDao,
+    budgetDao: BudgetDao
 ) : ViewModel() {
 
-    val uiState: StateFlow<ProductivityHomeUiState> = combine(
+    private val taskHabitSnapshot = combine(
         taskDao.observeAll(),
         habitDao.observeAll(),
-        habitCompletionDao.observeAll(),
+        habitCompletionDao.observeAll()
+    ) { tasks, habits, completions -> TaskHabitSnapshot(tasks, habits, completions) }
+
+    private val dailyFinanceSnapshot = combine(
+        transactionDao.observeAll(),
+        budgetDao.observeAll()
+    ) { transactions, budgets ->
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val monthStart = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val todayStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
+        val spentToday = transactions
+            .filter { it.direction == TransactionDirection.DEBIT && it.date >= todayStart }
+            .sumOf { it.amount }
+        val thisMonthDebits = transactions.filter { it.direction == TransactionDirection.DEBIT && it.date >= monthStart }
+        val allOnTrack = if (budgets.isEmpty()) {
+            null
+        } else {
+            budgets.all { budget ->
+                val relevant = thisMonthDebits.filter { budget.categoryId == null || it.categoryId == budget.categoryId }
+                relevant.sumOf { it.amount } <= budget.monthlyLimit
+            }
+        }
+        DailyFinanceSnapshot(spentToday, allOnTrack)
+    }
+
+    val uiState: StateFlow<ProductivityHomeUiState> = combine(
+        taskHabitSnapshot,
+        dailyFinanceSnapshot,
         projectDao.observeAll(),
         goalDao.observeAll()
-    ) { tasks, habits, completions, projects, goals ->
+    ) { taskHabit, dailyFinance, projects, goals ->
+        val (tasks, habits, completions) = taskHabit
         val zone = ZoneId.systemDefault()
         val endOfToday = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val openTasks = tasks.filter { !it.completed }
@@ -104,6 +158,8 @@ class ProductivityHomeViewModel(
             totalHabits = habits.size,
             doneTodayHabitsCount = habits.size - pendingHabits.size,
             bestHabitStreak = bestStreak,
+            spentToday = dailyFinance.spentToday,
+            allBudgetsOnTrack = dailyFinance.allBudgetsOnTrack,
             projects = projectRows,
             goals = goals,
             insight = ProductivityInsightEngine.compute(tasks, habits, completions)

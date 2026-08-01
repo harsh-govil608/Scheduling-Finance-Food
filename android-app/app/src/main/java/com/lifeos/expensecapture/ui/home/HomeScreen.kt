@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Autorenew
@@ -42,7 +41,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,7 +65,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
+import com.lifeos.expensecapture.data.repository.TransactionRepository
 import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.ui.common.AccentInfoCard
@@ -76,17 +76,21 @@ import com.lifeos.expensecapture.ui.common.CategoryVisuals
 import com.lifeos.expensecapture.ui.common.EntryRow
 import com.lifeos.expensecapture.ui.common.GreetingTitle
 import com.lifeos.expensecapture.ui.common.HeroMoneyCard
+import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.common.ProfileAvatarButton
 import com.lifeos.expensecapture.ui.common.SectionLabel
 import com.lifeos.expensecapture.ui.common.StatTile
 import com.lifeos.expensecapture.ui.common.TransactionRow
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.common.rememberSpeaker
+import com.lifeos.expensecapture.ui.ledger.ManualEntryDialog
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
 import com.lifeos.expensecapture.ui.theme.Warning
 import com.lifeos.expensecapture.ui.theme.WarningStrong
 import com.lifeos.expensecapture.update.UpdateViewModel
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -124,11 +128,22 @@ fun HomeScreen(
     onOpenNightSummary: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenPermissionsReview: () -> Unit,
-    onOpenAssistant: () -> Unit,
     onSelectPillar: (Pillar) -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    // Quick Actions row (2026-08 reference mockups, `ui2/` folder) - reuses the same
+    // ManualEntryDialog/TransactionRepository Ledger's own "+" button already opens, just
+    // pre-selecting the Spent/Received chip per action, instead of duplicating that form.
+    val transactionRepository = remember {
+        TransactionRepository(
+            transactionDao = app.database.transactionDao(),
+            categoryDao = app.database.categoryDao(),
+            merchantRuleDao = app.database.merchantRuleDao(),
+            correctionDao = app.database.correctionDao()
+        )
+    }
+    var manualEntryDirection by remember { mutableStateOf<TransactionDirection?>(null) }
     val viewModel = remember {
         HomeViewModel(
             context = context,
@@ -323,15 +338,7 @@ fun HomeScreen(
                 }
             )
         },
-        bottomBar = { PillarBottomBar(current = Pillar.FINANCE, onSelect = onSelectPillar) },
-        // Assistant entry point (built via a real user request, 2026-07): a FAB, not an
-        // EntryRow buried in the Explore list - the whole point is fewer manual taps, so it
-        // needs to be the most reachable thing on the screen, not the least.
-        floatingActionButton = {
-            FloatingActionButton(onClick = onOpenAssistant) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Open assistant")
-            }
-        }
+        bottomBar = { PillarBottomBar(current = Pillar.FINANCE, onSelect = onSelectPillar) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -532,6 +539,40 @@ fun HomeScreen(
                 }
             }
 
+            item { SectionLabel("Quick Actions") }
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    QuickActionButton(
+                        icon = Icons.Filled.Add,
+                        label = "Add Expense",
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        onClick = { manualEntryDirection = TransactionDirection.DEBIT }
+                    )
+                    QuickActionButton(
+                        icon = Icons.Filled.ArrowDownward,
+                        label = "Add Income",
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        onClick = { manualEntryDirection = TransactionDirection.CREDIT }
+                    )
+                    QuickActionButton(
+                        icon = Icons.Filled.Groups,
+                        label = "Split Expenses",
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        onClick = onOpenSplitExpenses
+                    )
+                    QuickActionButton(
+                        icon = Icons.Filled.Search,
+                        label = "Search",
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        onClick = onOpenSearch
+                    )
+                }
+            }
+
             // Recent Transactions preview (reference mockups' "Recent Active Flow"/"Recent
             // Transactions") - the newest few real rows, same TransactionRow Ledger uses (moved
             // to ui/common so both share one implementation). "View All" opens the full Ledger
@@ -632,6 +673,49 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    manualEntryDirection?.let { direction ->
+        ManualEntryDialog(
+            categories = uiState.categories,
+            initialDirection = direction,
+            onConfirm = { amount, merchant, txnDirection, categoryId, date ->
+                coroutineScope.launch {
+                    transactionRepository.addManualTransaction(
+                        amount = amount,
+                        direction = txnDirection,
+                        merchant = merchant,
+                        categoryId = categoryId,
+                        date = date
+                    )
+                }
+                manualEntryDirection = null
+            },
+            onDismiss = { manualEntryDirection = null }
+        )
+    }
+}
+
+@Composable
+private fun QuickActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    iconTint: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.clickable(onClick = onClick).width(64.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        IconBadge(icon = icon, tint = iconTint, containerColor = containerColor)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
     }
 }
 

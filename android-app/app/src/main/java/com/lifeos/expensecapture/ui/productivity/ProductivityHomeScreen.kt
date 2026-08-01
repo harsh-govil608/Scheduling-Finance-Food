@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CurrencyRupee
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MenuBook
@@ -30,7 +32,6 @@ import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -48,11 +49,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
-import com.lifeos.expensecapture.ui.common.AccentInfoCard
 import com.lifeos.expensecapture.ui.common.AiInsightCard
 import com.lifeos.expensecapture.ui.common.ActionTile
 import com.lifeos.expensecapture.ui.common.EntryRow
 import com.lifeos.expensecapture.ui.common.GreetingTitle
+import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.common.ProfileAvatarButton
 import com.lifeos.expensecapture.ui.common.ProgressRing
 import com.lifeos.expensecapture.ui.common.SectionLabel
@@ -83,7 +84,6 @@ fun ProductivityHomeScreen(
     onOpenTimeline: () -> Unit,
     onOpenLedger: () -> Unit,
     onOpenProfile: () -> Unit,
-    onOpenAssistant: () -> Unit,
     onSelectPillar: (Pillar) -> Unit
 ) {
     val context = LocalContext.current
@@ -94,7 +94,9 @@ fun ProductivityHomeScreen(
             habitDao = app.database.habitDao(),
             habitCompletionDao = app.database.habitCompletionDao(),
             projectDao = app.database.projectDao(),
-            goalDao = app.database.goalDao()
+            goalDao = app.database.goalDao(),
+            transactionDao = app.database.transactionDao(),
+            budgetDao = app.database.budgetDao()
         )
     }
     val uiState by viewModel.uiState.collectAsState()
@@ -108,15 +110,7 @@ fun ProductivityHomeScreen(
                 }
             )
         },
-        bottomBar = { PillarBottomBar(current = Pillar.HOME, onSelect = onSelectPillar) },
-        // Assistant entry point (built via a real user request, 2026-07): a FAB, not an
-        // EntryRow buried in the Explore list - the whole point is fewer manual taps, so it
-        // needs to be the most reachable thing on the screen, not the least.
-        floatingActionButton = {
-            FloatingActionButton(onClick = onOpenAssistant) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Open assistant")
-            }
-        }
+        bottomBar = { PillarBottomBar(current = Pillar.HOME, onSelect = onSelectPillar) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -131,19 +125,12 @@ fun ProductivityHomeScreen(
                 )
             }
 
-            // Engagement hook (moved here from Finance's Home, 2026-08 - see
-            // ProductivityHomeUiState's kdoc): only shown when there's a genuine streak to
-            // celebrate - a "0-day streak" card would read as discouraging.
-            if (uiState.bestHabitStreak > 0) {
-                item {
-                    AccentInfoCard(
-                        icon = Icons.Filled.LocalFireDepartment,
-                        accentColor = MaterialTheme.colorScheme.tertiary,
-                        title = "${uiState.bestHabitStreak}-day streak",
-                        body = "Your best habit streak right now - keep it going."
-                    )
-                }
-            }
+            // Daily Summary (2026-08 reference mockups, `ui2/` folder) - folds the habit-streak
+            // engagement hook (moved here from Finance's Home, see ProductivityHomeUiState's
+            // kdoc) in alongside spend/tasks/budget status rather than as a separate card, same
+            // grouping the mockup uses.
+            item { SectionLabel("Daily Summary") }
+            item { DailySummaryRow(uiState) }
 
             item { SectionLabel("Quick actions") }
             item {
@@ -270,6 +257,81 @@ fun ProductivityHomeScreen(
                     "Review", "How the last week or month went, in real numbers", onOpenReview
                 )
             }
+        }
+    }
+}
+
+/**
+ * Daily Summary row (2026-08 reference mockups, `ui2/` folder) - four icon tiles: today's real
+ * spend (cross-read from Finance's own transactions, same figure NightSummary/Home already show),
+ * open tasks, habit streak, and whether every set budget is currently within its limit. "On
+ * Track" is null (rendered as a dash) when no budgets are set at all, rather than a fabricated
+ * "on track" with nothing real to check it against.
+ */
+@Composable
+private fun DailySummaryRow(uiState: ProductivityHomeUiState) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+        DailySummaryTile(
+            icon = Icons.Filled.CurrencyRupee,
+            iconTint = MaterialTheme.colorScheme.primary,
+            iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            value = "₹${"%.0f".format(uiState.spentToday)}",
+            label = "Spent Today",
+            modifier = Modifier.weight(1f)
+        )
+        DailySummaryTile(
+            icon = Icons.Filled.Assignment,
+            iconTint = MaterialTheme.colorScheme.secondary,
+            iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            value = "${uiState.totalOpenTasks}",
+            label = "Tasks Left",
+            modifier = Modifier.weight(1f)
+        )
+        DailySummaryTile(
+            icon = Icons.Filled.LocalFireDepartment,
+            iconTint = MaterialTheme.colorScheme.tertiary,
+            iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            value = if (uiState.bestHabitStreak > 0) "${uiState.bestHabitStreak}-day" else "-",
+            label = "Streak",
+            modifier = Modifier.weight(1f)
+        )
+        DailySummaryTile(
+            icon = Icons.Filled.CheckCircle,
+            iconTint = MaterialTheme.colorScheme.primary,
+            iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            value = when (uiState.allBudgetsOnTrack) {
+                true -> "On Track"
+                false -> "Over"
+                null -> "-"
+            },
+            label = "Budgets",
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun DailySummaryTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: androidx.compose.ui.graphics.Color,
+    iconContainerColor: androidx.compose.ui.graphics.Color,
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconBadge(icon = icon, tint = iconTint, containerColor = iconContainerColor, size = 32.dp)
+            Spacer(Modifier.height(8.dp))
+            Text(value, style = MaterialTheme.typography.bodyLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

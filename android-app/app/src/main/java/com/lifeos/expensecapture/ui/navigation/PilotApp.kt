@@ -76,6 +76,8 @@ fun PilotApp(app: App) {
             Pillar.FINANCE -> "home"
             Pillar.HOME -> "productivity_home"
             Pillar.ANALYTICS -> "analytics"
+            Pillar.AI -> "assistant"
+            Pillar.PROFILE -> "profile"
         }
         navController.navigate(target) { launchSingleTop = true }
     }
@@ -128,7 +130,6 @@ fun PilotApp(app: App) {
                 onOpenNightSummary = { navController.navigate("night_summary") },
                 onOpenProfile = { navController.navigate("profile") },
                 onOpenPermissionsReview = { navController.navigate("permissions") },
-                onOpenAssistant = { navController.navigate("assistant") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
             )
         }
@@ -146,7 +147,6 @@ fun PilotApp(app: App) {
                 onOpenTimeline = { navController.navigate("timeline") },
                 onOpenLedger = { navController.navigate("ledger") },
                 onOpenProfile = { navController.navigate("profile") },
-                onOpenAssistant = { navController.navigate("assistant") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
             )
         }
@@ -158,7 +158,7 @@ fun PilotApp(app: App) {
             )
         }
         composable("assistant") {
-            AssistantScreen(app = app, onBack = { navController.popBackStack() })
+            AssistantScreen(app = app, onSelectPillar = { pillar -> selectPillar(pillar) })
         }
         composable("notes") {
             NotesScreen(app = app, type = NoteType.NOTE, screenTitle = "Notes", onBack = { navController.popBackStack() })
@@ -271,13 +271,14 @@ fun PilotApp(app: App) {
         composable("profile") {
             ProfileScreen(
                 app = app,
-                onBack = { navController.popBackStack() },
                 onOpenPermissions = { navController.navigate("permissions") },
                 onOpenAutomationRules = { navController.navigate("rules") },
                 onOpenCategories = { navController.navigate("categories") },
                 onOpenCalculator = { navController.navigate("calculator") },
                 onOpenDiagnostics = { navController.navigate("diagnostics") },
                 onOpenBackupRestore = { navController.navigate("backup_restore") },
+                onOpenNotifications = { navController.navigate("notifications") },
+                onSelectPillar = { pillar -> selectPillar(pillar) },
                 onDataDeleted = {
                     navController.navigate("permission") {
                         popUpTo(0)
