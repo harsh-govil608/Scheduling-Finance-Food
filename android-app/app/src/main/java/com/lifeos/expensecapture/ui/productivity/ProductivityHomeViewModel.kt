@@ -11,6 +11,7 @@ import com.lifeos.expensecapture.data.db.dao.TaskDao
 import com.lifeos.expensecapture.data.db.entity.GoalEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
 import com.lifeos.expensecapture.data.db.entity.TaskEntity
+import com.lifeos.expensecapture.productivity.HabitStreakCalculator
 import com.lifeos.expensecapture.productivity.ProductivityInsightEngine
 import com.lifeos.expensecapture.ui.projects.ProjectRow
 import com.lifeos.expensecapture.util.Prefs
@@ -29,6 +30,12 @@ data class ProductivityHomeUiState(
     val pendingHabitsToday: List<HabitEntity> = emptyList(),
     val totalHabits: Int = 0,
     val doneTodayHabitsCount: Int = 0,
+    /** Engagement hook (moved here from Finance's Home, 2026-08 - the founder's own feedback:
+     * habits belong with the rest of the Home pillar's habit content, not on the Finance
+     * screen). The best current streak across all habits - see HabitStreakCalculator's kdoc.
+     * 0 means no active streak (or no habits at all), rendered as absent rather than a
+     * discouraging "0-day streak". */
+    val bestHabitStreak: Int = 0,
     /** Reference-mockup "Projects" preview (2026-07-31 design refresh, see Color.kt's kdoc) -
      * reuses ProjectsViewModel's own ProjectRow/progress math rather than a second hand-copied
      * version. */
@@ -73,6 +80,12 @@ class ProductivityHomeViewModel(
         val doneTodayHabitIds = completions.filter { it.dateEpochDay == today }.map { it.habitId }.toSet()
         val pendingHabits = habits.filter { it.id !in doneTodayHabitIds }
 
+        val byHabit = completions.groupBy { it.habitId }
+        val bestStreak = habits.maxOfOrNull { habit ->
+            val days = byHabit[habit.id]?.map { it.dateEpochDay }?.toSet() ?: emptySet()
+            HabitStreakCalculator.currentStreak(days, today)
+        } ?: 0
+
         val projectRows = projects.map { project ->
             val tasksForProject = tasks.filter { it.projectId == project.id }
             ProjectRow(
@@ -90,6 +103,7 @@ class ProductivityHomeViewModel(
             pendingHabitsToday = pendingHabits,
             totalHabits = habits.size,
             doneTodayHabitsCount = habits.size - pendingHabits.size,
+            bestHabitStreak = bestStreak,
             projects = projectRows,
             goals = goals,
             insight = ProductivityInsightEngine.compute(tasks, habits, completions)

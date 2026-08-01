@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.PlaylistAdd
@@ -47,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.ui.common.AccentInfoCard
 import com.lifeos.expensecapture.ui.common.AiInsightCard
 import com.lifeos.expensecapture.ui.common.ActionTile
 import com.lifeos.expensecapture.ui.common.EntryRow
@@ -127,6 +129,20 @@ fun ProductivityHomeScreen(
                     onOpenTasks = onOpenTasks,
                     onOpenHabits = onOpenHabits
                 )
+            }
+
+            // Engagement hook (moved here from Finance's Home, 2026-08 - see
+            // ProductivityHomeUiState's kdoc): only shown when there's a genuine streak to
+            // celebrate - a "0-day streak" card would read as discouraging.
+            if (uiState.bestHabitStreak > 0) {
+                item {
+                    AccentInfoCard(
+                        icon = Icons.Filled.LocalFireDepartment,
+                        accentColor = MaterialTheme.colorScheme.tertiary,
+                        title = "${uiState.bestHabitStreak}-day streak",
+                        body = "Your best habit streak right now - keep it going."
+                    )
+                }
             }
 
             item { SectionLabel("Quick actions") }

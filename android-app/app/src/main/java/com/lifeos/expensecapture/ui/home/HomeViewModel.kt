@@ -9,8 +9,6 @@ import androidx.lifecycle.viewModelScope
 import com.lifeos.expensecapture.data.db.dao.CategoryDao
 import com.lifeos.expensecapture.data.db.dao.ConsentDao
 import com.lifeos.expensecapture.data.db.dao.GoalDao
-import com.lifeos.expensecapture.data.db.dao.HabitCompletionDao
-import com.lifeos.expensecapture.data.db.dao.HabitDao
 import com.lifeos.expensecapture.data.db.dao.InvestmentDao
 import com.lifeos.expensecapture.data.db.dao.NotificationDao
 import com.lifeos.expensecapture.data.db.dao.TransactionDao
@@ -21,7 +19,6 @@ import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.finance.SpendingInsightEngine
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
-import com.lifeos.expensecapture.productivity.HabitStreakCalculator
 import com.lifeos.expensecapture.ui.onboarding.CONSENT_SMS
 import com.lifeos.expensecapture.util.ConnectivityObserver
 import com.lifeos.expensecapture.util.Prefs
@@ -82,10 +79,6 @@ data class HomeUiState(
      * reference for "is this an okay day" instead of being purely decorative. Null when no
      * Overall budget is set - there's nothing to project a pace against. */
     val dailySpendThreshold: Float? = null,
-    /** Engagement hook (found via a real user request, 2026-07): the best current streak across
-     * all habits, surfaced on Home - see HabitStreakCalculator's kdoc. 0 means no active streak
-     * (or no habits at all), rendered as "no streak yet" rather than anything discouraging. */
-    val bestHabitStreak: Int = 0,
     val attentionItem: AttentionItem? = null,
     val hasAnyData: Boolean = false,
     val unreadNotifications: Int = 0,
@@ -125,8 +118,6 @@ class HomeViewModel(
     consentDao: ConsentDao,
     categoryDao: CategoryDao,
     goalDao: GoalDao,
-    habitDao: HabitDao,
-    habitCompletionDao: HabitCompletionDao,
     investmentDao: InvestmentDao,
     private val insightsRepository: FinanceInsightsRepository
 ) : ViewModel() {
@@ -169,28 +160,12 @@ class HomeViewModel(
         investmentDao.observeAll()
     ) { categories, goals, investments -> InsightInputsSnapshot(categories, goals, investments) }
 
-    /** Engagement hook (found via a real user request, 2026-07 - "increase user engagement"):
-     * streaks were tracked and shown only inside the Habits screen itself, invisible anywhere
-     * you'd actually see it day to day. Reuses HabitStreakCalculator (see its kdoc for why this
-     * isn't a second hand-copied version) across every habit and takes the best one. */
-    private val bestHabitStreak = combine(
-        habitDao.observeAll(),
-        habitCompletionDao.observeAll()
-    ) { habits, completions ->
-        val today = LocalDate.now(ZoneId.systemDefault()).toEpochDay()
-        val byHabit = completions.groupBy { it.habitId }
-        habits.maxOfOrNull { habit ->
-            val days = byHabit[habit.id]?.map { it.dateEpochDay }?.toSet() ?: emptySet()
-            HabitStreakCalculator.currentStreak(days, today)
-        } ?: 0
-    }
-
     val uiState: StateFlow<HomeUiState> = combine(
-        financeSnapshot, statusSnapshot, insightInputsSnapshot, tickerFlow(), bestHabitStreak
+        financeSnapshot, statusSnapshot, insightInputsSnapshot, tickerFlow()
         // see TickerFlow's kdoc - "month wise not updating" bug fix: spentThisMonth/spentToday
         // are derived from LocalDate.now() inside this block, which only re-runs on data change,
         // not on time passing.
-    ) { finance, status, insightInputs, _, bestStreak ->
+    ) { finance, status, insightInputs, _ ->
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val monthStart = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -269,7 +244,6 @@ class HomeViewModel(
             recentTransactions = finance.transactions.take(5),
             categories = insightInputs.categories,
             dailySpendThreshold = dailySpendThreshold,
-            bestHabitStreak = bestStreak,
             attentionItem = attentionItem,
             hasAnyData = finance.transactions.isNotEmpty(),
             unreadNotifications = status.unreadNotifications,

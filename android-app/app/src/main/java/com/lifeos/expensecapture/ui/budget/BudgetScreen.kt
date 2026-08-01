@@ -109,13 +109,23 @@ fun BudgetScreen(app: App, onBack: () -> Unit) {
                 Text("No budgets set yet. Tap + to set one - an overall limit or per category.")
             }
         } else {
+            val overallBudget = budgets.firstOrNull { it.budget.categoryId == null }
+            val categoryBudgets = budgets.filter { it.budget.categoryId != null }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item { BudgetOverviewCard(budgets) }
-                items(budgets, key = { it.budget.id }) { progress ->
+                overallBudget?.let { overall ->
+                    item {
+                        BudgetOverviewCard(
+                            overall,
+                            onEdit = { editTarget = overall },
+                            onDelete = { viewModel.deleteBudget(overall) }
+                        )
+                    }
+                }
+                items(categoryBudgets, key = { it.budget.id }) { progress ->
                     BudgetCard(
                         progress,
                         onEdit = { editTarget = progress },
@@ -142,16 +152,25 @@ fun BudgetScreen(app: App, onBack: () -> Unit) {
 }
 
 /**
- * Ring summary at the top of the list (Budget Overview reference in `ui/`) - aggregates every
- * budget shown below into one "% utilized" figure. Sums across all of `budgets` rather than
- * preferring just the Overall (categoryId == null) entry when one exists, since a pilot user can
- * set both an Overall budget AND per-category ones simultaneously - the per-category cards below
- * remain the accurate source for any individual category regardless.
+ * Ring summary at the top of the list (Budget Overview reference in `ui/`) - the real Overall
+ * budget's own spent/limit (categoryId == null), not a sum across every budget shown below.
+ *
+ * Bug fix (real user report, 2026-08): this used to sum spentThisMonth across ALL budgets,
+ * Overall included - but Overall's own spentThisMonth is already every debit transaction this
+ * month, so a user with an Overall budget AND a Groceries budget would see their groceries spend
+ * counted twice (e.g. "spent 100 on groceries" showing as "200 of 5000" here). The Overall entry
+ * is also no longer rendered as a duplicate card in the list below - this ring IS its
+ * representation, per the user's own ask for it to read as a health bar, not just another
+ * category row.
  */
 @Composable
-private fun BudgetOverviewCard(budgets: List<FinanceInsightsRepository.BudgetProgress>) {
-    val totalSpent = budgets.sumOf { it.spentThisMonth }
-    val totalLimit = budgets.sumOf { it.budget.monthlyLimit }
+private fun BudgetOverviewCard(
+    overall: FinanceInsightsRepository.BudgetProgress,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val totalSpent = overall.spentThisMonth
+    val totalLimit = overall.budget.monthlyLimit
     val ratio = if (totalLimit > 0) (totalSpent / totalLimit).coerceIn(0.0, 1.0) else 0.0
     val ringColor = when {
         totalSpent > totalLimit -> WarningStrong
@@ -164,29 +183,32 @@ private fun BudgetOverviewCard(budgets: List<FinanceInsightsRepository.BudgetPro
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
     ) {
-        Row(
-            modifier = Modifier.padding(20.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ProgressRing(
-                progress = ratio.toFloat(),
-                modifier = Modifier.size(84.dp),
-                progressColor = ringColor
-            ) {
-                Text("${(ratio * 100).toInt()}%", style = MaterialTheme.typography.titleMedium)
+        Column(Modifier.padding(20.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                ProgressRing(
+                    progress = ratio.toFloat(),
+                    modifier = Modifier.size(84.dp),
+                    progressColor = ringColor
+                ) {
+                    Text("${(ratio * 100).toInt()}%", style = MaterialTheme.typography.titleMedium)
+                }
+                Spacer(Modifier.width(20.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Budget Utilized",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "You spent ₹${"%.2f".format(totalSpent)} of your total ₹${"%.2f".format(totalLimit)} budget limit.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
-            Spacer(Modifier.width(20.dp))
-            Column {
-                Text(
-                    "Budget Utilized",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "You spent ₹${"%.2f".format(totalSpent)} of your total ₹${"%.2f".format(totalLimit)} budget limits.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onEdit) { Text("Edit") }
+                TextButton(onClick = onDelete) { Text("Remove") }
             }
         }
     }

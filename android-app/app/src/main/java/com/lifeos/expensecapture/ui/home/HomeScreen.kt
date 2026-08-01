@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PieChart
@@ -139,8 +138,6 @@ fun HomeScreen(
             consentDao = app.database.consentDao(),
             categoryDao = app.database.categoryDao(),
             goalDao = app.database.goalDao(),
-            habitDao = app.database.habitDao(),
-            habitCompletionDao = app.database.habitCompletionDao(),
             investmentDao = app.database.investmentDao(),
             insightsRepository = FinanceInsightsRepository(
                 transactionDao = app.database.transactionDao(),
@@ -512,21 +509,6 @@ fun HomeScreen(
                             )
                         }
                     }
-                }
-            }
-
-            // Engagement hook (found via a real user request, 2026-07): only shown when there's
-            // a genuine streak to celebrate - a "0-day streak" card would read as discouraging,
-            // the exact framing the Habits PRD explicitly calls out to avoid (see
-            // HabitStreakCalculator's kdoc). Absent, not zeroed-out, on a quiet stretch.
-            if (uiState.bestHabitStreak > 0) {
-                item {
-                    AccentInfoCard(
-                        icon = Icons.Filled.LocalFireDepartment,
-                        accentColor = MaterialTheme.colorScheme.tertiary,
-                        title = "${uiState.bestHabitStreak}-day streak",
-                        body = "Your best habit streak right now - keep it going."
-                    )
                 }
             }
 
