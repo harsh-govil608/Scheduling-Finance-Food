@@ -1,6 +1,6 @@
 {
-  "versionCode": 33,
-  "versionName": "0.33.0-pilot",
+  "versionCode": 34,
+  "versionName": "0.34.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Redesigned UI to match the new reference mockups. Bottom nav now has 5 tabs: Finance, Home, Analytics, AI, and Profile (AI assistant and Profile are now their own tabs instead of a chat button/avatar tap). Finance gets a Quick Actions row (Add Expense, Add Income, Split Expenses, Search). Home gets a Daily Summary row (spent today, tasks left, streak, budget status). Analytics gets time-range filters (7D/30D/3M/6M/1Y/All), a grouped income-vs-expense bar chart, savings rate, average daily spend, and a Financial Health Score. Transactions (formerly Ledger) gets search, All/Income/Expense filters, and date-grouped sections. Profile is redesigned with real stats (transactions, goals, habits, health score) and grouped settings sections."
+  "notes": "Removed the duplicate 'Split Expenses' entry from Finance's Explore list - it's already a Quick Action at the top of the Finance tab."
 }

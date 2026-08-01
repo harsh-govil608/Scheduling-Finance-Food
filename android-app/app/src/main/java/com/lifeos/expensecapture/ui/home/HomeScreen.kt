@@ -656,12 +656,6 @@ fun HomeScreen(
             }
             item {
                 EntryRow(
-                    Icons.Filled.Groups, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
-                    "Split Expenses", "Log what you paid for a group, track who's paid you back", onOpenSplitExpenses
-                )
-            }
-            item {
-                EntryRow(
                     Icons.Filled.UploadFile, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
                     "Import Statement", "Add past transactions from a bank or card CSV export", onOpenImportStatement
                 )
