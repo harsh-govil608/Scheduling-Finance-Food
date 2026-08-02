@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Notifications
@@ -87,6 +88,7 @@ fun ProfileScreen(
     onOpenDiagnostics: () -> Unit,
     onOpenBackupRestore: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onOpenFamily: () -> Unit,
     onSelectPillar: (Pillar) -> Unit,
     onDataDeleted: () -> Unit
 ) {
@@ -190,6 +192,18 @@ fun ProfileScreen(
                         subtitle = "Temporarily stop reading new SMS",
                         checked = uiState.capturePaused,
                         onCheckedChange = viewModel::setCapturePaused
+                    )
+                }
+            }
+
+            item { SectionLabel("Family") }
+            item {
+                SettingsGroupCard {
+                    SettingsRow(
+                        icon = Icons.Filled.Groups,
+                        title = "Family Sharing",
+                        subtitle = "Shared tasks, calendar, expenses, documents, health, SOS",
+                        onClick = onOpenFamily
                     )
                 }
             }

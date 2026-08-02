@@ -16,6 +16,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.family.ui.FamilyEntryScreen
+import com.lifeos.expensecapture.family.ui.FamilyInviteScreen
+import com.lifeos.expensecapture.family.ui.FamilyMembersScreen
+import com.lifeos.expensecapture.family.ui.FamilyNotificationCenterScreen
+import com.lifeos.expensecapture.family.ui.modules.CalendarModuleScreen
+import com.lifeos.expensecapture.family.ui.modules.DocumentsModuleScreen
+import com.lifeos.expensecapture.family.ui.modules.EmergencyContactsModuleScreen
+import com.lifeos.expensecapture.family.ui.modules.ExpensesModuleScreen
+import com.lifeos.expensecapture.family.ui.modules.HealthModuleScreen
+import com.lifeos.expensecapture.family.ui.modules.TasksModuleScreen
+import com.lifeos.expensecapture.family.ui.sos.SosScreen
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import com.lifeos.expensecapture.ui.analytics.AnalyticsScreen
 import com.lifeos.expensecapture.ui.assistant.AssistantScreen
@@ -278,6 +289,7 @@ fun PilotApp(app: App) {
                 onOpenDiagnostics = { navController.navigate("diagnostics") },
                 onOpenBackupRestore = { navController.navigate("backup_restore") },
                 onOpenNotifications = { navController.navigate("notifications") },
+                onOpenFamily = { navController.navigate("family") },
                 onSelectPillar = { pillar -> selectPillar(pillar) },
                 onDataDeleted = {
                     navController.navigate("permission") {
@@ -297,6 +309,120 @@ fun PilotApp(app: App) {
         }
         composable("backup_restore") {
             BackupRestoreScreen(app = app, onBack = { navController.popBackStack() })
+        }
+
+        // Family module (2026-08) - a cross-device, Firebase-backed module distinct from every
+        // other route above (all local-only Room data, see AppDatabase's kdoc). Reached from
+        // Profile's "Family" row rather than a 6th bottom-nav tab, keeping the 5-tab pillar
+        // structure intact - see FamilyEntryScreen's kdoc. familyId travels as a nav arg into
+        // every child route below "family" rather than each screen re-deriving "current family."
+        composable("family") {
+            FamilyEntryScreen(
+                onOpenTasks = { familyId -> navController.navigate("family_tasks/$familyId") },
+                onOpenCalendar = { familyId -> navController.navigate("family_calendar/$familyId") },
+                onOpenExpenses = { familyId -> navController.navigate("family_expenses/$familyId") },
+                onOpenDocuments = { familyId -> navController.navigate("family_documents/$familyId") },
+                onOpenHealth = { familyId -> navController.navigate("family_health/$familyId") },
+                onOpenEmergencyContacts = { familyId -> navController.navigate("family_emergency_contacts/$familyId") },
+                onOpenMembers = { familyId -> navController.navigate("family_members/$familyId") },
+                onOpenInvite = { familyId -> navController.navigate("family_invite/$familyId") },
+                onOpenSos = { familyId -> navController.navigate("family_sos/$familyId") },
+                onOpenNotifications = { familyId -> navController.navigate("family_notifications/$familyId") }
+            )
+        }
+        composable(
+            route = "family_tasks/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            TasksModuleScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_calendar/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            CalendarModuleScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_expenses/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            ExpensesModuleScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_documents/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            DocumentsModuleScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_health/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            HealthModuleScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_emergency_contacts/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            EmergencyContactsModuleScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_members/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            FamilyMembersScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_invite/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            FamilyInviteScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_sos/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            SosScreen(
+                familyId = familyId,
+                userId = currentUser?.uid ?: "",
+                userName = currentUser?.displayName ?: "",
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "family_notifications/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            FamilyNotificationCenterScreen(
+                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

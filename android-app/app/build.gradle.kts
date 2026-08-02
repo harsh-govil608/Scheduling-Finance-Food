@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -12,8 +13,8 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 36
-        versionName = "0.36.0-pilot"
+        versionCode = 37
+        versionName = "0.37.0-pilot"
     }
 
     buildTypes {
@@ -70,6 +71,17 @@ dependencies {
     // Not wired yet in this scaffold pass - present for the backend-sync increment.
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
+    // Family module (2026-08): the "backend-sync increment" the retrofit deps above were staged
+    // for - Firestore for realtime cross-device data (Kotlin Flow-wrapped listeners), Auth for
+    // family-member identity, Messaging for SOS/reminder push alerts. See build.gradle.kts'
+    // top-level plugin comment for why Firebase over Room for this module specifically.
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

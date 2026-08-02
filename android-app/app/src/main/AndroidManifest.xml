@@ -15,6 +15,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Family module SOS workflow (2026-08): fine location for the SOS alert's captured
+         coordinates, coarse as the fallback Android requires you to also declare. Requested only
+         when the user actually taps SOS or opts into presence location sharing - never at app
+         launch, matching this app's existing "ask at the point of use" pattern (see
+         PermissionScreen). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:name=".App"

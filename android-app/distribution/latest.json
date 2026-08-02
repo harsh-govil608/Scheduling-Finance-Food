@@ -1,6 +1,6 @@
 {
-  "versionCode": 36,
-  "versionName": "0.36.0-pilot",
+  "versionCode": 37,
+  "versionName": "0.37.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Finance's Quick Actions is now a fixed 2x4 grid (Add Expense/Income, Split Expenses, Search, Import Statement, Pay Cycle, Your Day, Investments) - all 8 visible at once, no side-scrolling. Removed those from Explore below since they're covered here now (Budgets/Bills/Subscriptions/Needs Review stay in Explore). Analytics: the Spending Overview donut now uses distinct colors per category instead of similar shades, and the Income vs Expenses bar chart shows its ₹ scale (top/bottom values)."
+  "notes": "New: Family Sharing (Profile > Family Sharing) - create or join a family, invite members by share link or email, role-based access (Owner/Parent/Adult/Child/Guest), shared Tasks/Calendar/Expenses/Documents/Health Records/Emergency Contacts, live member status, SOS with location sharing, and a family notification center. This needs a one-time Firebase setup before it's usable - not yet configured, so signing in will show an error until that's done. Everything else in the app is unaffected and still needs no account at all."
 }
