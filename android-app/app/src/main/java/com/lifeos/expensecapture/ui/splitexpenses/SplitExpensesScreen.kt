@@ -2,7 +2,6 @@ package com.lifeos.expensecapture.ui.splitexpenses
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -52,7 +51,13 @@ import java.util.Locale
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SplitExpensesScreen(app: App, onBack: () -> Unit, onAddExpense: () -> Unit, onOpenDetail: (Long) -> Unit) {
+fun SplitExpensesScreen(
+    app: App,
+    onBack: () -> Unit,
+    onAddExpense: () -> Unit,
+    onOpenDetail: (Long) -> Unit,
+    onOpenSmartSplit: () -> Unit
+) {
     val viewModel = remember {
         SplitExpensesViewModel(
             splitExpenseDao = app.database.splitExpenseDao(),
@@ -78,23 +83,40 @@ fun SplitExpensesScreen(app: App, onBack: () -> Unit, onAddExpense: () -> Unit, 
             }
         }
     ) { padding ->
-        if (rows.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "No split expenses yet. Log something you paid for a group here, and " +
-                        "track who's paid you back."
-                )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                // Smart Split (2026-08 real user request): this manual tracker still works fully
+                // offline with no account, per SplitExpenseEntity's kdoc - Smart Split is the
+                // separate, account-based, auto-UPI-settling version, reached from here rather
+                // than replacing this screen.
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenSmartSplit),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Try Smart Split", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Auto-notify who owes you and let them pay you back via UPI - even if they don't have this app.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
-        } else {
-            val totalOwed = rows.sumOf { it.owedToYou }
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            if (rows.isEmpty()) {
+                item {
+                    Text(
+                        "No split expenses yet. Log something you paid for a group here, and " +
+                            "track who's paid you back."
+                    )
+                }
+            } else {
+                val totalOwed = rows.sumOf { it.owedToYou }
                 item {
                     SummaryStatCard(
                         icon = Icons.Filled.Groups,

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pay</title>
+<!--
+  Smart Split's Track B page (2026-08) - see SmartSplitDetailScreen.kt's kdoc in the Android app
+  for the full feature this belongs to. Reached only via a link the app generates and shares
+  (?s=<splitId>&p=<participantId>), never linked from anywhere else. Plain HTML/JS, no build step,
+  so it can be served directly by GitHub Pages from this /docs folder - see PAY_WEB_BASE_URL in
+  SmartSplitDetailScreen.kt for the exact URL this needs to be reachable at.
+
+  SETUP NEEDED before this works: the firebaseConfig object below is a placeholder. Register a Web
+  app in the same Firebase project the Android app uses (Firebase console > Project settings >
+  Add app > Web), then replace the object below with the real config it gives you. This is
+  public/client-side config (not a secret) - safe to commit, same as google-services.json.
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0B0F0E; color: #F3F5F4;
+    font-family: -apple-system, Roboto, "Segoe UI", sans-serif;
+    padding: 24px;
+  }
+  .card {
+    max-width: 420px; width: 100%; background: #151C1A; border-radius: 24px; padding: 32px 24px;
+    text-align: center;
+  }
+  .amount { font-size: 40px; font-weight: 700; margin: 8px 0; }
+  .label { color: #93A19B; font-size: 14px; }
+  .desc { margin: 12px 0 28px; font-size: 16px; }
+  button {
+    width: 100%; padding: 16px; border-radius: 16px; border: none; font-size: 16px;
+    font-weight: 600; margin-top: 12px; cursor: pointer;
+  }
+  .primary { background: #2EDDA6; color: #04241A; }
+  .secondary { background: transparent; color: #F3F5F4; border: 1px solid #3A423F; }
+  .status { margin-top: 20px; font-size: 14px; color: #93A19B; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="label">Loading…</div>
+  </div>
+
+<script>
+  // Placeholder - replace with the real Web app config from Firebase console (see comment above).
+  const firebaseConfig = {
+    apiKey: "PLACEHOLDER_API_KEY_REPLACE_ME",
+    authDomain: "expense-capture-placeholder.firebaseapp.com",
+    projectId: "expense-capture-placeholder",
+    storageBucket: "expense-capture-placeholder.appspot.com",
+    messagingSenderId: "000000000000",
+    appId: "PLACEHOLDER_APP_ID_REPLACE_ME"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const params = new URLSearchParams(window.location.search);
+  const splitId = params.get("s");
+  const participantId = params.get("p");
+  const card = document.getElementById("card");
+
+  function render(html) { card.innerHTML = html; }
+
+  function buildUpiUri(payeeVpa, payeeName, amount, note) {
+    const encodedName = encodeURIComponent(payeeName);
+    const encodedNote = encodeURIComponent(note);
+    const amountStr = Number(amount).toFixed(2);
+    return `upi://pay?pa=${payeeVpa}&pn=${encodedName}&am=${amountStr}&cu=INR&tn=${encodedNote}`;
+  }
+
+  async function load() {
+    if (!splitId || !participantId) {
+      render('<div class="label">This payment link looks incomplete. Ask them to resend it.</div>');
+      return;
+    }
+
+    let splitDoc, participantDoc;
+    try {
+      [splitDoc, participantDoc] = await Promise.all([
+        db.collection("smartSplits").doc(splitId).get(),
+        db.collection("smartSplits").doc(splitId).collection("participants").doc(participantId).get()
+      ]);
+    } catch (e) {
+      render('<div class="label">Couldn\'t load this payment right now. Try again in a moment.</div>');
+      return;
+    }
+
+    if (!splitDoc.exists || !participantDoc.exists) {
+      render('<div class="label">This payment link isn\'t valid or has been removed.</div>');
+      return;
+    }
+
+    const split = splitDoc.data();
+    const participant = participantDoc.data();
+
+    if (participant.status === "CONFIRMED") {
+      render(`
+        <div class="label">Settled</div>
+        <div class="desc">This payment for "${escapeHtml(split.description)}" has already been confirmed. Thanks!</div>
+      `);
+      return;
+    }
+
+    if (participant.status === "CLAIMED_PAID") {
+      render(`
+        <div class="label">You paid ₹${Number(participant.shareAmount).toFixed(2)}</div>
+        <div class="desc">Waiting for ${escapeHtml(split.payerName)} to confirm they received it.</div>
+      `);
+      return;
+    }
+
+    const upiUri = buildUpiUri(split.payerUpiId, split.payerName, participant.shareAmount, split.description);
+
+    render(`
+      <div class="label">You owe ${escapeHtml(split.payerName)}</div>
+      <div class="amount">₹${Number(participant.shareAmount).toFixed(2)}</div>
+      <div class="desc">for "${escapeHtml(split.description)}"</div>
+      <button class="primary" id="payBtn">Pay Now via UPI</button>
+      <button class="secondary" id="paidBtn">I have paid</button>
+      <div class="status" id="statusMsg"></div>
+    `);
+
+    document.getElementById("payBtn").addEventListener("click", () => {
+      window.location.href = upiUri;
+    });
+
+    document.getElementById("paidBtn").addEventListener("click", async () => {
+      const statusMsg = document.getElementById("statusMsg");
+      statusMsg.textContent = "Letting them know…";
+      try {
+        await db.collection("smartSplits").doc(splitId).collection("participants").doc(participantId).update({
+          status: "CLAIMED_PAID",
+          paidAt: Date.now()
+        });
+        render(`
+          <div class="label">You paid ₹${Number(participant.shareAmount).toFixed(2)}</div>
+          <div class="desc">${escapeHtml(split.payerName)} has been notified to confirm.</div>
+        `);
+      } catch (e) {
+        statusMsg.textContent = "Couldn't send that - check your connection and try again.";
+      }
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  load();
+</script>
+</body>
+</html>

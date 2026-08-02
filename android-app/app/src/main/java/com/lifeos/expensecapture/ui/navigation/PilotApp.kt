@@ -28,6 +28,9 @@ import com.lifeos.expensecapture.family.ui.modules.HealthModuleScreen
 import com.lifeos.expensecapture.family.ui.modules.TasksModuleScreen
 import com.lifeos.expensecapture.family.ui.sos.SosScreen
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
+import com.lifeos.expensecapture.splitpay.ui.SmartSplitCreateScreen
+import com.lifeos.expensecapture.splitpay.ui.SmartSplitDetailScreen
+import com.lifeos.expensecapture.splitpay.ui.SmartSplitsScreen
 import com.lifeos.expensecapture.ui.analytics.AnalyticsScreen
 import com.lifeos.expensecapture.ui.assistant.AssistantScreen
 import com.lifeos.expensecapture.ui.backup.BackupRestoreScreen
@@ -229,7 +232,34 @@ fun PilotApp(app: App) {
                 app = app,
                 onBack = { navController.popBackStack() },
                 onAddExpense = { navController.navigate("split_expenses/add") },
-                onOpenDetail = { expenseId -> navController.navigate("split_expenses/$expenseId") }
+                onOpenDetail = { expenseId -> navController.navigate("split_expenses/$expenseId") },
+                onOpenSmartSplit = { navController.navigate("smart_splits") }
+            )
+        }
+        composable("smart_splits") {
+            SmartSplitsScreen(
+                onBack = { navController.popBackStack() },
+                onCreate = { navController.navigate("smart_split_create") },
+                onOpenSplit = { splitId -> navController.navigate("smart_split_detail/$splitId") }
+            )
+        }
+        composable("smart_split_create") {
+            SmartSplitCreateScreen(
+                onBack = { navController.popBackStack() },
+                onCreated = { splitId ->
+                    navController.navigate("smart_split_detail/$splitId") {
+                        popUpTo("smart_splits")
+                    }
+                }
+            )
+        }
+        composable(
+            route = "smart_split_detail/{splitId}",
+            arguments = listOf(navArgument("splitId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            SmartSplitDetailScreen(
+                splitId = backStackEntry.arguments?.getString("splitId") ?: "",
+                onBack = { navController.popBackStack() }
             )
         }
         composable("split_expenses/add") {
