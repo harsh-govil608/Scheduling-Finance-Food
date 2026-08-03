@@ -84,10 +84,13 @@ fun SmartSplitCreateScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
     val authRepository = remember { FamilyAuthRepository() }
     val repository = remember { SplitPayRepository() }
     val uid = authRepository.currentUser?.uid ?: ""
-    val displayName = authRepository.currentUser?.displayName ?: ""
     val coroutineScope = rememberCoroutineScope()
 
     val payProfile by repository.observePayProfile(uid).collectAsState(initial = null)
+    // Not authRepository.currentUser?.displayName - Smart Split's identity is anonymous auth
+    // (see SmartSplitsScreen's kdoc), which never populates that field. The name lives in this
+    // Firestore profile instead (set once during SmartSplitProfileSetupScreen).
+    val displayName = payProfile?.displayName ?: ""
     var upiIdInput by remember { mutableStateOf("") }
     var savingProfile by remember { mutableStateOf(false) }
 

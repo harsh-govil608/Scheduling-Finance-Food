@@ -1,6 +1,6 @@
 {
-  "versionCode": 39,
-  "versionName": "0.39.0-pilot",
+  "versionCode": 40,
+  "versionName": "0.40.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Family Sharing now signs in with phone number + 6-digit OTP instead of email/password. New: Family Expense Tracker - once you're in a family, every SMS-auto-captured transaction syncs automatically to a shared family ledger, and the Family Dashboard shows Total Family Spend Today with a pie chart broken down by member. Family invites and Smart Split participants can now be picked directly from your Contacts instead of typing numbers by hand. Same one-time Firebase setup as before is still needed first."
+  "notes": "Smart Split no longer needs phone+OTP sign-in - it's free now, just your name and phone number, no Firebase billing plan required. (Family Sharing still uses phone+OTP since it needs a verified number for location/SOS sharing.) Also fixes a crash when opening Smart Split or its + button while signed out, and a bug where a failed save would spin forever with no error shown."
 }

@@ -101,6 +101,24 @@ class FamilyAuthRepository(
         }
     }
 
+    /** Smart Split's identity (2026-08) - deliberately NOT phone+OTP. OTP requires the Firebase
+     * project on the paid Blaze plan (Google won't send any SMS at all on the free Spark plan);
+     * Smart Split has none of Family sharing's location/SOS features that need a verified number,
+     * it only needs a stable uid to own Firestore docs plus a self-declared phone number other
+     * users can match against (see SplitPayRepository.findUserByPhone). Anonymous sign-in is free
+     * on every Firebase plan, no SMS involved. Trade-off: this uid doesn't survive an uninstall or
+     * a new device the way a verified phone number would - acceptable until Blaze is turned on,
+     * and Firebase supports upgrading an anonymous account via currentUser.linkWithCredential
+     * later without losing this uid, if that's ever needed. */
+    suspend fun signInAnonymously(): AuthResult {
+        return try {
+            auth.signInAnonymously().await()
+            AuthResult(success = true)
+        } catch (e: Exception) {
+            AuthResult(success = false, errorMessage = e.message ?: "Couldn't sign in")
+        }
+    }
+
     /** Phone auth never populates displayName the way email signup with a name field could -
      * FamilySignInScreen asks for it once, right after first-ever verification. */
     suspend fun updateDisplayName(name: String): AuthResult {

@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "expense-capture-placeholder",
-    "storage_bucket": "expense-capture-placeholder.appspot.com"
+    "project_number": "816228522068",
+    "project_id": "ram-hanuman-sita",
+    "storage_bucket": "ram-hanuman-sita.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:816228522068:android:f3c2f8ab28b980523ef5c1",
         "android_client_info": {
           "package_name": "com.lifeos.expensecapture"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "PLACEHOLDER_API_KEY_REPLACE_ME"
+          "current_key": "AIzaSyDQYgXNLcVOvX2tQamDmPElpCRU7njBDmE"
         }
       ],
       "services": {

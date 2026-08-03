@@ -31,6 +31,7 @@ class SplitPayRepository(
     private fun usersCollection() = firestore.collection("users")
 
     suspend fun upsertPayProfile(profile: UserPayProfile): SplitPayResult<Unit> {
+        if (profile.uid.isBlank()) return SplitPayResult.Failure("Not signed in")
         return try {
             usersCollection().document(profile.uid).set(profile).await()
             SplitPayResult.Success(Unit)
@@ -44,6 +45,7 @@ class SplitPayRepository(
      * without a separate manual "set your phone" step, and without ever touching upiId (merge,
      * not overwrite - a user's already-set UPI ID must survive every sign-in). */
     suspend fun syncPhoneAndName(uid: String, phoneNumber: String?, displayName: String): SplitPayResult<Unit> {
+        if (uid.isBlank()) return SplitPayResult.Failure("Not signed in")
         return try {
             val fields = mutableMapOf<String, Any?>("uid" to uid, "displayName" to displayName)
             if (!phoneNumber.isNullOrBlank()) fields["phoneNumber"] = phoneNumber
@@ -54,7 +56,17 @@ class SplitPayRepository(
         }
     }
 
+    /** Bug fix (real user report, 2026-08 - see SmartSplitsScreen's kdoc): Firestore's
+     * `.document("")` throws synchronously rather than just returning no data, which crashed
+     * this whole flow for a signed-out user before the UI-level sign-in gate existed. Emits null
+     * instead of ever making that call - a defense-in-depth backstop, not a replacement for the
+     * UI gate (a signed-out user should never reach a screen that calls this at all). */
     fun observePayProfile(uid: String): Flow<UserPayProfile?> = callbackFlow {
+        if (uid.isBlank()) {
+            trySend(null)
+            awaitClose { }
+            return@callbackFlow
+        }
         val registration = usersCollection().document(uid).addSnapshotListener { snapshot, error ->
             if (error != null) {
                 trySend(null)
