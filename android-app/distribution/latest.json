@@ -1,6 +1,6 @@
 {
-  "versionCode": 40,
-  "versionName": "0.40.0-pilot",
+  "versionCode": 41,
+  "versionName": "0.41.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Smart Split no longer needs phone+OTP sign-in - it's free now, just your name and phone number, no Firebase billing plan required. (Family Sharing still uses phone+OTP since it needs a verified number for location/SOS sharing.) Also fixes a crash when opening Smart Split or its + button while signed out, and a bug where a failed save would spin forever with no error shown."
+  "notes": "The AI Assistant tab now understands free-form sentences instead of only fixed phrasings - e.g. \"grabbed a coffee for about 150 rupees\" works now, not just \"spent 150 on coffee\". Falls back to the old rule-based parsing automatically if the AI call ever fails, so it never goes silent."
 }

@@ -9,10 +9,11 @@ import com.lifeos.expensecapture.data.db.entity.TransactionDirection
  * once the structure is ready"):
  *
  * - CommandInterpreter (text -> CommandIntent): the "understanding" layer. RuleBasedCommandInterpreter
- *   is the only implementation today - regex/keyword matching, same shape as TransactionParser
- *   and TransactionSearch already use elsewhere in this app, deliberately no AI/ML. When a real
- *   LLM key is added later, a new interpreter implementing this same interface (or wrapping this
- *   one as a fallback) drops in without anything downstream changing.
+ *   was the only implementation at first - regex/keyword matching, same shape as TransactionParser
+ *   and TransactionSearch already use elsewhere in this app. AiCommandInterpreter (2026-08) is the
+ *   real LLM-backed implementation this was staged for, wrapping RuleBasedCommandInterpreter as its
+ *   fallback for when no key is configured or the network call fails - nothing downstream changed
+ *   to support it, per the original plan.
  * - CommandExecutor (CommandIntent -> action): the "doing" layer. Calls the exact same
  *   repository/DAO methods every existing Add/Edit UI already calls - no new business logic,
  *   only routing. This is intentionally interpreter-agnostic, so whichever interpreter produced
@@ -41,5 +42,5 @@ sealed class CommandIntent {
 }
 
 interface CommandInterpreter {
-    fun interpret(text: String): CommandIntent
+    suspend fun interpret(text: String): CommandIntent
 }

@@ -39,7 +39,7 @@ object RuleBasedCommandInterpreter : CommandInterpreter {
         RegexOption.IGNORE_CASE
     )
 
-    override fun interpret(text: String): CommandIntent {
+    override suspend fun interpret(text: String): CommandIntent {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return CommandIntent.Unrecognized(text)
 

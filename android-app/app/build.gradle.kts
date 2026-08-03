@@ -1,8 +1,20 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
+}
+
+// Keeps the OpenRouter key (and anything else secret) out of git entirely - local.properties is
+// already gitignored for sdk.dir, so it's read here rather than committing a key to build.gradle.kts
+// or anywhere under source control. Falls back to an empty string when missing, which
+// AiCommandInterpreter treats as "no AI configured, use the rule-based interpreter."
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) load(FileInputStream(file))
 }
 
 android {
@@ -13,8 +25,9 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 40
-        versionName = "0.40.0-pilot"
+        versionCode = 41
+        versionName = "0.41.0-pilot"
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY", "")}\"")
     }
 
     buildTypes {
@@ -34,6 +47,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

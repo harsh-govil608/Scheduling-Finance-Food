@@ -2,8 +2,9 @@ package com.lifeos.expensecapture.ui.assistant
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lifeos.expensecapture.assistant.AiCommandInterpreter
 import com.lifeos.expensecapture.assistant.CommandExecutor
-import com.lifeos.expensecapture.assistant.RuleBasedCommandInterpreter
+import com.lifeos.expensecapture.assistant.CommandInterpreter
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.logging.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,13 +16,14 @@ data class AssistantMessage(val text: String, val isUser: Boolean)
 
 /**
  * See CommandIntent.kt's kdoc for the two-layer design. This ViewModel only owns the
- * conversation history and wires interpret -> execute together - RuleBasedCommandInterpreter is
- * referenced directly for now rather than injected, matching this app's existing pattern of not
- * building a DI seam before there's a second real implementation to switch between (the same
- * discipline behind not adding a ViewModelProvider.Factory anywhere in this app yet). When an
- * LLM-backed interpreter exists, this becomes a constructor parameter then, not before.
+ * conversation history and wires interpret -> execute together. Defaults to AiCommandInterpreter,
+ * which itself falls back to RuleBasedCommandInterpreter when no key is configured or the AI call
+ * fails - so this class doesn't need to know which one actually answered.
  */
-class AssistantViewModel(private val db: AppDatabase) : ViewModel() {
+class AssistantViewModel(
+    private val db: AppDatabase,
+    private val interpreter: CommandInterpreter = AiCommandInterpreter()
+) : ViewModel() {
 
     private val executor = CommandExecutor(db)
 
@@ -44,7 +46,7 @@ class AssistantViewModel(private val db: AppDatabase) : ViewModel() {
 
         viewModelScope.launch {
             val response = try {
-                executor.execute(RuleBasedCommandInterpreter.interpret(trimmed))
+                executor.execute(interpreter.interpret(trimmed))
             } catch (e: Exception) {
                 AppLogger.e("AssistantViewModel", "command execution failed for: $trimmed", e)
                 "Something went wrong doing that, so nothing was changed."

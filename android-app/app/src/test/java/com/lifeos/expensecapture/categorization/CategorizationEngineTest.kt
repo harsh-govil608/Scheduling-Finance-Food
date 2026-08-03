@@ -25,13 +25,17 @@ class CategorizationEngineTest {
         override suspend fun delete(rule: MerchantRuleEntity) = error("not used by CategorizationEngine")
         override suspend fun getAll(): List<MerchantRuleEntity> = rules
         override fun observeAll(): Flow<List<MerchantRuleEntity>> = flowOf(rules)
+        override suspend fun reassignCategoryToUncategorized(deletedCategoryId: Long, uncategorizedId: Long) =
+            error("not used by CategorizationEngine")
     }
 
     private class FakeCategoryDao(private val uncategorized: CategoryEntity?) : CategoryDao {
         override suspend fun insertAll(categories: List<CategoryEntity>) = error("not used by CategorizationEngine")
+        override suspend fun insert(category: CategoryEntity): Long = error("not used by CategorizationEngine")
         override fun observeAll(): Flow<List<CategoryEntity>> = flowOf(emptyList())
         override suspend fun count(): Int = error("not used by CategorizationEngine")
         override suspend fun getUncategorized(): CategoryEntity? = uncategorized
+        override suspend fun delete(category: CategoryEntity) = error("not used by CategorizationEngine")
     }
 
     private val uncategorized = CategoryEntity(id = 1, name = "Uncategorized")
