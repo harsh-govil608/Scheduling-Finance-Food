@@ -53,6 +53,9 @@ import com.lifeos.expensecapture.family.model.FamilyEvent
 import com.lifeos.expensecapture.family.model.FamilyMember
 import com.lifeos.expensecapture.family.model.MemberPresence
 import com.lifeos.expensecapture.family.model.PresenceStatus
+import com.lifeos.expensecapture.ui.analytics.ChartLegendRow
+import com.lifeos.expensecapture.ui.analytics.DonutChart
+import com.lifeos.expensecapture.ui.analytics.DonutSlice
 import com.lifeos.expensecapture.ui.common.AiInsightCard
 import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.common.SectionLabel
@@ -126,6 +129,11 @@ fun FamilyDashboardScreen(
                 }
             }
 
+            if (uiState.totalFamilySpendToday > 0) {
+                item { SectionLabel("Family Expense Tracker") }
+                item { FamilySpendTodayCard(uiState.totalFamilySpendToday, uiState.spendByMemberToday) }
+            }
+
             uiState.insight?.let { insight ->
                 item { AiInsightCard(title = "Family Insight", body = insight) }
             }
@@ -178,6 +186,52 @@ fun FamilyDashboardScreen(
                             uiState.recentEvents.take(10).forEach { event ->
                                 ActivityRow(event)
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Family Expense Tracker (2026-08 real user request: "Total Family Spend Today... a clean pie
+ * chart breaking down the entire household's spending") - real data synced from each member's own
+ * SMS-auto-capture, see FamilyDashboardViewModel's kdoc on the todayLedgerEntries flow this reads.
+ * Reuses the same DonutChart/ChartLegendRow Analytics already built rather than a second chart
+ * implementation - only the data source differs. */
+@Composable
+private fun FamilySpendTodayCard(total: Double, byMember: List<FamilySpendSlice>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Text("Total Family Spend Today", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("₹${"%.2f".format(total)}", style = MaterialTheme.typography.headlineMedium)
+            if (byMember.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                val colors = listOf(
+                    MaterialTheme.colorScheme.primary,
+                    MaterialTheme.colorScheme.tertiary,
+                    MaterialTheme.colorScheme.secondary,
+                    com.lifeos.expensecapture.ui.theme.Warning,
+                    com.lifeos.expensecapture.ui.theme.WarningStrong,
+                    MaterialTheme.colorScheme.error
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    DonutChart(
+                        slices = byMember.mapIndexed { index, slice -> DonutSlice(slice.memberName, slice.amount, colors[index % colors.size]) },
+                        modifier = Modifier.size(100.dp)
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        byMember.forEachIndexed { index, slice ->
+                            ChartLegendRow(
+                                color = colors[index % colors.size],
+                                label = slice.memberName,
+                                valueText = "₹${"%.0f".format(slice.amount)}"
+                            )
                         }
                     }
                 }

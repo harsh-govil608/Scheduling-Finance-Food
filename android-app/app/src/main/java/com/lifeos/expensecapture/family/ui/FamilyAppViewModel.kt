@@ -7,9 +7,12 @@ import com.lifeos.expensecapture.family.data.FamilyAuthRepository
 import com.lifeos.expensecapture.family.data.FamilyRepository
 import com.lifeos.expensecapture.family.data.FamilyResult
 import com.lifeos.expensecapture.family.model.FamilyEntity
+import com.lifeos.expensecapture.splitpay.data.SplitPayRepository
+import com.lifeos.expensecapture.splitpay.ui.normalizePhoneNumber
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -18,7 +21,7 @@ data class FamilyAppUiState(
     val isSignedIn: Boolean = false,
     val userId: String? = null,
     val userDisplayName: String = "",
-    val userEmail: String = "",
+    val userPhoneNumber: String = "",
     val families: List<FamilyEntity> = emptyList(),
     val loading: Boolean = true
 )
@@ -33,8 +36,25 @@ data class FamilyAppUiState(
  */
 class FamilyAppViewModel(
     private val authRepository: FamilyAuthRepository = FamilyAuthRepository(),
-    private val familyRepository: FamilyRepository = FamilyRepository()
+    private val familyRepository: FamilyRepository = FamilyRepository(),
+    private val splitPayRepository: SplitPayRepository = SplitPayRepository()
 ) : ViewModel() {
+
+    init {
+        // Keeps Smart Split's own users/{uid} doc (phoneNumber/displayName) in step with the
+        // Firebase Auth account on every sign-in - see SplitPayRepository.syncPhoneAndName's
+        // kdoc for why this can't just be read directly off FirebaseAuth at lookup time instead
+        // (Smart Split's findUserByPhone needs its own indexed Firestore field to query against).
+        viewModelScope.launch {
+            authRepository.observeAuthState().filterNotNull().collect { user ->
+                splitPayRepository.syncPhoneAndName(
+                    uid = user.uid,
+                    phoneNumber = user.phoneNumber?.let { normalizePhoneNumber(it) },
+                    displayName = user.displayName ?: ""
+                )
+            }
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<FamilyAppUiState> = authRepository.observeAuthState()
@@ -50,8 +70,8 @@ class FamilyAppViewModel(
                         FamilyAppUiState(
                             isSignedIn = true,
                             userId = u.uid,
-                            userDisplayName = u.displayName ?: u.email?.substringBefore("@") ?: "",
-                            userEmail = u.email ?: "",
+                            userDisplayName = u.displayName ?: "",
+                            userPhoneNumber = u.phoneNumber ?: "",
                             families = families,
                             loading = false
                         )
@@ -61,21 +81,13 @@ class FamilyAppViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FamilyAppUiState())
 
-    private val _authError = MutableStateFlow<String?>(null)
-    val authError: StateFlow<String?> = _authError
+    /** Needs a display name for anyone who just verified for the first time - phone auth never
+     * populates one the way an email-signup form could ask for it directly. FamilySignInScreen
+     * shows a one-time name prompt right after verification when this is true. */
+    fun needsDisplayName(): Boolean = authRepository.currentUser?.displayName.isNullOrBlank()
 
-    fun signIn(email: String, password: String) {
-        viewModelScope.launch {
-            val result = authRepository.signIn(email, password)
-            _authError.value = if (!result.success) result.errorMessage else null
-        }
-    }
-
-    fun signUp(email: String, password: String, displayName: String) {
-        viewModelScope.launch {
-            val result = authRepository.signUp(email, password, displayName)
-            _authError.value = if (!result.success) result.errorMessage else null
-        }
+    fun setDisplayName(name: String) {
+        viewModelScope.launch { authRepository.updateDisplayName(name) }
     }
 
     fun signOut() {

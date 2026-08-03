@@ -3,10 +3,14 @@ package com.lifeos.expensecapture.sms
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.google.firebase.auth.FirebaseAuth
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.NotificationType
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
+import com.lifeos.expensecapture.family.data.FamilyLedgerRepository
+import com.lifeos.expensecapture.family.data.FamilyRepository
+import com.lifeos.expensecapture.family.model.FamilyLedgerEntry
 import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.notifications.NotificationSender
 import com.lifeos.expensecapture.util.Prefs
@@ -70,9 +74,42 @@ class ParseIncomingSmsWorker(
             } catch (e: Exception) {
                 AppLogger.e("ParseIncomingSmsWorker", "anomaly check failed for transaction=${transaction.id}", e)
             }
+
+            // Family Expense Tracker (real user request, 2026-08): auto-syncs this transaction to
+            // the signed-in user's family ledger, same real-time-only-on-the-live-path discipline
+            // as the anomaly check above - a fresh install's history backfill must never flood the
+            // family ledger with months of old transactions. No-ops entirely (fast, one cheap
+            // Firestore membership lookup) for the vast majority of installs that never sign into
+            // the Family module at all.
+            try {
+                syncToFamilyLedgerIfApplicable(db, transaction)
+            } catch (e: Exception) {
+                AppLogger.e("ParseIncomingSmsWorker", "family ledger sync failed for transaction=${transaction.id}", e)
+            }
         }
 
         return Result.success()
+    }
+
+    private suspend fun syncToFamilyLedgerIfApplicable(db: AppDatabase, transaction: TransactionEntity) {
+        val user = FirebaseAuth.getInstance().currentUser ?: return
+        val family = FamilyRepository().observeUserFamilies(user.uid).first().firstOrNull() ?: return
+        val categoryName = db.categoryDao().observeAll().first()
+            .firstOrNull { it.id == transaction.categoryId }?.name ?: "Uncategorized"
+
+        FamilyLedgerRepository().syncEntry(
+            FamilyLedgerEntry(
+                familyId = family.id,
+                memberUserId = user.uid,
+                memberName = user.displayName ?: "Family member",
+                merchantName = transaction.merchantRaw,
+                amount = transaction.amount,
+                direction = transaction.direction.name,
+                categoryName = categoryName,
+                date = transaction.date,
+                syncedAt = System.currentTimeMillis()
+            )
+        )
     }
 
     private suspend fun checkAnomalyAndNotify(db: AppDatabase, transaction: TransactionEntity) {

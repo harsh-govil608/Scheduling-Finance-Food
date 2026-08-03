@@ -1,6 +1,6 @@
 {
-  "versionCode": 38,
-  "versionName": "0.38.0-pilot",
+  "versionCode": 39,
+  "versionName": "0.39.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "New: Smart Split (Split Expenses > Try Smart Split) - split a bill, and let people pay you back via UPI automatically. People with the app get a real Settle Up button that opens their UPI app with your details pre-filled; people without the app get a shareable payment link instead. Uses the same account as Family Sharing, so it needs the same one-time Firebase setup before it's usable."
+  "notes": "Family Sharing now signs in with phone number + 6-digit OTP instead of email/password. New: Family Expense Tracker - once you're in a family, every SMS-auto-captured transaction syncs automatically to a shared family ledger, and the Family Dashboard shows Total Family Spend Today with a pie chart broken down by member. Family invites and Smart Split participants can now be picked directly from your Contacts instead of typing numbers by hand. Same one-time Firebase setup as before is still needed first."
 }

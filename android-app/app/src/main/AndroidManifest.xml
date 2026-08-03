@@ -22,6 +22,10 @@
          PermissionScreen). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Family invites / Smart Split participants (2026-08): "pick from contacts" instead of
+         hand-typing a phone number. Requested only when that button is actually tapped - see
+         ContactPicker.kt. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <application
         android:name=".App"

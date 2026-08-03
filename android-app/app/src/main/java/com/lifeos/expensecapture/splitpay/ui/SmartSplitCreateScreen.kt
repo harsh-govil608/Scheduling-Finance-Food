@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContactPhone
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Button
@@ -47,6 +48,7 @@ import com.lifeos.expensecapture.splitpay.model.ParticipantStatus
 import com.lifeos.expensecapture.splitpay.model.SmartSplit
 import com.lifeos.expensecapture.splitpay.model.SmartSplitParticipant
 import com.lifeos.expensecapture.splitpay.model.UserPayProfile
+import com.lifeos.expensecapture.util.rememberContactPhonePicker
 import kotlinx.coroutines.launch
 
 /** Strips spaces, dashes, and a leading +91/91 so "9876543210", "+91 98765 43210", and
@@ -179,6 +181,12 @@ fun SmartSplitCreateScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
                 ) {
                     items(participants.size) { index ->
                         val entry = participants[index]
+                        val pickContact = rememberContactPhonePicker { pickedName, pickedNumber ->
+                            entry.phone = normalizePhoneNumber(pickedNumber)
+                            if (entry.name.isBlank()) entry.name = pickedName
+                            entry.checked = false
+                            entry.matchedUserId = null
+                        }
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                 OutlinedTextField(
@@ -205,6 +213,9 @@ fun SmartSplitCreateScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
                                     label = { Text("WhatsApp/phone number") },
                                     modifier = Modifier.weight(1f)
                                 )
+                                IconButton(onClick = pickContact) {
+                                    Icon(Icons.Filled.ContactPhone, contentDescription = "Pick from contacts")
+                                }
                                 Spacer(Modifier.width(8.dp))
                                 if (entry.checked && entry.matchedUserId != null) {
                                     Icon(Icons.Filled.CheckCircle, contentDescription = "Has the app", tint = MaterialTheme.colorScheme.primary)

@@ -76,15 +76,16 @@ enum class InvitationStatus { PENDING, ACCEPTED, EXPIRED, REVOKED }
 
 /** Both "invite via email" and "invite via share link" resolve to the same Invitation doc - a
  * short random `code` is the actual join key (typed in manually or embedded in a deep-link URL),
- * `invitedEmail` is only ever a hint shown in the family's pending-invites list, never something
- * the client enforces against (Firestore has no way to verify an email address belongs to the
- * account completing the join - that check happens implicitly via Firebase Auth's own email
- * verification, out of this module's scope). */
+ * `invitedPhone` is only ever a hint shown in the family's pending-invites list, never something
+ * the client enforces against (Firestore has no way to verify a phone number belongs to the
+ * account completing the join - that check happens implicitly via Firebase Auth's own phone
+ * verification, out of this module's scope). Phone rather than email since 2026-08 - see
+ * FamilyAuthRepository's kdoc on why sign-in itself moved to phone + OTP. */
 data class Invitation(
     val id: String = "",
     val familyId: String = "",
     val code: String = "",
-    val invitedEmail: String? = null,
+    val invitedPhone: String? = null,
     val proposedRole: FamilyRole = FamilyRole.ADULT,
     val createdBy: String = "",
     val createdAt: Long = 0L,

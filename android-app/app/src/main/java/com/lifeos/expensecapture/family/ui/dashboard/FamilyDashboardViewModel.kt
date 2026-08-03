@@ -3,6 +3,7 @@ package com.lifeos.expensecapture.family.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeos.expensecapture.family.data.EventStreamRepository
+import com.lifeos.expensecapture.family.data.FamilyLedgerRepository
 import com.lifeos.expensecapture.family.data.FamilyRepository
 import com.lifeos.expensecapture.family.data.PresenceRepository
 import com.lifeos.expensecapture.family.data.SharedCalendarRepository
@@ -18,6 +19,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.time.LocalDate
+import java.time.ZoneId
+
+data class FamilySpendSlice(val memberName: String, val amount: Double)
 
 data class FamilyDashboardUiState(
     val family: FamilyEntity? = null,
@@ -28,11 +33,16 @@ data class FamilyDashboardUiState(
     val upcomingCalendarEvents: List<SharedCalendarEvent> = emptyList(),
     val currentMember: FamilyMember? = null,
     val insight: String? = null,
+    /** Family Expense Tracker (2026-08 real user request) - today's SMS-auto-captured spend
+     * across every member, synced by ParseIncomingSmsWorker. Debits only (a CREDIT like a
+     * refund/salary isn't "spend"). */
+    val totalFamilySpendToday: Double = 0.0,
+    val spendByMemberToday: List<FamilySpendSlice> = emptyList(),
     val loading: Boolean = true
 )
 
-/** Groups the member/task/calendar reads into one snapshot so the top-level combine stays a
- * 5-arg overload - same pattern as HomeViewModel's FinanceSnapshot. */
+/** Groups the member/task/calendar/ledger reads into one snapshot so the top-level combine stays
+ * a 3-arg overload - same pattern as HomeViewModel's FinanceSnapshot. */
 private data class DashboardContentSnapshot(
     val members: List<FamilyMember>,
     val presence: List<MemberPresence>,
@@ -54,7 +64,8 @@ class FamilyDashboardViewModel(
     presenceRepository: PresenceRepository = PresenceRepository(),
     eventStreamRepository: EventStreamRepository = EventStreamRepository(),
     taskRepository: SharedTaskRepository = SharedTaskRepository(familyId = familyId),
-    calendarRepository: SharedCalendarRepository = SharedCalendarRepository(familyId = familyId)
+    calendarRepository: SharedCalendarRepository = SharedCalendarRepository(familyId = familyId),
+    ledgerRepository: FamilyLedgerRepository = FamilyLedgerRepository()
 ) : ViewModel() {
 
     private val content = combine(
@@ -67,10 +78,20 @@ class FamilyDashboardViewModel(
         DashboardContentSnapshot(members, presence, events, tasks, calendarEvents)
     }
 
+    // Computed once per ViewModel instance (i.e. per time the Dashboard is opened) rather than
+    // ticking live at midnight - the Dashboard is a short-lived screen, not a background service,
+    // so the day boundary going stale mid-session is an acceptable simplification here (unlike
+    // Finance's Home, which fixed this exact class of bug for a screen people leave open for
+    // hours - see TickerFlow's kdoc).
+    private val todayStartMillis = LocalDate.now(ZoneId.systemDefault())
+        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    private val todayLedgerEntries = ledgerRepository.observeEntries(familyId, todayStartMillis)
+
     val uiState: StateFlow<FamilyDashboardUiState> = combine(
         familyRepository.observeFamily(familyId),
-        content
-    ) { family, snapshot ->
+        content,
+        todayLedgerEntries
+    ) { family, snapshot, ledgerEntries ->
         val currentMember = snapshot.members.firstOrNull { it.userId == currentUserId }
         val now = System.currentTimeMillis()
         val weekAhead = now + 7L * 24 * 60 * 60 * 1000
@@ -82,6 +103,14 @@ class FamilyDashboardViewModel(
             .filter { it.startAt in now..weekAhead }
             .sortedBy { it.startAt }
 
+        val todaySpend = ledgerEntries.filter { it.direction == "DEBIT" }
+        val spendByMember = todaySpend
+            .groupBy { it.memberName }
+            .mapValues { (_, entries) -> entries.sumOf { it.amount } }
+            .entries
+            .sortedByDescending { it.value }
+            .map { FamilySpendSlice(it.key, it.value) }
+
         FamilyDashboardUiState(
             family = family,
             members = snapshot.members,
@@ -91,6 +120,8 @@ class FamilyDashboardViewModel(
             upcomingCalendarEvents = upcomingCalendarEvents,
             currentMember = currentMember,
             insight = buildInsight(snapshot.members, upcomingTasks, snapshot.presence),
+            totalFamilySpendToday = todaySpend.sumOf { it.amount },
+            spendByMemberToday = spendByMember,
             loading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FamilyDashboardUiState())

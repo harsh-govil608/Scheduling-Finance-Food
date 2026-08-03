@@ -160,7 +160,7 @@ class FamilyRepository(
 
     suspend fun createInvitation(
         familyId: String,
-        invitedEmail: String?,
+        invitedPhone: String?,
         proposedRole: FamilyRole,
         createdBy: String
     ): FamilyResult<Invitation> {
@@ -170,7 +170,7 @@ class FamilyRepository(
                 id = ref.id,
                 familyId = familyId,
                 code = randomInviteCode(),
-                invitedEmail = invitedEmail,
+                invitedPhone = invitedPhone,
                 proposedRole = proposedRole,
                 createdBy = createdBy,
                 createdAt = System.currentTimeMillis(),

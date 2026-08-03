@@ -39,6 +39,21 @@ class SplitPayRepository(
         }
     }
 
+    /** Called on every sign-in (see FamilyAppViewModel) now that Firebase Auth itself is phone-
+     * based - keeps this collection's phoneNumber/displayName in step with the auth account
+     * without a separate manual "set your phone" step, and without ever touching upiId (merge,
+     * not overwrite - a user's already-set UPI ID must survive every sign-in). */
+    suspend fun syncPhoneAndName(uid: String, phoneNumber: String?, displayName: String): SplitPayResult<Unit> {
+        return try {
+            val fields = mutableMapOf<String, Any?>("uid" to uid, "displayName" to displayName)
+            if (!phoneNumber.isNullOrBlank()) fields["phoneNumber"] = phoneNumber
+            usersCollection().document(uid).set(fields, com.google.firebase.firestore.SetOptions.merge()).await()
+            SplitPayResult.Success(Unit)
+        } catch (e: Exception) {
+            SplitPayResult.Failure(e.message ?: "Couldn't sync your profile")
+        }
+    }
+
     fun observePayProfile(uid: String): Flow<UserPayProfile?> = callbackFlow {
         val registration = usersCollection().document(uid).addSnapshotListener { snapshot, error ->
             if (error != null) {

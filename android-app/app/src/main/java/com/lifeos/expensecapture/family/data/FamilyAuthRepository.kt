@@ -1,13 +1,30 @@
 package com.lifeos.expensecapture.family.data
 
+import android.app.Activity
+import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.TimeUnit
 
 data class AuthResult(val success: Boolean, val errorMessage: String? = null)
+
+/** Mirrors PhoneAuthProvider's own callback shape - see [FamilyAuthRepository.sendOtp]'s kdoc for
+ * why this stays callback-based rather than a single suspend call. */
+sealed class OtpSendResult {
+    data class CodeSent(val verificationId: String) : OtpSendResult()
+    /** Some devices/carriers auto-detect the SMS and verify without the user ever typing a code -
+     * the UI should skip straight to signed-in when this fires, never showing an OTP field at all. */
+    data class AutoVerified(val credential: PhoneAuthCredential) : OtpSendResult()
+    data class Failed(val message: String) : OtpSendResult()
+}
 
 /**
  * Family module (2026-08) - the one piece of cross-device identity this app never needed before:
@@ -17,10 +34,12 @@ data class AuthResult(val success: Boolean, val errorMessage: String? = null)
  * exists scoped entirely to the family module - it does not touch or replace the local
  * Prefs.getDisplayName()-based "profile" used everywhere else.
  *
- * Email/password rather than Google Sign-In: keeps the dependency surface to just
- * firebase-auth-ktx (no Google Identity Services setup, no SHA-1 fingerprint registration step
- * beyond what Firebase itself needs), and matches "invite via email" already using email as the
- * family's own identity anchor.
+ * Phone number + OTP rather than email/password (real user request, 2026-08 - matches how
+ * PhonePe/GPay/WhatsApp all work in India, and matches "invite by phone number" already being
+ * the identity anchor for both this module and Smart Split's user lookup). Needs the phone
+ * project's SHA-1 fingerprint registered in the Firebase console for silent Play Integrity
+ * verification - falls back to a reCAPTCHA web view automatically if that's not set up, so this
+ * still works during initial testing without it.
  */
 class FamilyAuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -35,25 +54,62 @@ class FamilyAuthRepository(
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
-    suspend fun signUp(email: String, password: String, displayName: String): AuthResult {
+    /**
+     * Callback-based, not suspend: [PhoneAuthProvider.verifyPhoneNumber] can invoke its callback
+     * more than once for a single call (e.g. [OtpSendResult.CodeSent] followed later by a resend
+     * timeout), which a single-shot suspend function can't represent - the caller (
+     * FamilySignInScreen) needs to react differently to each case anyway (auto-verified skips
+     * the OTP screen entirely; code-sent shows it).
+     */
+    fun sendOtp(phoneNumber: String, activity: Activity, onResult: (OtpSendResult) -> Unit) {
+        val options = PhoneAuthOptions.newBuilder(auth)
+            .setPhoneNumber(phoneNumber)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                    onResult(OtpSendResult.AutoVerified(credential))
+                }
+
+                override fun onVerificationFailed(exception: FirebaseException) {
+                    onResult(OtpSendResult.Failed(exception.message ?: "Couldn't send the code"))
+                }
+
+                override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                    onResult(OtpSendResult.CodeSent(verificationId))
+                }
+            })
+            .build()
+        PhoneAuthProvider.verifyPhoneNumber(options)
+    }
+
+    suspend fun verifyOtp(verificationId: String, code: String): AuthResult {
         return try {
-            val result = auth.createUserWithEmailAndPassword(email, password).await()
-            val profileUpdate = com.google.firebase.auth.UserProfileChangeRequest.Builder()
-                .setDisplayName(displayName)
-                .build()
-            result.user?.updateProfile(profileUpdate)?.await()
-            AuthResult(success = true)
+            val credential = PhoneAuthProvider.getCredential(verificationId, code)
+            signInWithCredential(credential)
         } catch (e: Exception) {
-            AuthResult(success = false, errorMessage = e.message ?: "Sign up failed")
+            AuthResult(success = false, errorMessage = e.message ?: "That code doesn't look right")
         }
     }
 
-    suspend fun signIn(email: String, password: String): AuthResult {
+    suspend fun signInWithCredential(credential: PhoneAuthCredential): AuthResult {
         return try {
-            auth.signInWithEmailAndPassword(email, password).await()
+            auth.signInWithCredential(credential).await()
             AuthResult(success = true)
         } catch (e: Exception) {
             AuthResult(success = false, errorMessage = e.message ?: "Sign in failed")
+        }
+    }
+
+    /** Phone auth never populates displayName the way email signup with a name field could -
+     * FamilySignInScreen asks for it once, right after first-ever verification. */
+    suspend fun updateDisplayName(name: String): AuthResult {
+        return try {
+            val user = auth.currentUser ?: return AuthResult(false, "Not signed in")
+            user.updateProfile(UserProfileChangeRequest.Builder().setDisplayName(name).build()).await()
+            AuthResult(success = true)
+        } catch (e: Exception) {
+            AuthResult(success = false, errorMessage = e.message ?: "Couldn't save your name")
         }
     }
 

@@ -15,8 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContactPhone
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -27,7 +27,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -50,16 +49,18 @@ import com.lifeos.expensecapture.family.data.FamilyRepository
 import com.lifeos.expensecapture.family.data.FamilyResult
 import com.lifeos.expensecapture.family.model.FamilyRole
 import com.lifeos.expensecapture.family.model.Invitation
+import com.lifeos.expensecapture.splitpay.ui.normalizePhoneNumber
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
+import com.lifeos.expensecapture.util.rememberContactPhonePicker
 import kotlinx.coroutines.launch
 
 /**
- * Invite via email or share link (2026-08 Family module PRD) - both resolve to the same
- * Invitation doc/code (see Invitation's kdoc); this screen just offers two different ways to get
- * that code in front of the invitee. "Email" launches the device's own mail app with a prefilled
- * subject/body rather than sending mail directly - real server-sent email needs a Cloud Function
- * (SMTP/SendGrid etc., a Node/TS deploy), out of reach for client-only Kotlin, flagged as a
- * fast-follow rather than silently faked.
+ * Invite by phone number (2026-08 real user request: "person1 types in person2 and person3
+ * phone numbers and hits send") - matches sign-in itself moving to phone + OTP (see
+ * FamilyAuthRepository's kdoc). Generates the same Invitation doc/code as before (see
+ * Invitation's kdoc); "Send Invite" shares that code via WhatsApp/SMS/any share target rather
+ * than a real push notification - see this screen's own note on why (same FCM Cloud Function gap
+ * flagged throughout this module).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,25 +76,13 @@ fun FamilyInviteScreen(
     val family by familyRepository.observeFamily(familyId).collectAsState(initial = null)
     val familyName = family?.name ?: "your family"
 
-    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var roleExpanded by remember { mutableStateOf(false) }
     var proposedRole by remember { mutableStateOf(FamilyRole.ADULT) }
     var latestInvitation by remember { mutableStateOf<Invitation?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    fun createAndAct(after: (Invitation) -> Unit) {
-        val userId = authRepository.currentUser?.uid ?: return
-        coroutineScope.launch {
-            when (val result = familyRepository.createInvitation(familyId, email.trim().ifBlank { null }, proposedRole, userId)) {
-                is FamilyResult.Success -> {
-                    latestInvitation = result.value
-                    error = null
-                    after(result.value)
-                }
-                is FamilyResult.Failure -> error = result.message
-            }
-        }
-    }
+    val pickContact = rememberContactPhonePicker { _, pickedNumber -> phone = normalizePhoneNumber(pickedNumber) }
 
     Scaffold(
         topBar = {
@@ -135,58 +124,50 @@ fun FamilyInviteScreen(
                             }
                         }
                         Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = { Text("Email (optional - just a label on the invite)") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = phone,
+                                onValueChange = { phone = normalizePhoneNumber(it) },
+                                label = { Text("Phone number") },
+                                prefix = { Text("+91 ") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = pickContact) {
+                                Icon(Icons.Filled.ContactPhone, contentDescription = "Pick from contacts")
+                            }
+                        }
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = {
-                                createAndAct { invitation ->
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "Join our family \"$familyName\" on Expense Capture. " +
-                                                "Open the app, choose \"Join with an invite code\", and enter: ${invitation.code}"
-                                        )
-                                    }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Share invite"))
+                                val userId = authRepository.currentUser?.uid ?: return@Button
+                                if (phone.length != 10) {
+                                    error = "Enter a valid 10-digit phone number"
+                                    return@Button
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Share invite link")
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = {
-                                createAndAct { invitation ->
-                                    val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                                        data = android.net.Uri.parse("mailto:")
-                                        if (email.isNotBlank()) putExtra(Intent.EXTRA_EMAIL, arrayOf(email.trim()))
-                                        putExtra(Intent.EXTRA_SUBJECT, "You're invited to join \"$familyName\"")
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "Open Expense Capture, choose \"Join with an invite code\", and enter: ${invitation.code}"
-                                        )
-                                    }
-                                    try {
-                                        context.startActivity(emailIntent)
-                                    } catch (e: android.content.ActivityNotFoundException) {
-                                        // No email app installed - the code is still shown below to copy manually.
+                                coroutineScope.launch {
+                                    when (val result = familyRepository.createInvitation(familyId, phone, proposedRole, userId)) {
+                                        is FamilyResult.Success -> {
+                                            latestInvitation = result.value
+                                            error = null
+                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(
+                                                    Intent.EXTRA_TEXT,
+                                                    "Join our family \"$familyName\" on Expense Capture. " +
+                                                        "Open the app, sign in, choose \"Join with an invite code\", and enter: ${result.value.code}"
+                                                )
+                                            }
+                                            context.startActivity(Intent.createChooser(shareIntent, "Send invite"))
+                                        }
+                                        is FamilyResult.Failure -> error = result.message
                                     }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Filled.Email, contentDescription = null)
+                            Icon(Icons.Filled.Share, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Invite via email")
+                            Text("Send Invite")
                         }
                     }
                 }
