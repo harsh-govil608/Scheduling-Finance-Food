@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -46,10 +47,12 @@ data class ProductivityHomeUiState(
     val spentToday: Double = 0.0,
     /** Null when no budgets are set at all - nothing real to report "on track" against. */
     val allBudgetsOnTrack: Boolean? = null,
-    /** Mini spend-trend chart (2026-08 visual polish pass, real user request: the empty space
-     * beside Projects/Goal Progress when there's only one of each). Same last-7-days-of-real-DEBIT
-     * -transactions computation as HomeViewModel's own last7DaysSpend, not a separate metric. */
-    val last7DaysSpend: List<Float> = emptyList(),
+    /** Mini "Tasks vs Habits completed" chart (2026-08 visual polish pass, real user request:
+     * the empty space beside the Projects card when there's only one project). Deliberately
+     * Home-pillar data, not a repeat of Finance's own spend chart - real completedAt/dateEpochDay
+     * counts per day, nothing fabricated. */
+    val tasksCompletedLast7Days: List<Float> = emptyList(),
+    val habitsCompletedLast7Days: List<Float> = emptyList(),
     /** Reference-mockup "Projects" preview (2026-07-31 design refresh, see Color.kt's kdoc) -
      * reuses ProjectsViewModel's own ProjectRow/progress math rather than a second hand-copied
      * version. */
@@ -70,8 +73,7 @@ private data class TaskHabitSnapshot(
 
 private data class DailyFinanceSnapshot(
     val spentToday: Double,
-    val allBudgetsOnTrack: Boolean?,
-    val last7DaysSpend: List<Float>
+    val allBudgetsOnTrack: Boolean?
 )
 
 /**
@@ -120,15 +122,7 @@ class ProductivityHomeViewModel(
                 relevant.sumOf { it.amount } <= budget.monthlyLimit
             }
         }
-        val last7DaysSpend = (6 downTo 0).map { today.minusDays(it.toLong()) }.map { day ->
-            val start = day.atStartOfDay(zone).toInstant().toEpochMilli()
-            val end = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            transactions
-                .filter { it.direction == TransactionDirection.DEBIT && it.date in start until end }
-                .sumOf { it.amount }
-                .toFloat()
-        }
-        DailyFinanceSnapshot(spentToday, allOnTrack, last7DaysSpend)
+        DailyFinanceSnapshot(spentToday, allOnTrack)
     }
 
     val uiState: StateFlow<ProductivityHomeUiState> = combine(
@@ -153,6 +147,19 @@ class ProductivityHomeViewModel(
             HabitStreakCalculator.currentStreak(days, today)
         } ?: 0
 
+        // Mini "Tasks vs Habits completed" chart data (see ProductivityHomeUiState's kdoc) - real
+        // completedAt/dateEpochDay counts per day, last 7 days ending today.
+        val last7Days = (6 downTo 0).map { today - it }
+        val tasksCompletedLast7Days = last7Days.map { day ->
+            tasks.count { task ->
+                task.completedAt != null &&
+                    Instant.ofEpochMilli(task.completedAt).atZone(zone).toLocalDate().toEpochDay() == day
+            }.toFloat()
+        }
+        val habitsCompletedLast7Days = last7Days.map { day ->
+            completions.count { it.dateEpochDay == day }.toFloat()
+        }
+
         val projectRows = projects.map { project ->
             val tasksForProject = tasks.filter { it.projectId == project.id }
             ProjectRow(
@@ -173,7 +180,8 @@ class ProductivityHomeViewModel(
             bestHabitStreak = bestStreak,
             spentToday = dailyFinance.spentToday,
             allBudgetsOnTrack = dailyFinance.allBudgetsOnTrack,
-            last7DaysSpend = dailyFinance.last7DaysSpend,
+            tasksCompletedLast7Days = tasksCompletedLast7Days,
+            habitsCompletedLast7Days = habitsCompletedLast7Days,
             projects = projectRows,
             goals = goals,
             insight = ProductivityInsightEngine.compute(tasks, habits, completions)

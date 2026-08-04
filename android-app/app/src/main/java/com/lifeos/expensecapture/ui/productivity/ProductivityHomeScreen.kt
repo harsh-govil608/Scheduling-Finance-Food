@@ -1,12 +1,15 @@
 package com.lifeos.expensecapture.ui.productivity
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
@@ -45,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,7 +62,6 @@ import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.common.ProfileAvatarButton
 import com.lifeos.expensecapture.ui.common.ProgressRing
 import com.lifeos.expensecapture.ui.common.SectionLabel
-import com.lifeos.expensecapture.ui.common.Sparkline
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
@@ -191,11 +195,15 @@ fun ProductivityHomeScreen(
                             }
                         }
                         // Real user request (2026-08): a single project left half the row empty -
-                        // fills that space with a small spend-trend chart (same last7DaysSpend
-                        // real transaction data Finance's own Home hero card charts) instead of a
-                        // bare Spacer, so the row doesn't look unfinished.
+                        // fills that space with a small Tasks-vs-Habits-completed chart (real
+                        // per-day counts, Home-pillar data - not a repeat of Finance's own spend
+                        // chart) instead of a bare Spacer, so the row doesn't look unfinished.
                         if (uiState.projects.size == 1) {
-                            MiniSpendTrendCard(uiState.last7DaysSpend, modifier = Modifier.weight(1f))
+                            MiniProductivityChartCard(
+                                tasksCompleted = uiState.tasksCompletedLast7Days,
+                                habitsCompleted = uiState.habitsCompletedLast7Days,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
@@ -316,10 +324,22 @@ private fun DailySummaryRow(uiState: ProductivityHomeUiState) {
 }
 
 /** Fills the empty half of the Projects row when there's only one project (see the row's call
- * site kdoc) - a compact Analytics-style trend line, same real last-7-days-of-spend figures
- * Finance's own Home hero card charts, not a separate/fabricated metric. */
+ * site kdoc) - a compact grouped-bar chart, real per-day Tasks-completed/Habits-completed counts
+ * over the last 7 days (see ProductivityHomeUiState's kdoc), deliberately Home-pillar data rather
+ * than a repeat of Finance's own spend chart elsewhere on this same screen. Plain Box bars instead
+ * of a Canvas (like Sparkline/BarChart elsewhere) since two flat-colored bar pairs don't need one -
+ * simpler to read at this card's small size too. */
 @Composable
-private fun MiniSpendTrendCard(last7DaysSpend: List<Float>, modifier: Modifier = Modifier) {
+private fun MiniProductivityChartCard(
+    tasksCompleted: List<Float>,
+    habitsCompleted: List<Float>,
+    modifier: Modifier = Modifier
+) {
+    val taskColor = MaterialTheme.colorScheme.primary
+    val habitColor = MaterialTheme.colorScheme.tertiary
+    val maxValue = (tasksCompleted + habitsCompleted).maxOrNull()?.coerceAtLeast(1f) ?: 1f
+    val totalThisWeek = (tasksCompleted.sum() + habitsCompleted.sum()).toInt()
+
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
@@ -331,15 +351,50 @@ private fun MiniSpendTrendCard(last7DaysSpend: List<Float>, modifier: Modifier =
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(Modifier.height(6.dp))
+            Text("$totalThisWeek completed", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(10.dp))
-            Text("₹${"%.0f".format(last7DaysSpend.sum())}", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-            Sparkline(
-                values = last7DaysSpend,
-                modifier = Modifier.fillMaxWidth().height(28.dp),
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().height(36.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                tasksCompleted.indices.forEach { i ->
+                    Row(
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        horizontalArrangement = Arrangement.spacedBy(1.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(((tasksCompleted[i] / maxValue).coerceIn(0f, 1f)).coerceAtLeast(0.04f))
+                                .background(taskColor, RoundedCornerShape(2.dp))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(((habitsCompleted[i] / maxValue).coerceIn(0f, 1f)).coerceAtLeast(0.04f))
+                                .background(habitColor, RoundedCornerShape(2.dp))
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MiniLegendDot(taskColor, "Tasks")
+                MiniLegendDot(habitColor, "Habits")
+            }
         }
+    }
+}
+
+@Composable
+private fun MiniLegendDot(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

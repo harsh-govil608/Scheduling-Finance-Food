@@ -1,6 +1,6 @@
 {
-  "versionCode": 44,
-  "versionName": "0.41.3-pilot",
+  "versionCode": 45,
+  "versionName": "0.41.4-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Home tab visual polish: Today's Focus now shows Tasks and Habit progress side by side with a progress ring, and a small spending trend chart fills the empty space next to your Projects card."
+  "notes": "Home tab: the space next to your Projects card now shows a Tasks-vs-Habits-completed chart for the week instead of a spend chart, so it's Home-specific rather than repeating Finance."
 }
