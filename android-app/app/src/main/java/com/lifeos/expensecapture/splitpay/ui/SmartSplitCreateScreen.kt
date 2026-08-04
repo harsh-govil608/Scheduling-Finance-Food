@@ -86,7 +86,13 @@ fun SmartSplitCreateScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
     val uid = authRepository.currentUser?.uid ?: ""
     val coroutineScope = rememberCoroutineScope()
 
-    val payProfile by repository.observePayProfile(uid).collectAsState(initial = null)
+    // remember()'d keyed on uid - see the same fix in SmartSplitsScreen.kt for the general
+    // reasoning. Especially important here: an inline observeX().collectAsState() would recreate the
+    // Firestore listener (and briefly reset payProfile to null) on every recomposition, including
+    // ones triggered by typing in description/amount below - since the whole "Set your UPI ID
+    // first" vs. main form branch (below) reads off payProfile, that could flash the wrong screen
+    // mid-keystroke.
+    val payProfile by remember(uid) { repository.observePayProfile(uid) }.collectAsState(initial = null)
     // Not authRepository.currentUser?.displayName - Smart Split's identity is anonymous auth
     // (see SmartSplitsScreen's kdoc), which never populates that field. The name lives in this
     // Firestore profile instead (set once during SmartSplitProfileSetupScreen).

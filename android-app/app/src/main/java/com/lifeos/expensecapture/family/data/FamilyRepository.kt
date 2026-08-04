@@ -24,6 +24,17 @@ sealed class FamilyResult<out T> {
 private const val INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no 0/O/1/I - hand-typed codes
 private const val INVITE_EXPIRY_MILLIS = 7L * 24 * 60 * 60 * 1000 // 7 days
 
+/** Every subcollection under families/{familyId} (see FamilyModels.kt's collection-layout kdoc) -
+ * Firestore doesn't cascade-delete subcollections when their parent doc is deleted, so
+ * [FamilyRepository.deleteFamily] has to purge each of these itself before removing the family
+ * doc. "members" and "invitations" are included even though this file also has dedicated
+ * accessors for them, since deletion needs every subcollection, not just the two this class
+ * otherwise reads/writes. */
+private val FAMILY_SUBCOLLECTIONS = listOf(
+    "members", "invitations", "events", "tasks", "calendarEvents", "expenses",
+    "documents", "healthRecords", "emergencyContacts", "sosAlerts", "notifications"
+)
+
 /**
  * Multi-family core (2026-08 Family module) - create/join a family, manage members' roles and
  * permissions, and issue invitations (both "share link" and "email" resolve to the same
@@ -246,6 +257,29 @@ class FamilyRepository(
             FamilyResult.Success(invitation.familyId)
         } catch (e: Exception) {
             FamilyResult.Failure(e.message ?: "Couldn't join family")
+        }
+    }
+
+    /**
+     * Deletes a family outright - owner-only (enforced by the caller, see FamilyMembersScreen),
+     * irreversible. Purges every subcollection (Firestore never cascade-deletes them on its own)
+     * before removing the family doc itself, so a failure partway through leaves the family doc
+     * intact and re-deletable rather than an orphaned doc with dangling subcollections pointing
+     * nowhere.
+     */
+    suspend fun deleteFamily(familyId: String): FamilyResult<Unit> {
+        return try {
+            for (name in FAMILY_SUBCOLLECTIONS) {
+                val docs = familyDoc(familyId).collection(name).get().await()
+                if (docs.isEmpty) continue
+                val batch = firestore.batch()
+                docs.documents.forEach { batch.delete(it.reference) }
+                batch.commit().await()
+            }
+            familyDoc(familyId).delete().await()
+            FamilyResult.Success(Unit)
+        } catch (e: Exception) {
+            FamilyResult.Failure(e.message ?: "Couldn't delete family")
         }
     }
 

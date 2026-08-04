@@ -117,7 +117,13 @@ fun SmartSplitsScreen(onBack: () -> Unit, onCreate: () -> Unit, onOpenSplit: (St
         return
     }
 
-    val payProfile by repository.observePayProfile(uid).collectAsState(initial = null)
+    // remember()'d keyed on uid, not called inline - see this screen's kdoc addition on the
+    // flicker bug this fixes: an inline `repository.observeX(uid).collectAsState(...)` call
+    // creates a brand new Flow (and Firestore listener) on every recomposition, which resets
+    // collectAsState back to its initial value each time and re-subscribes from scratch. Keying
+    // on uid means the same Flow/listener survives recomposition and only restarts when uid
+    // itself actually changes.
+    val payProfile by remember(uid) { repository.observePayProfile(uid) }.collectAsState(initial = null)
 
     if (payProfile?.phoneNumber.isNullOrBlank()) {
         SmartSplitProfileSetupScreen { name, phone ->
@@ -126,8 +132,8 @@ fun SmartSplitsScreen(onBack: () -> Unit, onCreate: () -> Unit, onOpenSplit: (St
         return
     }
 
-    val mySplits by repository.observeMySplits(uid).collectAsState(initial = emptyList())
-    val owedParticipations by repository.observeSplitsIOwe(uid).collectAsState(initial = emptyList())
+    val mySplits by remember(uid) { repository.observeMySplits(uid) }.collectAsState(initial = emptyList())
+    val owedParticipations by remember(uid) { repository.observeSplitsIOwe(uid) }.collectAsState(initial = emptyList())
     val pendingIOwe = owedParticipations.filter { it.status == ParticipantStatus.PENDING || it.status == ParticipantStatus.CLAIMED_PAID }
 
     Scaffold(

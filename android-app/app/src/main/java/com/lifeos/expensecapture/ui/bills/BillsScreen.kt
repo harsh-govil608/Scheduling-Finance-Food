@@ -103,7 +103,9 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
                 )
             }
         } else {
-            val trackedBills = bills.filter { it.displayStatus != BillDisplayStatus.CANCELLED }
+            val trackedBills = bills.filter {
+                it.displayStatus != BillDisplayStatus.CANCELLED && it.displayStatus != BillDisplayStatus.UNCONFIRMED
+            }
             val totalTypical = trackedBills.sumOf { it.bill.typicalAmount }
             val overdueCount = bills.count { it.displayStatus == BillDisplayStatus.OVERDUE }
             LazyColumn(

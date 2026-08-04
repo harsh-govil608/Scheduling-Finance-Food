@@ -7,14 +7,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +63,9 @@ fun FamilyMembersScreen(familyId: String, onBack: () -> Unit) {
     val hasManagementRights = currentMember?.role == FamilyRole.OWNER || currentMember?.role == FamilyRole.PARENT
 
     var editingMember by remember { mutableStateOf<FamilyMember?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -68,6 +74,20 @@ fun FamilyMembersScreen(familyId: String, onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // Owner-only, not "hasManagementRights" - a Parent can manage other members
+                    // but shouldn't be able to delete the whole family (see FamilyRole's kdoc:
+                    // "Owner ... can never be removed except by deleting the family outright").
+                    if (currentMember?.role == FamilyRole.OWNER) {
+                        IconButton(onClick = { showDeleteConfirm = true }, enabled = !isDeleting) {
+                            Icon(
+                                Icons.Filled.DeleteForever,
+                                contentDescription = "Delete family",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             )
@@ -112,6 +132,43 @@ fun FamilyMembersScreen(familyId: String, onBack: () -> Unit) {
             actorId = currentUserId ?: "",
             actorName = currentMember?.displayName ?: "",
             onDismiss = { editingMember = null }
+        )
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { if (!isDeleting) showDeleteConfirm = false },
+            title = { Text("Delete this family?") },
+            text = {
+                Text(
+                    "This permanently removes the family for every member - all shared tasks, " +
+                        "calendar events, expenses, documents, health records, and emergency " +
+                        "contacts. This can't be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        isDeleting = true
+                        coroutineScope.launch {
+                            familyRepository.deleteFamily(familyId)
+                            isDeleting = false
+                            showDeleteConfirm = false
+                            onBack()
+                        }
+                    },
+                    enabled = !isDeleting
+                ) {
+                    if (isDeleting) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    } else {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }, enabled = !isDeleting) { Text("Cancel") }
+            }
         )
     }
 }

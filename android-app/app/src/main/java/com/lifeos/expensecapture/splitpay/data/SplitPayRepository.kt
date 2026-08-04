@@ -1,7 +1,7 @@
 package com.lifeos.expensecapture.splitpay.data
 
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
+import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.splitpay.model.ParticipantStatus
 import com.lifeos.expensecapture.splitpay.model.SmartSplit
 import com.lifeos.expensecapture.splitpay.model.SmartSplitParticipant
@@ -118,17 +118,25 @@ class SplitPayRepository(
 
     /** Every split the current user created (they fronted the money) - the "owed to me" side.
      * The "I owe someone else" side is [observeSplitsIOwe], a separate query since it reads
-     * participant rows across other people's splits, not SmartSplit docs of one's own. */
+     * participant rows across other people's splits, not SmartSplit docs of one's own.
+     *
+     * Sorts client-side rather than via `.orderBy("createdAt", ...)` deliberately: an equality
+     * filter combined with an orderBy on a *different* field needs a manually-created Firestore
+     * composite index, which was never provisioned for this project - every snapshot was hitting
+     * `error != null` and silently resolving to an empty list, which is why splits weren't
+     * showing up at all. A single `whereEqualTo` needs no composite index, so sorting here avoids
+     * depending on a console step that's easy to forget. */
     fun observeMySplits(uid: String): Flow<List<SmartSplit>> = callbackFlow {
         val registration = splitsCollection()
             .whereEqualTo("payerId", uid)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    AppLogger.w("SplitPayRepository", "observeMySplits failed: ${error.message}")
                     trySend(emptyList())
                     return@addSnapshotListener
                 }
-                trySend(snapshot?.documents?.mapNotNull { it.toObject(SmartSplit::class.java) } ?: emptyList())
+                val splits = snapshot?.documents?.mapNotNull { it.toObject(SmartSplit::class.java) } ?: emptyList()
+                trySend(splits.sortedByDescending { it.createdAt })
             }
         awaitClose { registration.remove() }
     }
@@ -152,6 +160,12 @@ class SplitPayRepository(
             .whereEqualTo("participantUserId", uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    // Collection-group queries need an explicit "Collection group" scoped
+                    // Firestore index for the filtered field (participantUserId) - never
+                    // auto-created, unlike a normal single-collection query. If this fires,
+                    // check Logcat for the FAILED_PRECONDITION error - it includes a direct
+                    // link to auto-create the missing index. See firestore.indexes.json.
+                    AppLogger.w("SplitPayRepository", "observeSplitsIOwe failed: ${error.message}")
                     trySend(emptyList())
                     return@addSnapshotListener
                 }

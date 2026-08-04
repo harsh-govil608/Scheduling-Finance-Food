@@ -68,8 +68,11 @@ fun SmartSplitDetailScreen(splitId: String, onBack: () -> Unit) {
     val currentUserId = authRepository.currentUser?.uid ?: ""
     val coroutineScope = rememberCoroutineScope()
 
-    val split by repository.observeSplit(splitId).collectAsState(initial = null)
-    val participants by repository.observeParticipants(splitId).collectAsState(initial = emptyList())
+    // remember()'d keyed on splitId - see the same fix in SmartSplitsScreen.kt (an inline
+    // observeX().collectAsState() recreates the Firestore listener, and resets to its initial
+    // value, on every recomposition rather than just when splitId changes).
+    val split by remember(splitId) { repository.observeSplit(splitId) }.collectAsState(initial = null)
+    val participants by remember(splitId) { repository.observeParticipants(splitId) }.collectAsState(initial = emptyList())
     val isPayer = split?.payerId == currentUserId
     val myParticipantRow = participants.firstOrNull { it.participantUserId == currentUserId }
 
