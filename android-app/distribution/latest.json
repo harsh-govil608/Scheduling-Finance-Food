@@ -1,6 +1,6 @@
 {
-  "versionCode": 42,
-  "versionName": "0.41.1-pilot",
+  "versionCode": 43,
+  "versionName": "0.41.2-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Bug fixes: Bills' \"Yes, track this\" now actually updates the tracked total, Smart Split now shows splits you've created, and Smart Split's screens no longer flicker while typing. Added a way to delete a family from Family Sharing."
+  "notes": "Bills: fixed a bug where dismissing a bill and deleting it could make it silently reappear later. \"Not a bill\" and \"Stop tracking\" now ask you to confirm first."
 }
