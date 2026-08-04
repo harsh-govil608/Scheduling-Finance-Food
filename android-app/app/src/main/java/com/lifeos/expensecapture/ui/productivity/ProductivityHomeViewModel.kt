@@ -46,6 +46,10 @@ data class ProductivityHomeUiState(
     val spentToday: Double = 0.0,
     /** Null when no budgets are set at all - nothing real to report "on track" against. */
     val allBudgetsOnTrack: Boolean? = null,
+    /** Mini spend-trend chart (2026-08 visual polish pass, real user request: the empty space
+     * beside Projects/Goal Progress when there's only one of each). Same last-7-days-of-real-DEBIT
+     * -transactions computation as HomeViewModel's own last7DaysSpend, not a separate metric. */
+    val last7DaysSpend: List<Float> = emptyList(),
     /** Reference-mockup "Projects" preview (2026-07-31 design refresh, see Color.kt's kdoc) -
      * reuses ProjectsViewModel's own ProjectRow/progress math rather than a second hand-copied
      * version. */
@@ -66,7 +70,8 @@ private data class TaskHabitSnapshot(
 
 private data class DailyFinanceSnapshot(
     val spentToday: Double,
-    val allBudgetsOnTrack: Boolean?
+    val allBudgetsOnTrack: Boolean?,
+    val last7DaysSpend: List<Float>
 )
 
 /**
@@ -115,7 +120,15 @@ class ProductivityHomeViewModel(
                 relevant.sumOf { it.amount } <= budget.monthlyLimit
             }
         }
-        DailyFinanceSnapshot(spentToday, allOnTrack)
+        val last7DaysSpend = (6 downTo 0).map { today.minusDays(it.toLong()) }.map { day ->
+            val start = day.atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            transactions
+                .filter { it.direction == TransactionDirection.DEBIT && it.date in start until end }
+                .sumOf { it.amount }
+                .toFloat()
+        }
+        DailyFinanceSnapshot(spentToday, allOnTrack, last7DaysSpend)
     }
 
     val uiState: StateFlow<ProductivityHomeUiState> = combine(
@@ -160,6 +173,7 @@ class ProductivityHomeViewModel(
             bestHabitStreak = bestStreak,
             spentToday = dailyFinance.spentToday,
             allBudgetsOnTrack = dailyFinance.allBudgetsOnTrack,
+            last7DaysSpend = dailyFinance.last7DaysSpend,
             projects = projectRows,
             goals = goals,
             insight = ProductivityInsightEngine.compute(tasks, habits, completions)

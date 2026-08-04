@@ -57,6 +57,7 @@ import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.common.ProfileAvatarButton
 import com.lifeos.expensecapture.ui.common.ProgressRing
 import com.lifeos.expensecapture.ui.common.SectionLabel
+import com.lifeos.expensecapture.ui.common.Sparkline
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
@@ -189,8 +190,12 @@ fun ProductivityHomeScreen(
                                 }
                             }
                         }
+                        // Real user request (2026-08): a single project left half the row empty -
+                        // fills that space with a small spend-trend chart (same last7DaysSpend
+                        // real transaction data Finance's own Home hero card charts) instead of a
+                        // bare Spacer, so the row doesn't look unfinished.
                         if (uiState.projects.size == 1) {
-                            Spacer(Modifier.weight(1f))
+                            MiniSpendTrendCard(uiState.last7DaysSpend, modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -310,6 +315,34 @@ private fun DailySummaryRow(uiState: ProductivityHomeUiState) {
     }
 }
 
+/** Fills the empty half of the Projects row when there's only one project (see the row's call
+ * site kdoc) - a compact Analytics-style trend line, same real last-7-days-of-spend figures
+ * Finance's own Home hero card charts, not a separate/fabricated metric. */
+@Composable
+private fun MiniSpendTrendCard(last7DaysSpend: List<Float>, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "This week",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(10.dp))
+            Text("₹${"%.0f".format(last7DaysSpend.sum())}", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Sparkline(
+                values = last7DaysSpend,
+                modifier = Modifier.fillMaxWidth().height(28.dp),
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
 @Composable
 private fun DailySummaryTile(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -337,12 +370,15 @@ private fun DailySummaryTile(
 }
 
 /**
- * The reference mockups' "Today's Focus" bordered card - combines what used to be two separate
- * cards (Due today, Habits for today) into sub-sections of one, each with its own "View all" link
+ * The reference mockups' "Today's Focus" bordered card - Tasks Due and Habit Progress side by
+ * side as two columns (2026-08 visual polish pass, matching the mockup's layout exactly instead
+ * of the two sections being stacked one above the other), each with its own "View all" link
  * rather than a whole-card tap target (avoids nesting a clickable Row inside a clickable Card).
- * Deliberately does NOT include a "Schedule" section like the reference - TaskEntity has no
- * time-of-day field, only a due *date*, so a list of clock times would be fabricated, not real
- * data (see ProductivityHomeUiState's kdoc on the same principle for Goal Progress).
+ * Habit Progress uses the same ring treatment as Goal Progress below (ProgressRing) instead of a
+ * linear bar, matching the mockup's "1/1 done today" ring. Deliberately does NOT include a
+ * "Schedule" section like the reference - TaskEntity has no time-of-day field, only a due *date*,
+ * so a list of clock times would be fabricated, not real data (see ProductivityHomeUiState's
+ * kdoc on the same principle for Goal Progress).
  */
 @Composable
 private fun TodaysFocusCard(
@@ -362,60 +398,77 @@ private fun TodaysFocusCard(
             Text("Today's Focus", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(16.dp))
 
-            SectionLabel("Tasks due")
-            if (uiState.todayTasks.isEmpty()) {
-                Text(
-                    if (uiState.totalOpenTasks == 0) "Nothing on your list." else "Nothing due today, ${uiState.totalOpenTasks} open in total",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                uiState.todayTasks.take(5).forEach { task ->
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
-                        Icon(
-                            Icons.Filled.CheckBoxOutlineBlank,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.weight(1f)) {
+                    SectionLabel("Tasks due")
+                    if (uiState.todayTasks.isEmpty()) {
+                        Text(
+                            if (uiState.totalOpenTasks == 0) "Nothing on your list." else "Nothing due today, ${uiState.totalOpenTasks} open in total",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(Modifier.width(10.dp))
-                        Text(task.title, style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        uiState.todayTasks.take(5).forEach { task ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                                Icon(
+                                    Icons.Filled.CheckBoxOutlineBlank,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(task.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                        if (uiState.todayTasks.size > 5) {
+                            Text(
+                                "+${uiState.todayTasks.size - 5} more",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = onOpenTasks, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
+                        Text("View all tasks")
                     }
                 }
-                if (uiState.todayTasks.size > 5) {
-                    Text(
-                        "+${uiState.todayTasks.size - 5} more",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            TextButton(onClick = onOpenTasks, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
-                Text("View all tasks")
-            }
 
-            Spacer(Modifier.height(12.dp))
-            SectionLabel("Habits progress")
-            if (uiState.totalHabits == 0) {
-                Text(
-                    "No habits yet.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Text(
-                    "${uiState.doneTodayHabitsCount} of ${uiState.totalHabits} done today",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { uiState.doneTodayHabitsCount.toFloat() / uiState.totalHabits },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = accent
-                )
-            }
-            TextButton(onClick = onOpenHabits, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
-                Text("View all habits")
+                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    SectionLabel("Habit progress")
+                    if (uiState.totalHabits == 0) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "No habits yet.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    } else {
+                        Spacer(Modifier.height(8.dp))
+                        ProgressRing(
+                            progress = uiState.doneTodayHabitsCount.toFloat() / uiState.totalHabits,
+                            modifier = Modifier.size(96.dp),
+                            progressColor = accent
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "${uiState.doneTodayHabitsCount}/${uiState.totalHabits}",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    "done today",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = onOpenHabits, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
+                        Text("View all habits")
+                    }
+                }
             }
         }
     }
