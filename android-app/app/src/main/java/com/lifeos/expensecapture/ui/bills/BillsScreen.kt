@@ -107,6 +107,19 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
                 it.displayStatus != BillDisplayStatus.CANCELLED && it.displayStatus != BillDisplayStatus.UNCONFIRMED
             }
             val totalTypical = trackedBills.sumOf { it.bill.typicalAmount }
+            // Bug fix (real user report, 2026-08): dismissing a detected bill ("Not a bill") sets
+            // it CANCELLED, which upsertBill's `existing.status != CANCELLED` guard relies on to
+            // never re-detect that payee again. Hard-deleting the row (via the Delete button
+            // below) throws that guard away - billDao.findByPayee then finds nothing, so the next
+            // refreshRecurringDetection() (runs on every Home open) re-inserts it from scratch as
+            // a brand new DETECTED_UNCONFIRMED row, i.e. the "deleted" bill comes back. A
+            // manually-added bill has no such risk (upsertBill only ever acts on payees the SMS-
+            // based RecurringPatternDetector actually finds), so those alone still show up
+            // CANCELLED with a real Delete option; a dismissed detected bill just disappears
+            // immediately - no separate delete step needed, and nothing to resurrect it.
+            val visibleBills = bills.filter {
+                it.displayStatus != BillDisplayStatus.CANCELLED || it.bill.isManuallyAdded
+            }
             val overdueCount = bills.count { it.displayStatus == BillDisplayStatus.OVERDUE }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -125,7 +138,7 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
                         }
                     )
                 }
-                items(bills, key = { it.bill.id }) { item ->
+                items(visibleBills, key = { it.bill.id }) { item ->
                     BillCard(
                         item = item,
                         onConfirm = { viewModel.confirm(item) },
@@ -207,6 +220,7 @@ private fun BillCard(
     onDelete: () -> Unit
 ) {
     val bill = item.bill
+    var showDismissConfirm by remember { mutableStateOf(false) }
     val containerColor = when (item.displayStatus) {
         BillDisplayStatus.OVERDUE -> MaterialTheme.colorScheme.errorContainer
         BillDisplayStatus.DUE_TODAY -> MaterialTheme.colorScheme.secondaryContainer
@@ -277,7 +291,7 @@ private fun BillCard(
                 BillDisplayStatus.UNCONFIRMED -> {
                     Row {
                         TextButton(onClick = onConfirm) { Text("Yes, track this") }
-                        TextButton(onClick = onDismiss) { Text("Not a bill") }
+                        TextButton(onClick = { showDismissConfirm = true }) { Text("Not a bill") }
                     }
                 }
                 // Real removal (found via a real user review - see BillDao.delete's kdoc):
@@ -290,7 +304,7 @@ private fun BillCard(
                 }
                 else -> {
                     Row {
-                        TextButton(onClick = onDismiss) { Text("Stop tracking") }
+                        TextButton(onClick = { showDismissConfirm = true }) { Text("Stop tracking") }
                         TextButton(onClick = onDelete) {
                             Text("Delete", color = MaterialTheme.colorScheme.error)
                         }
@@ -298,5 +312,30 @@ private fun BillCard(
                 }
             }
         }
+    }
+
+    // Real user request (2026-08): "Not a bill" and "Stop tracking" both immediately hide the
+    // bill (see visibleBills in BillsScreen's kdoc addition above) - a stray tap had no undo, so
+    // both now confirm first instead of firing on a single tap.
+    if (showDismissConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDismissConfirm = false },
+            title = { Text("Are you sure?") },
+            text = {
+                Text(
+                    if (item.displayStatus == BillDisplayStatus.UNCONFIRMED) {
+                        "Mark \"${bill.payeeDisplay}\" as not a bill? It won't be tracked as a recurring bill."
+                    } else {
+                        "Stop tracking \"${bill.payeeDisplay}\"? It'll no longer count toward your tracked bills."
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showDismissConfirm = false; onDismiss() }) { Text("Yes, I'm sure") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDismissConfirm = false }) { Text("Cancel") }
+            }
+        )
     }
 }
