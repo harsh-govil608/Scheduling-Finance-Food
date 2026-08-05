@@ -63,6 +63,19 @@ class GeminiCommandInterpreter(
             "addshoppingitem" -> dto.name?.trim().takeUnless { it.isNullOrBlank() }
                 ?.let { CommandIntent.AddShoppingItem(it, dto.quantity.orEmpty()) }
             "setbudget" -> dto.monthlyLimit?.let { CommandIntent.SetBudget(dto.categoryHint?.trim(), it) }
+            "completetask" -> dto.title?.trim().takeUnless { it.isNullOrBlank() }?.let { CommandIntent.CompleteTask(it) }
+            "deletetask" -> dto.title?.trim().takeUnless { it.isNullOrBlank() }?.let { CommandIntent.DeleteTask(it) }
+            "completehabit" -> dto.name?.trim().takeUnless { it.isNullOrBlank() }?.let { CommandIntent.CompleteHabit(it) }
+            "checkshoppingitem" -> dto.name?.trim().takeUnless { it.isNullOrBlank() }?.let { CommandIntent.CheckShoppingItem(it) }
+            "confirmbill" -> dto.merchant?.trim().takeUnless { it.isNullOrBlank() }?.let { CommandIntent.ConfirmBill(it) }
+            "dismissbill" -> dto.merchant?.trim().takeUnless { it.isNullOrBlank() }?.let { CommandIntent.DismissBill(it) }
+            "confirmsubscription" -> dto.merchant?.trim().takeUnless { it.isNullOrBlank() }?.let { CommandIntent.ConfirmSubscription(it) }
+            "dismisssubscription" -> dto.merchant?.trim().takeUnless { it.isNullOrBlank() }?.let { CommandIntent.DismissSubscription(it) }
+            "recategorizetransaction" -> {
+                val merchant = dto.merchant?.trim().orEmpty()
+                val category = dto.categoryHint?.trim().orEmpty()
+                if (merchant.isBlank() || category.isBlank()) null else CommandIntent.RecategorizeTransaction(merchant, category)
+            }
             "unrecognized" -> CommandIntent.Unrecognized(dto.rawText.orEmpty())
             else -> null
         }
@@ -101,14 +114,29 @@ class GeminiCommandInterpreter(
             {"type":"AddHabit","name":"meditate"}
             {"type":"AddShoppingItem","name":"milk","quantity":"2 liters"}
             {"type":"SetBudget","categoryHint":"food","monthlyLimit":5000}
+            {"type":"CompleteTask","title":"call mom"}
+            {"type":"DeleteTask","title":"call mom"}
+            {"type":"CompleteHabit","name":"meditate"}
+            {"type":"CheckShoppingItem","name":"milk"}
+            {"type":"ConfirmBill","merchant":"electricity"}
+            {"type":"DismissBill","merchant":"electricity"}
+            {"type":"ConfirmSubscription","merchant":"netflix"}
+            {"type":"DismissSubscription","merchant":"netflix"}
+            {"type":"RecategorizeTransaction","merchant":"swiggy","categoryHint":"food"}
             {"type":"Unrecognized","rawText":"the original sentence"}
 
             Rules: direction is DEBIT for money spent/paid, CREDIT for money received/got.
             dueDateHint is "today", "tomorrow", or null - never a specific date. quantity is a
             free-text string like "2" or "1 kg", default "" if not mentioned. categoryHint is only
-            set if the user named a category explicitly; otherwise null. If the sentence isn't
-            about logging a transaction/task/habit/shopping item or setting a budget, use
-            Unrecognized. Reply with the JSON object only.
+            set if the user named a category explicitly; otherwise null (except for
+            RecategorizeTransaction, where it's the target category and required). "title"/"name"/
+            "merchant" for the Complete/Delete/Check/Confirm/Dismiss/Recategorize types is just
+            whatever short phrase identifies the existing item/bill/subscription/transaction the
+            user is referring to (it gets matched by substring, not exact match) - never invent
+            one, use exactly what the user said. Use "done"/"complete"/"finished" wording for
+            CompleteTask/CompleteHabit, "not a bill"/"stop tracking" for DismissBill, "cancel"/
+            "stop" for DismissSubscription. If the sentence isn't about logging or acting on one
+            of these, use Unrecognized. Reply with the JSON object only.
         """.trimIndent()
     }
 }

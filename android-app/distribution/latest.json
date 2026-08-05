@@ -1,6 +1,6 @@
 {
-  "versionCode": 46,
-  "versionName": "0.42.0-pilot",
+  "versionCode": 47,
+  "versionName": "0.42.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "AI Assistant now runs on Gemini instead of OpenRouter. Insight cards across Home/Finance/Family/onboarding are AI-polished, Ledger has an AI category-suggestion assist, and Bills has an AI review pass for recurring charges the automatic detector misses - all with the same numbers/deterministic behavior as a guaranteed fallback."
+  "notes": "AI Assistant can now do a lot more with one sentence: complete/delete a task, mark a habit done, check off a shopping item, confirm/dismiss a bill or subscription, and recategorize a transaction - on top of everything it already did. Works via the rule-based fallback too, not just AI."
 }

@@ -93,4 +93,53 @@ class RuleBasedCommandInterpreterTest {
 
         assertTrue(result is CommandIntent.Unrecognized)
     }
+
+    @Test
+    fun `complete task phrasing produces a complete-task intent`() {
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("complete task call mom") }
+
+        require(result is CommandIntent.CompleteTask)
+        assertEquals("call mom", result.titleMatch)
+    }
+
+    @Test
+    fun `mark task done phrasing produces a complete-task intent`() {
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("mark task call mom done") }
+
+        require(result is CommandIntent.CompleteTask)
+        assertEquals("call mom", result.titleMatch)
+    }
+
+    @Test
+    fun `mark habit done phrasing produces a complete-habit intent`() {
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("mark habit meditate done") }
+
+        require(result is CommandIntent.CompleteHabit)
+        assertEquals("meditate", result.nameMatch)
+    }
+
+    @Test
+    fun `check off phrasing produces a check-shopping-item intent`() {
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("check off milk") }
+
+        require(result is CommandIntent.CheckShoppingItem)
+        assertEquals("milk", result.nameMatch)
+    }
+
+    @Test
+    fun `confirm bill phrasing produces a confirm-bill intent`() {
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("confirm bill electricity") }
+
+        require(result is CommandIntent.ConfirmBill)
+        assertEquals("electricity", result.payeeMatch)
+    }
+
+    @Test
+    fun `recategorize phrasing produces a recategorize-transaction intent`() {
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("recategorize swiggy as food") }
+
+        require(result is CommandIntent.RecategorizeTransaction)
+        assertEquals("swiggy", result.merchantMatch)
+        assertEquals("food", result.categoryName)
+    }
 }

@@ -25,8 +25,8 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 46
-        versionName = "0.42.0-pilot"
+        versionCode = 47
+        versionName = "0.42.1-pilot"
         buildConfigField("String", "GEMINI_API_KEY", "\"${localProperties.getProperty("GEMINI_API_KEY", "")}\"")
     }
 

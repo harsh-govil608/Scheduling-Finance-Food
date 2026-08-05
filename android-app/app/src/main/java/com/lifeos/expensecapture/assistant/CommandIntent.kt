@@ -36,6 +36,23 @@ sealed class CommandIntent {
 
     data class SetBudget(val categoryHint: String?, val monthlyLimit: Double) : CommandIntent()
 
+    /** Quick one-shot actions (2026-08, real user request - "I want automation such that I ask
+     * chatbot to do everything for me") - each matches an existing open/pending item by a
+     * substring of its title/name/payee/merchant (whatever the user actually said) rather than an
+     * ID the model could never know, same "find by name, not by ID" shape TransactionSearch
+     * already uses elsewhere in this app. Deliberately excludes multi-step flows (creating a
+     * family, building a Smart Split with participants) - those need their existing guided UI,
+     * not a single sentence. */
+    data class CompleteTask(val titleMatch: String) : CommandIntent()
+    data class DeleteTask(val titleMatch: String) : CommandIntent()
+    data class CompleteHabit(val nameMatch: String) : CommandIntent()
+    data class CheckShoppingItem(val nameMatch: String) : CommandIntent()
+    data class ConfirmBill(val payeeMatch: String) : CommandIntent()
+    data class DismissBill(val payeeMatch: String) : CommandIntent()
+    data class ConfirmSubscription(val merchantMatch: String) : CommandIntent()
+    data class DismissSubscription(val merchantMatch: String) : CommandIntent()
+    data class RecategorizeTransaction(val merchantMatch: String, val categoryName: String) : CommandIntent()
+
     /** The interpreter couldn't confidently map this to an action - same "don't silently drop
      * it" discipline ParseResult.Unparsed and TransactionSearch's no-match case already follow,
      * applied here to user commands instead of bank SMS. */

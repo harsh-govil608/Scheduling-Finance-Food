@@ -39,6 +39,22 @@ object RuleBasedCommandInterpreter : CommandInterpreter {
         RegexOption.IGNORE_CASE
     )
 
+    // Quick one-shot actions (2026-08, real user request - "I want automation such that I ask
+    // chatbot to do everything for me"). Explicit verb-first phrasing, same style as every
+    // pattern above - AI's free-form understanding (GeminiCommandInterpreter) covers more natural
+    // phrasing when a working key is configured; these are this fallback's own best effort.
+    private val completeTaskPattern = Regex("(?:complete|finish)\\s+task\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
+    private val markTaskDonePattern = Regex("mark\\s+task\\s+(.+?)\\s+(?:as\\s+)?done", RegexOption.IGNORE_CASE)
+    private val deleteTaskPattern = Regex("(?:delete|remove)\\s+task\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
+    private val completeHabitPattern = Regex("(?:complete|finish)\\s+habit\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
+    private val markHabitDonePattern = Regex("mark\\s+habit\\s+(.+?)\\s+(?:as\\s+)?done", RegexOption.IGNORE_CASE)
+    private val checkShoppingItemPattern = Regex("(?:check off|bought)\\s+(.+)", RegexOption.IGNORE_CASE)
+    private val confirmBillPattern = Regex("(?:confirm|track)\\s+bill\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
+    private val dismissBillPattern = Regex("(?:dismiss|not a)\\s+bill\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
+    private val confirmSubscriptionPattern = Regex("(?:confirm|track)\\s+subscription\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
+    private val dismissSubscriptionPattern = Regex("(?:dismiss|cancel)\\s+subscription\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
+    private val recategorizePattern = Regex("(?:recategorize|categorize)\\s+(.+?)\\s+as\\s+(.+)", RegexOption.IGNORE_CASE)
+
     override suspend fun interpret(text: String): CommandIntent {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return CommandIntent.Unrecognized(text)
@@ -55,6 +71,54 @@ object RuleBasedCommandInterpreter : CommandInterpreter {
         shoppingShorthandPattern.find(trimmed)?.let { m ->
             val name = m.groupValues[1].trim()
             if (name.isNotBlank()) return CommandIntent.AddShoppingItem(name = name)
+        }
+
+        markTaskDonePattern.find(trimmed)?.let { m ->
+            val title = m.groupValues[1].trim()
+            if (title.isNotBlank()) return CommandIntent.CompleteTask(titleMatch = title)
+        }
+        completeTaskPattern.find(trimmed)?.let { m ->
+            val title = m.groupValues[1].trim()
+            if (title.isNotBlank()) return CommandIntent.CompleteTask(titleMatch = title)
+        }
+        deleteTaskPattern.find(trimmed)?.let { m ->
+            val title = m.groupValues[1].trim()
+            if (title.isNotBlank()) return CommandIntent.DeleteTask(titleMatch = title)
+        }
+        markHabitDonePattern.find(trimmed)?.let { m ->
+            val name = m.groupValues[1].trim()
+            if (name.isNotBlank()) return CommandIntent.CompleteHabit(nameMatch = name)
+        }
+        completeHabitPattern.find(trimmed)?.let { m ->
+            val name = m.groupValues[1].trim()
+            if (name.isNotBlank()) return CommandIntent.CompleteHabit(nameMatch = name)
+        }
+        checkShoppingItemPattern.find(trimmed)?.let { m ->
+            val name = m.groupValues[1].trim()
+            if (name.isNotBlank()) return CommandIntent.CheckShoppingItem(nameMatch = name)
+        }
+        confirmBillPattern.find(trimmed)?.let { m ->
+            val payee = m.groupValues[1].trim()
+            if (payee.isNotBlank()) return CommandIntent.ConfirmBill(payeeMatch = payee)
+        }
+        dismissBillPattern.find(trimmed)?.let { m ->
+            val payee = m.groupValues[1].trim()
+            if (payee.isNotBlank()) return CommandIntent.DismissBill(payeeMatch = payee)
+        }
+        confirmSubscriptionPattern.find(trimmed)?.let { m ->
+            val merchant = m.groupValues[1].trim()
+            if (merchant.isNotBlank()) return CommandIntent.ConfirmSubscription(merchantMatch = merchant)
+        }
+        dismissSubscriptionPattern.find(trimmed)?.let { m ->
+            val merchant = m.groupValues[1].trim()
+            if (merchant.isNotBlank()) return CommandIntent.DismissSubscription(merchantMatch = merchant)
+        }
+        recategorizePattern.find(trimmed)?.let { m ->
+            val merchant = m.groupValues[1].trim()
+            val category = m.groupValues[2].trim()
+            if (merchant.isNotBlank() && category.isNotBlank()) {
+                return CommandIntent.RecategorizeTransaction(merchantMatch = merchant, categoryName = category)
+            }
         }
 
         spendPattern.find(trimmed)?.let { m ->

@@ -32,7 +32,8 @@ class AssistantViewModel(
             AssistantMessage(
                 text = "Tell me what to do, in your own words - for example \"spent 200 on lunch\", " +
                     "\"add task call mom tomorrow\", \"add habit meditate\", \"add milk to shopping\", " +
-                    "or \"set food budget to 5000\".",
+                    "\"set food budget to 5000\", \"complete task call mom\", \"mark meditate done\", " +
+                    "\"check off milk\", \"confirm bill electricity\", or \"recategorize swiggy as food\".",
                 isUser = false
             )
         )
