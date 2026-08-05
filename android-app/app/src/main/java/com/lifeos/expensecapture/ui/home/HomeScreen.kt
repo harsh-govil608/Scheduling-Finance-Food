@@ -525,7 +525,7 @@ fun HomeScreen(
                 item {
                     // AI-polished phrasing (2026-08, real user request) - the deterministic
                     // sentence is still the only source of truth (spendingInsightText), this just
-                    // asks Gemini to warm up the phrasing. Shows the plain sentence immediately,
+                    // asks AiClient to warm up the phrasing. Shows the plain sentence immediately,
                     // swapped in-place if/when the polished version arrives; falls back to the
                     // plain sentence unchanged on any failure - see AiTextPolisher's kdoc.
                     val factual = remember(insight) { spendingInsightText(insight) }

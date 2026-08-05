@@ -7,7 +7,7 @@ import com.lifeos.expensecapture.logging.AppLogger
  * narrative/insight surface in this app (SpendingInsightEngine's "What changed", ProductivityInsightEngine's
  * "AI Suggestions", Family Dashboard's insight line, the onboarding first-scan summary) already
  * computes a correct, factual sentence from real numbers with plain rule-based logic; none of that
- * changes. This only rephrases the *finished* sentence via Gemini for personality/variety, and
+ * changes. This only rephrases the *finished* sentence via [AiClient] for personality/variety, and
  * always falls back to the original untouched text on a blank key, network failure, or a
  * suspicious-looking response - so a bad/missing API key or no connection never removes an insight
  * that would otherwise have shown, it just shows the plain version instead.
@@ -16,7 +16,7 @@ object AiTextPolisher {
     suspend fun polish(factualText: String): String {
         if (factualText.isBlank()) return factualText
         val polished = try {
-            GeminiClient.generateText(prompt = factualText, systemInstruction = SYSTEM_PROMPT)
+            AiClient.generateText(prompt = factualText, systemInstruction = SYSTEM_PROMPT)
         } catch (e: Exception) {
             AppLogger.e("AiTextPolisher", "polish failed, using original text", e)
             null

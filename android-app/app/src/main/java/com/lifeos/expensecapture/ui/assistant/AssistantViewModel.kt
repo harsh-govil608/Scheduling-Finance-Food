@@ -3,8 +3,8 @@ package com.lifeos.expensecapture.ui.assistant
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeos.expensecapture.assistant.CommandExecutor
+import com.lifeos.expensecapture.assistant.AiCommandInterpreter
 import com.lifeos.expensecapture.assistant.CommandInterpreter
-import com.lifeos.expensecapture.assistant.GeminiCommandInterpreter
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.logging.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,12 +17,12 @@ data class AssistantMessage(val text: String, val isUser: Boolean)
 /**
  * See CommandIntent.kt's kdoc for the two-layer design. This ViewModel only owns the
  * conversation history and wires interpret -> execute together. Defaults to
- * GeminiCommandInterpreter, which itself falls back to RuleBasedCommandInterpreter when no key is
+ * AiCommandInterpreter, which itself falls back to RuleBasedCommandInterpreter when no key is
  * configured or the AI call fails - so this class doesn't need to know which one actually answered.
  */
 class AssistantViewModel(
     private val db: AppDatabase,
-    private val interpreter: CommandInterpreter = GeminiCommandInterpreter()
+    private val interpreter: CommandInterpreter = AiCommandInterpreter()
 ) : ViewModel() {
 
     private val executor = CommandExecutor(db)

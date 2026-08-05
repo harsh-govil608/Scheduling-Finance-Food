@@ -1,6 +1,6 @@
 {
-  "versionCode": 47,
-  "versionName": "0.42.1-pilot",
+  "versionCode": 48,
+  "versionName": "0.42.2-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "AI Assistant can now do a lot more with one sentence: complete/delete a task, mark a habit done, check off a shopping item, confirm/dismiss a bill or subscription, and recategorize a transaction - on top of everything it already did. Works via the rule-based fallback too, not just AI."
+  "notes": "AI is now actually live - switched back to OpenRouter with a working key (the Gemini key from before turned out to be invalid). Assistant, insight polishing, category suggestions, and bill review all now make real AI calls instead of falling back."
 }

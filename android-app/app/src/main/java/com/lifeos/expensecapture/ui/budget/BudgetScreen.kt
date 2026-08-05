@@ -261,7 +261,7 @@ private fun BudgetCard(
             )
             Spacer(Modifier.height(8.dp))
             // AI-polished phrasing (2026-08) - projectionText's deterministic run-rate math is
-            // the only source of truth for the number itself; Gemini only warms up the sentence
+            // the only source of truth for the number itself; the AI call only warms up the sentence
             // around it, with the plain sentence as the immediate/fallback value. See
             // AiTextPolisher's kdoc.
             val factual = remember(progress) { projectionText(progress) }

@@ -2,7 +2,7 @@ package com.lifeos.expensecapture.finance
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.lifeos.expensecapture.assistant.GeminiClient
+import com.lifeos.expensecapture.assistant.AiClient
 import com.lifeos.expensecapture.logging.AppLogger
 
 /**
@@ -51,7 +51,7 @@ object AiFinanceAnalyst {
         }
 
         val content = try {
-            GeminiClient.generateText(prompt = prompt, systemInstruction = SYSTEM_PROMPT, jsonMode = true)
+            AiClient.generateText(prompt = prompt, systemInstruction = SYSTEM_PROMPT, jsonMode = true)
         } catch (e: Exception) {
             AppLogger.e("AiFinanceAnalyst", "findMissedRecurringBills failed", e)
             null

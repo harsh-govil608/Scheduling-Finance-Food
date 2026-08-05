@@ -156,7 +156,7 @@ fun ProductivityHomeScreen(
             uiState.insight?.let { insight ->
                 item {
                     // AI-polished phrasing (2026-08) - ProductivityInsightEngine's deterministic
-                    // sentence stays the source of truth; Gemini only warms up the phrasing, with
+                    // sentence stays the source of truth; the AI call only warms up the phrasing, with
                     // the plain sentence as the immediate/fallback value. See AiTextPolisher's kdoc.
                     val polished by produceState(initialValue = insight, insight) {
                         value = AiTextPolisher.polish(insight)

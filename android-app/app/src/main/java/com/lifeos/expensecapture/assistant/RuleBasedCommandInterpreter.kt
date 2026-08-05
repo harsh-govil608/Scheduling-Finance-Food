@@ -41,7 +41,7 @@ object RuleBasedCommandInterpreter : CommandInterpreter {
 
     // Quick one-shot actions (2026-08, real user request - "I want automation such that I ask
     // chatbot to do everything for me"). Explicit verb-first phrasing, same style as every
-    // pattern above - AI's free-form understanding (GeminiCommandInterpreter) covers more natural
+    // pattern above - AI's free-form understanding (AiCommandInterpreter) covers more natural
     // phrasing when a working key is configured; these are this fallback's own best effort.
     private val completeTaskPattern = Regex("(?:complete|finish)\\s+task\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
     private val markTaskDonePattern = Regex("mark\\s+task\\s+(.+?)\\s+(?:as\\s+)?done", RegexOption.IGNORE_CASE)

@@ -23,7 +23,7 @@ class BillsViewModel(
     private val _aiReviewResultMessage = MutableStateFlow<String?>(null)
     val aiReviewResultMessage: StateFlow<String?> = _aiReviewResultMessage.asStateFlow()
 
-    /** AI-augmented bill review (2026-08) - see AiFinanceAnalyst's kdoc. Any merchant Gemini
+    /** AI-augmented bill review (2026-08) - see AiFinanceAnalyst's kdoc. Any merchant the AI
      * flags lands as a normal DETECTED_UNCONFIRMED row, showing up in the existing "New" section
      * with the same "Yes, track this"/"Not a bill" buttons every deterministically-detected bill
      * already has - that tap is the real confirmation, this call never tracks anything by itself. */

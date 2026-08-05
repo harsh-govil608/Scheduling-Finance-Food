@@ -268,7 +268,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
                 Text("You're all set", style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
                 // AI-polished phrasing (2026-08) - firstValueMessage's deterministic sentence
-                // stays the source of truth; Gemini only warms up the phrasing, with the plain
+                // stays the source of truth; the AI call only warms up the phrasing, with the plain
                 // sentence as the immediate/fallback value. See AiTextPolisher's kdoc.
                 val factual = remember(scanSummary) { firstValueMessage(hasSmsPermission(), scanSummary) }
                 val polished by produceState(initialValue = factual, factual) {

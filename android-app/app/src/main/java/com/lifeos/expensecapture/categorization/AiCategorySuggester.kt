@@ -1,14 +1,14 @@
 package com.lifeos.expensecapture.categorization
 
 import com.google.gson.Gson
-import com.lifeos.expensecapture.assistant.GeminiClient
+import com.lifeos.expensecapture.assistant.AiClient
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.logging.AppLogger
 
 /**
  * One-time cold-start assist (2026-08) for merchants [CategorizationEngine]'s deterministic
  * merchant_rules table has no rule for yet - never a recurring dependency. A single batched
- * Gemini call maps each uncategorized merchant name to the best-fit *existing* category (never
+ * AI call maps each uncategorized merchant name to the best-fit *existing* category (never
  * invents a new one); the caller is expected to let the user review/accept each suggestion via
  * [com.lifeos.expensecapture.data.repository.TransactionRepository.recategorize], which itself
  * seeds a real merchant_rule row - so accepting a suggestion once means that merchant categorizes
@@ -31,7 +31,7 @@ object AiCategorySuggester {
         }
 
         val content = try {
-            GeminiClient.generateText(prompt = prompt, systemInstruction = SYSTEM_PROMPT, jsonMode = true)
+            AiClient.generateText(prompt = prompt, systemInstruction = SYSTEM_PROMPT, jsonMode = true)
         } catch (e: Exception) {
             AppLogger.e("AiCategorySuggester", "suggest failed", e)
             null

@@ -10,11 +10,11 @@ import com.lifeos.expensecapture.data.db.entity.TransactionDirection
  *
  * - CommandInterpreter (text -> CommandIntent): the "understanding" layer. RuleBasedCommandInterpreter
  *   was the only implementation at first - regex/keyword matching, same shape as TransactionParser
- *   and TransactionSearch already use elsewhere in this app. GeminiCommandInterpreter (2026-08,
- *   briefly OpenRouter-backed before switching providers) is the real LLM-backed implementation
- *   this was staged for, wrapping RuleBasedCommandInterpreter as its fallback for when no key is
- *   configured or the network call fails - nothing downstream changed to support it, per the
- *   original plan.
+ *   and TransactionSearch already use elsewhere in this app. AiCommandInterpreter (2026-08, via
+ *   OpenRouter - briefly tried a Gemini key in between that turned out to be invalid) is the real
+ *   LLM-backed implementation this was staged for, wrapping RuleBasedCommandInterpreter as its
+ *   fallback for when no key is configured or the network call fails - nothing downstream changed
+ *   to support either provider swap, per the original plan.
  * - CommandExecutor (CommandIntent -> action): the "doing" layer. Calls the exact same
  *   repository/DAO methods every existing Add/Edit UI already calls - no new business logic,
  *   only routing. This is intentionally interpreter-agnostic, so whichever interpreter produced
