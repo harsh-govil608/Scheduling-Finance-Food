@@ -42,6 +42,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.family.model.FamilyEvent
 import com.lifeos.expensecapture.family.model.FamilyMember
 import com.lifeos.expensecapture.family.model.MemberPresence
@@ -135,7 +137,15 @@ fun FamilyDashboardScreen(
             }
 
             uiState.insight?.let { insight ->
-                item { AiInsightCard(title = "Family Insight", body = insight) }
+                item {
+                    // AI-polished phrasing (2026-08) - buildInsight()'s deterministic sentence
+                    // stays the source of truth; Gemini only warms up the phrasing, with the
+                    // plain sentence as the immediate/fallback value. See AiTextPolisher's kdoc.
+                    val polished by produceState(initialValue = insight, insight) {
+                        value = AiTextPolisher.polish(insight)
+                    }
+                    AiInsightCard(title = "Family Insight", body = polished)
+                }
             }
 
             if (uiState.upcomingTasks.isNotEmpty() || uiState.upcomingCalendarEvents.isNotEmpty()) {

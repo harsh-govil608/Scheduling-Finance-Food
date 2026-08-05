@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -29,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.data.db.entity.ConsentEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
@@ -265,10 +267,14 @@ fun PermissionScreen(onGranted: () -> Unit) {
             OnboardingStep.FIRST_VALUE -> {
                 Text("You're all set", style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    firstValueMessage(hasSmsPermission(), scanSummary),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                // AI-polished phrasing (2026-08) - firstValueMessage's deterministic sentence
+                // stays the source of truth; Gemini only warms up the phrasing, with the plain
+                // sentence as the immediate/fallback value. See AiTextPolisher's kdoc.
+                val factual = remember(scanSummary) { firstValueMessage(hasSmsPermission(), scanSummary) }
+                val polished by produceState(initialValue = factual, factual) {
+                    value = AiTextPolisher.polish(factual)
+                }
+                Text(polished, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(24.dp))
                 Button(onClick = onGranted) { Text("Go to my Finance home") }
             }

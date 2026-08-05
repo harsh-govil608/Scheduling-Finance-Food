@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,10 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -73,6 +76,8 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
         )
     }
     val bills by viewModel.bills.collectAsState()
+    val aiReviewInProgress by viewModel.aiReviewInProgress.collectAsState()
+    val aiReviewResultMessage by viewModel.aiReviewResultMessage.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -82,6 +87,20 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // AI-augmented bill review (2026-08) - see AiFinanceAnalyst's kdoc. Reviews
+                    // real transaction history for recurring charges the automatic detector's
+                    // 20-40 day window misses (annual/quarterly bills); anything found lands in
+                    // the "New" section below for the same confirm/dismiss review as any other
+                    // detected bill, never auto-tracked.
+                    if (aiReviewInProgress) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp).padding(end = 12.dp))
+                    } else {
+                        IconButton(onClick = { viewModel.requestAiReview() }) {
+                            Icon(Icons.Filled.AutoAwesome, contentDescription = "Ask AI to review for missed bills")
+                        }
                     }
                 }
             )
@@ -157,6 +176,17 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
                 showAddDialog = false
             },
             onDismiss = { showAddDialog = false }
+        )
+    }
+
+    aiReviewResultMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissAiReviewMessage() },
+            title = { Text("AI bill review") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissAiReviewMessage() }) { Text("OK") }
+            }
         )
     }
 }

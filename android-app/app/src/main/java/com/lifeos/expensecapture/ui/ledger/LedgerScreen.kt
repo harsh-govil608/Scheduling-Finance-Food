@@ -10,9 +10,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -22,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -63,9 +69,21 @@ fun LedgerScreen(app: App, onBack: () -> Unit) {
     }
     val viewModel = remember { LedgerViewModel(repository) }
     val uiState by viewModel.uiState.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
+    val suggestingInProgress by viewModel.suggestingInProgress.collectAsState()
+    val suggestionError by viewModel.suggestionError.collectAsState()
 
     var selectedTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var showManualEntry by remember { mutableStateOf(false) }
+
+    // AI-assisted categorization (2026-08) - see AiCategorySuggester's kdoc: a one-time cold-start
+    // assist for merchants with no rule yet, never a recurring dependency (accepting a suggestion
+    // seeds a real merchant_rule, same as a manual correction would). Only shown when there's
+    // something to suggest for.
+    val uncategorizedCount = remember(uiState.allTransactions, uiState.categories) {
+        val uncategorizedId = uiState.categories.firstOrNull { it.name == "Uncategorized" }?.id
+        uiState.allTransactions.count { it.categoryId == uncategorizedId }
+    }
 
     Scaffold(
         topBar = {
@@ -107,6 +125,29 @@ fun LedgerScreen(app: App, onBack: () -> Unit) {
                 }
                 DirectionFilterChip("Expense", uiState.directionFilter == LedgerDirectionFilter.EXPENSE) {
                     viewModel.setDirectionFilter(LedgerDirectionFilter.EXPENSE)
+                }
+            }
+
+            if (uncategorizedCount > 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "$uncategorizedCount uncategorized",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (suggestingInProgress) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    } else {
+                        TextButton(onClick = { viewModel.requestAiCategorySuggestions() }) {
+                            Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Suggest categories with AI")
+                        }
+                    }
                 }
             }
 
@@ -180,6 +221,60 @@ fun LedgerScreen(app: App, onBack: () -> Unit) {
                 showManualEntry = false
             },
             onDismiss = { showManualEntry = false }
+        )
+    }
+
+    if (suggestions.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSuggestions() },
+            title = { Text("AI category suggestions") },
+            text = {
+                Column {
+                    suggestions.forEach { suggestion ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    suggestion.transaction.merchantRaw,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    "→ ${suggestion.suggestedCategoryName}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { viewModel.rejectSuggestion(suggestion) }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Reject", tint = MaterialTheme.colorScheme.error)
+                            }
+                            IconButton(onClick = { viewModel.acceptSuggestion(suggestion) }) {
+                                Icon(Icons.Filled.Check, contentDescription = "Accept", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { suggestions.forEach { viewModel.acceptSuggestion(it) } }) { Text("Accept all") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissSuggestions() }) { Text("Dismiss") }
+            }
+        )
+    }
+
+    suggestionError?.let { error ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSuggestions() },
+            title = { Text("AI suggestions") },
+            text = { Text(error) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissSuggestions() }) { Text("OK") }
+            }
         )
     }
 }

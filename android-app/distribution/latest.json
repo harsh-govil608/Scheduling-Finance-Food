@@ -1,6 +1,6 @@
 {
-  "versionCode": 45,
-  "versionName": "0.41.4-pilot",
+  "versionCode": 46,
+  "versionName": "0.42.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Home tab: the space next to your Projects card now shows a Tasks-vs-Habits-completed chart for the week instead of a spend chart, so it's Home-specific rather than repeating Finance."
+  "notes": "AI Assistant now runs on Gemini instead of OpenRouter. Insight cards across Home/Finance/Family/onboarding are AI-polished, Ledger has an AI category-suggestion assist, and Bills has an AI review pass for recurring charges the automatic detector misses - all with the same numbers/deterministic behavior as a guaranteed fallback."
 }

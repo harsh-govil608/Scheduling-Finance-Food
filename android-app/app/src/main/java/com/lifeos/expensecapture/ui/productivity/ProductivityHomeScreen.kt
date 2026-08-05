@@ -46,6 +46,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.ui.common.AiInsightCard
 import com.lifeos.expensecapture.ui.common.ActionTile
 import com.lifeos.expensecapture.ui.common.EntryRow
@@ -153,7 +155,13 @@ fun ProductivityHomeScreen(
 
             uiState.insight?.let { insight ->
                 item {
-                    AiInsightCard(title = "AI Suggestions", body = insight)
+                    // AI-polished phrasing (2026-08) - ProductivityInsightEngine's deterministic
+                    // sentence stays the source of truth; Gemini only warms up the phrasing, with
+                    // the plain sentence as the immediate/fallback value. See AiTextPolisher's kdoc.
+                    val polished by produceState(initialValue = insight, insight) {
+                        value = AiTextPolisher.polish(insight)
+                    }
+                    AiInsightCard(title = "AI Suggestions", body = polished)
                 }
             }
 

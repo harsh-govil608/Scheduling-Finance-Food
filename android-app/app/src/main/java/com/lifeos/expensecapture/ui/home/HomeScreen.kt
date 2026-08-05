@@ -58,6 +58,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -65,6 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.data.repository.TransactionRepository
@@ -521,9 +523,18 @@ fun HomeScreen(
 
             uiState.spendingInsight?.let { insight ->
                 item {
+                    // AI-polished phrasing (2026-08, real user request) - the deterministic
+                    // sentence is still the only source of truth (spendingInsightText), this just
+                    // asks Gemini to warm up the phrasing. Shows the plain sentence immediately,
+                    // swapped in-place if/when the polished version arrives; falls back to the
+                    // plain sentence unchanged on any failure - see AiTextPolisher's kdoc.
+                    val factual = remember(insight) { spendingInsightText(insight) }
+                    val polished by produceState(initialValue = factual, factual) {
+                        value = AiTextPolisher.polish(factual)
+                    }
                     AiInsightCard(
                         title = "What changed",
-                        body = spendingInsightText(insight)
+                        body = polished
                     )
                 }
             }

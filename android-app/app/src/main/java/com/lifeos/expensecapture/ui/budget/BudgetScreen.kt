@@ -39,12 +39,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.ui.common.ProgressRing
@@ -258,10 +260,15 @@ private fun BudgetCard(
                 color = barColor
             )
             Spacer(Modifier.height(8.dp))
-            Text(
-                projectionText(progress),
-                style = MaterialTheme.typography.bodySmall
-            )
+            // AI-polished phrasing (2026-08) - projectionText's deterministic run-rate math is
+            // the only source of truth for the number itself; Gemini only warms up the sentence
+            // around it, with the plain sentence as the immediate/fallback value. See
+            // AiTextPolisher's kdoc.
+            val factual = remember(progress) { projectionText(progress) }
+            val polished by produceState(initialValue = factual, factual) {
+                value = AiTextPolisher.polish(factual)
+            }
+            Text(polished, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

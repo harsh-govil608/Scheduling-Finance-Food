@@ -14,6 +14,7 @@ import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.util.tickerFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
@@ -341,6 +342,62 @@ class FinanceInsightsRepository(
                 lastPaidDate = null,
                 status = BillStatus.CONFIRMED_TRACKED,
                 isManuallyAdded = true
+            )
+        )
+    }
+
+    /**
+     * AI-augmented bill review (2026-08) - see AiFinanceAnalyst's kdoc. Only asks about merchants
+     * the deterministic [RecurringPatternDetector] didn't already catch, and never re-asks about a
+     * merchant that's already tracked, dismissed, or cancelled (same `findByPayee` guard
+     * [upsertBill] uses, so this can't resurrect a bill the user explicitly dismissed - see
+     * BillsScreen's kdoc on that exact bug).
+     */
+    suspend fun findAiSuggestedBills(): List<AiFinanceAnalyst.SuggestedBill> {
+        val allTransactions = transactionDao.getSince(0L)
+        val alreadyKnownMerchants = billDao.observeAll().first().map { it.payeeNormalized }.toSet() +
+            subscriptionDao.observeAll().first().map { it.merchantNormalized }.toSet()
+        val deterministicallyDetected = RecurringPatternDetector.detect(allTransactions)
+            .map { it.merchantNormalized }.toSet()
+
+        val candidates = allTransactions
+            .filter { it.direction == TransactionDirection.DEBIT }
+            .groupBy { it.merchantNormalized }
+            .filter { (merchant, txns) ->
+                txns.size >= 2 && merchant !in alreadyKnownMerchants && merchant !in deterministicallyDetected
+            }
+            .map { (merchant, txns) ->
+                val sorted = txns.sortedBy { it.date }
+                val intervals = sorted.zipWithNext { a, b -> (b.date - a.date) / 86_400_000.0 }
+                AiFinanceAnalyst.MerchantSummary(
+                    merchantNormalized = merchant,
+                    merchantDisplay = sorted.last().merchantRaw,
+                    occurrenceCount = sorted.size,
+                    amounts = sorted.map { it.amount },
+                    averageIntervalDays = intervals.average()
+                )
+            }
+
+        return AiFinanceAnalyst.findMissedRecurringBills(candidates)
+    }
+
+    /** Explicit user confirmation ("Track it?") turns one AI suggestion into a real Bill row -
+     * see AiFinanceAnalyst's kdoc on why nothing here is ever auto-created. Lands in the same
+     * DETECTED_UNCONFIRMED state (and reuses BillsScreen's existing "Yes, track this"/"Not a
+     * bill" review UI) as every deterministically-detected bill, rather than a second UI. */
+    suspend fun trackAiSuggestedBill(suggestion: AiFinanceAnalyst.SuggestedBill) {
+        if (billDao.findByPayee(suggestion.merchantNormalized) != null) return
+        val lastOccurrence = transactionDao.getSince(0L)
+            .filter { it.merchantNormalized == suggestion.merchantNormalized }
+            .maxByOrNull { it.date }
+        billDao.insert(
+            BillEntity(
+                payeeNormalized = suggestion.merchantNormalized,
+                payeeDisplay = suggestion.merchantDisplay,
+                typicalAmount = suggestion.typicalAmount,
+                dueDayOfMonth = lastOccurrence?.let { dayOfMonthOf(it.date) } ?: 1,
+                lastPaidDate = lastOccurrence?.date,
+                status = BillStatus.DETECTED_UNCONFIRMED
             )
         )
     }

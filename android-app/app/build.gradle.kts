@@ -8,10 +8,10 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-// Keeps the OpenRouter key (and anything else secret) out of git entirely - local.properties is
+// Keeps the Gemini key (and anything else secret) out of git entirely - local.properties is
 // already gitignored for sdk.dir, so it's read here rather than committing a key to build.gradle.kts
 // or anywhere under source control. Falls back to an empty string when missing, which
-// AiCommandInterpreter treats as "no AI configured, use the rule-based interpreter."
+// GeminiClient treats as "no AI configured" everywhere it's used.
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) load(FileInputStream(file))
@@ -25,9 +25,9 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 45
-        versionName = "0.41.4-pilot"
-        buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY", "")}\"")
+        versionCode = 46
+        versionName = "0.42.0-pilot"
+        buildConfigField("String", "GEMINI_API_KEY", "\"${localProperties.getProperty("GEMINI_API_KEY", "")}\"")
     }
 
     buildTypes {
