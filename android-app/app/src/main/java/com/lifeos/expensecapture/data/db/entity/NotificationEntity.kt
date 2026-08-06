@@ -41,7 +41,12 @@ enum class NotificationType {
      * budget and insight that depends on it (Spending Insight, category budgets) can't fire.
      * This closes that silence: a nudge toward Ledger once enough uncategorized spend has
      * accumulated this month, not a hard requirement. */
-    UNCATEGORIZED_SPEND
+    UNCATEGORIZED_SPEND,
+    /** Real user request, 2026-08: a plain "did you log anything recently?" nudge every 5 hours -
+     * see PeriodicReminderWorker's kdoc. Unlike every other type above, this is genuinely
+     * periodic, not conditional on any real data state, so it has no cooldown check of its own
+     * (the 5-hour WorkManager interval itself is the cadence). */
+    PERIODIC_CHECK_IN
 }
 
 @Entity(tableName = "app_notifications")

@@ -1,6 +1,6 @@
 {
-  "versionCode": 49,
-  "versionName": "0.43.0-pilot",
+  "versionCode": 50,
+  "versionName": "0.43.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Smart Split: you can now delete a split (History screen keeps a record for 30 days, then auto-clears). Finance Home: removed the top-bar search icon (still in Quick Actions) and moved Export to Profile as \"Export Statement\"."
+  "notes": "New: a check-in reminder notification every 5 hours (\"anything to log?\") - separate from the existing bill/budget/task alerts, always fires on schedule rather than only when something needs attention."
 }

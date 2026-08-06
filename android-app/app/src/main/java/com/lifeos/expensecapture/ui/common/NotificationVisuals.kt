@@ -5,6 +5,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PriorityHigh
@@ -33,5 +34,6 @@ object NotificationVisuals {
         NotificationType.UNUSUAL_TRANSACTION -> Icons.Filled.PriorityHigh
         NotificationType.GOAL_OFF_TRACK -> Icons.Filled.Savings
         NotificationType.UNCATEGORIZED_SPEND -> Icons.AutoMirrored.Filled.ReceiptLong
+        NotificationType.PERIODIC_CHECK_IN -> Icons.Filled.EditNote
     }
 }

@@ -35,6 +35,7 @@ import com.lifeos.expensecapture.data.db.entity.ConsentEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
+import com.lifeos.expensecapture.notifications.PeriodicReminderWorker
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -153,6 +154,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
             // No runtime notification permission needed pre-Android 13 - the worker still
             // needs scheduling so the in-app Notification Center stays populated.
             NotificationCheckWorker.schedulePeriodic(context)
+            PeriodicReminderWorker.schedulePeriodic(context)
             finishOnboarding()
         }
     }
@@ -181,6 +183,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
         scope.launch {
             app.database.consentDao().upsert(ConsentEntity(CONSENT_NOTIFICATIONS, granted))
             NotificationCheckWorker.schedulePeriodic(context)
+            PeriodicReminderWorker.schedulePeriodic(context)
             finishOnboarding()
         }
     }
@@ -259,6 +262,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
                     scope.launch {
                         app.database.consentDao().upsert(ConsentEntity(CONSENT_NOTIFICATIONS, false))
                         NotificationCheckWorker.schedulePeriodic(context)
+            PeriodicReminderWorker.schedulePeriodic(context)
                         finishOnboarding()
                     }
                 }) { Text("Not now") }

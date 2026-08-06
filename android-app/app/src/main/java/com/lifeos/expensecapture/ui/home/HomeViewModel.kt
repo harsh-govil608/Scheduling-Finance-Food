@@ -19,6 +19,7 @@ import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.finance.SpendingInsightEngine
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
+import com.lifeos.expensecapture.notifications.PeriodicReminderWorker
 import com.lifeos.expensecapture.ui.onboarding.CONSENT_SMS
 import com.lifeos.expensecapture.util.ConnectivityObserver
 import com.lifeos.expensecapture.util.Prefs
@@ -127,6 +128,12 @@ class HomeViewModel(
         // Also runs the notification check on every Home open, not just the 6-hour schedule,
         // so testers see fresh results without waiting.
         NotificationCheckWorker.runOnce(context)
+        // Real user request, 2026-08 ("5 hours reminder notification") - schedulePeriodic only
+        // ever got called from onboarding (see PermissionScreen.kt), which anyone who'd already
+        // onboarded before this feature existed would never re-run. enqueueUniquePeriodicWork's
+        // KEEP policy makes this safe/idempotent to call on every Home open too - a no-op once
+        // it's actually scheduled, exactly like NotificationCheckWorker.runOnce above.
+        PeriodicReminderWorker.schedulePeriodic(context)
     }
 
     private val financeSnapshot = combine(
