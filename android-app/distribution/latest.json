@@ -1,6 +1,6 @@
 {
-  "versionCode": 52,
-  "versionName": "0.44.1-pilot",
+  "versionCode": 53,
+  "versionName": "0.44.2-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Home tab's Today's Focus card shows your open habits again (not just tasks) - regression from the last redesign, now fixed."
+  "notes": "Fixed: joining a family with an invite code always failed (\"Couldn't join family\") - the lookup needed a Firestore index that was never provisioned. Joining now works without any extra setup."
 }

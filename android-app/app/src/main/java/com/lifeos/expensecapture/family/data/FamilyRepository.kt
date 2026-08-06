@@ -50,6 +50,10 @@ class FamilyRepository(
     private fun familyDoc(familyId: String) = firestore.collection("families").document(familyId)
     private fun membersCollection(familyId: String) = familyDoc(familyId).collection("members")
     private fun invitationsCollection(familyId: String) = familyDoc(familyId).collection("invitations")
+    /** Top-level code -> {familyId, invitationId} lookup (2026-08 bug fix - see joinFamilyByCode's
+     * kdoc for why this replaced a collectionGroup query on "invitations"). Doc ID is the code
+     * itself, so joining is a direct get(), never a query - no Firestore index to provision. */
+    private fun inviteCodeDoc(code: String) = firestore.collection("inviteCodes").document(code)
 
     suspend fun createFamily(name: String, ownerId: String, ownerDisplayName: String): FamilyResult<String> {
         return try {
@@ -189,6 +193,7 @@ class FamilyRepository(
                 status = InvitationStatus.PENDING
             )
             ref.set(invitation).await()
+            inviteCodeDoc(invitation.code).set(mapOf("familyId" to familyId, "invitationId" to ref.id)).await()
             FamilyResult.Success(invitation)
         } catch (e: Exception) {
             FamilyResult.Failure(e.message ?: "Couldn't create invitation")
@@ -210,22 +215,30 @@ class FamilyRepository(
 
     /**
      * Joins by invite code (typed manually, or extracted from a share-link deep link before this
-     * is called - see FamilyOnboardingViewModel). Validates expiry/status client-side; real
-     * concurrent-use protection (two people racing the same single-use code) would need a
-     * Firestore transaction or a Cloud Function - out of scope for a family-size invite flow
-     * where that race is vanishingly unlikely, flagged here rather than silently assumed solved.
+     * is called - see FamilyOnboardingViewModel). Looks the code up via [inviteCodeDoc] - a direct
+     * document get, not a `collectionGroup("invitations")` query - because that query needs a
+     * manually-provisioned Firestore composite index that was never created, so every join
+     * silently failed with "Couldn't join family" (real bug report, 2026-08). Validates
+     * expiry/status client-side; real concurrent-use protection (two people racing the same
+     * single-use code) would need a Firestore transaction or a Cloud Function - out of scope for a
+     * family-size invite flow where that race is vanishingly unlikely, flagged here rather than
+     * silently assumed solved.
      */
     suspend fun joinFamilyByCode(code: String, userId: String, displayName: String): FamilyResult<String> {
         return try {
-            val matches = firestore.collectionGroup("invitations")
-                .whereEqualTo("code", code.trim().uppercase())
-                .whereEqualTo("status", InvitationStatus.PENDING.name)
-                .get()
-                .await()
-            val invitationDoc = matches.documents.firstOrNull()
-                ?: return FamilyResult.Failure("Invite code not found or already used")
+            val normalizedCode = code.trim().uppercase()
+            val lookup = inviteCodeDoc(normalizedCode).get().await()
+            val lookupFamilyId = lookup.getString("familyId")
+            val invitationId = lookup.getString("invitationId")
+            if (lookupFamilyId == null || invitationId == null) {
+                return FamilyResult.Failure("Invite code not found or already used")
+            }
+            val invitationDoc = invitationsCollection(lookupFamilyId).document(invitationId).get().await()
             val invitation = invitationDoc.toObject(Invitation::class.java)
                 ?: return FamilyResult.Failure("Invite code not found or already used")
+            if (invitation.status != InvitationStatus.PENDING) {
+                return FamilyResult.Failure("Invite code not found or already used")
+            }
             if (invitation.expiresAt < System.currentTimeMillis()) {
                 invitationDoc.reference.update("status", InvitationStatus.EXPIRED.name).await()
                 return FamilyResult.Failure("This invite has expired")
