@@ -169,10 +169,15 @@ fun BarChart(
                 if (bucketCount == 0) return@Canvas
                 val groupWidth = size.width / bucketCount
                 val barGap = 4.dp.toPx()
-                val barWidth = ((groupWidth - barGap * (series.size + 1)) / series.size).coerceAtLeast(2f)
+                // Capped so a low bucket count (e.g. "Week 1" early in the month, see
+                // ExpensesModuleScreen's weeklyTotals) doesn't stretch into one giant block -
+                // real bug hit with a single-bucket chart before this cap existed.
+                val barWidth = ((groupWidth - barGap * (series.size + 1)) / series.size)
+                    .coerceIn(2f, 40.dp.toPx())
+                val groupContentWidth = barWidth * series.size + barGap * (series.size - 1)
 
                 for (bucket in 0 until bucketCount) {
-                    var x = bucket * groupWidth + barGap
+                    var x = bucket * groupWidth + (groupWidth - groupContentWidth) / 2
                     series.forEachIndexed { seriesIndex, (_, values) ->
                         val value = values.getOrElse(bucket) { 0f }
                         val barHeight = (value / maxValue) * size.height

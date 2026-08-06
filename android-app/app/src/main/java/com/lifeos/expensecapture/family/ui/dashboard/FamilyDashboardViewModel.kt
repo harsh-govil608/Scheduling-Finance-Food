@@ -38,6 +38,10 @@ data class FamilyDashboardUiState(
      * refund/salary isn't "spend"). */
     val totalFamilySpendToday: Double = 0.0,
     val spendByMemberToday: List<FamilySpendSlice> = emptyList(),
+    /** Yesterday's same-metric total (2026-08, `ui3/` reference's "12% less than yesterday" line)
+     * - null when there's no spend logged yesterday at all, so the UI can skip a "0% change" that
+     * would actually mean "nothing to compare against." */
+    val totalFamilySpendYesterday: Double? = null,
     val loading: Boolean = true
 )
 
@@ -85,12 +89,15 @@ class FamilyDashboardViewModel(
     // hours - see TickerFlow's kdoc).
     private val todayStartMillis = LocalDate.now(ZoneId.systemDefault())
         .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-    private val todayLedgerEntries = ledgerRepository.observeEntries(familyId, todayStartMillis)
+    private val yesterdayStartMillis = todayStartMillis - 24L * 60 * 60 * 1000
+    // One query from yesterday's start covers both cards (today's total + yesterday's comparison)
+    // - split client-side by `date` rather than a second Firestore listener for the same collection.
+    private val recentLedgerEntries = ledgerRepository.observeEntries(familyId, yesterdayStartMillis)
 
     val uiState: StateFlow<FamilyDashboardUiState> = combine(
         familyRepository.observeFamily(familyId),
         content,
-        todayLedgerEntries
+        recentLedgerEntries
     ) { family, snapshot, ledgerEntries ->
         val currentMember = snapshot.members.firstOrNull { it.userId == currentUserId }
         val now = System.currentTimeMillis()
@@ -103,7 +110,10 @@ class FamilyDashboardViewModel(
             .filter { it.startAt in now..weekAhead }
             .sortedBy { it.startAt }
 
-        val todaySpend = ledgerEntries.filter { it.direction == "DEBIT" }
+        val todaySpend = ledgerEntries.filter { it.direction == "DEBIT" && it.date >= todayStartMillis }
+        val yesterdaySpend = ledgerEntries.filter {
+            it.direction == "DEBIT" && it.date in yesterdayStartMillis until todayStartMillis
+        }
         val spendByMember = todaySpend
             .groupBy { it.memberName }
             .mapValues { (_, entries) -> entries.sumOf { it.amount } }
@@ -122,6 +132,7 @@ class FamilyDashboardViewModel(
             insight = buildInsight(snapshot.members, upcomingTasks, snapshot.presence),
             totalFamilySpendToday = todaySpend.sumOf { it.amount },
             spendByMemberToday = spendByMember,
+            totalFamilySpendYesterday = yesterdaySpend.sumOf { it.amount }.takeIf { it > 0.0 },
             loading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FamilyDashboardUiState())

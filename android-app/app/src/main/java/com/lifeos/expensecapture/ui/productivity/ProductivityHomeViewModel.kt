@@ -27,6 +27,13 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+/** One real, computed suggestion for the "AI Suggestions" card (2026-08, `ui3/` reference -
+ * redesigned from a single paragraph into a short list of tappable tips). Deliberately built from
+ * up to 3 independent, already-real signals rather than an AI call inventing several - see
+ * ProductivityHomeViewModel's kdoc on why each one is computed, not fabricated. */
+enum class HomeTipKind { BUDGET, TASK, INSIGHT }
+data class HomeTip(val kind: HomeTipKind, val text: String)
+
 data class ProductivityHomeUiState(
     val displayName: String = "",
     val profilePhotoPath: String? = null,
@@ -35,18 +42,21 @@ data class ProductivityHomeUiState(
     val pendingHabitsToday: List<HabitEntity> = emptyList(),
     val totalHabits: Int = 0,
     val doneTodayHabitsCount: Int = 0,
+    /** Composite of today's real task/habit completion signals (2026-08, `ui3/` reference's
+     * "Today Score" card) - the average of whichever of (tasks completed today / tasks completed
+     * or still due today) and (habits done today / total habits) actually has data, scaled to a
+     * percentage. Null when neither signal exists yet (no habits and nothing due/completed today)
+     * - a fresh/quiet day gets an honest empty state, not a fabricated 100%. */
+    val todayScore: Int? = null,
+    /** Real, computed suggestions - see [HomeTip]'s kdoc. Empty list hides the card entirely
+     * rather than padding it with a placeholder. */
+    val tips: List<HomeTip> = emptyList(),
     /** Engagement hook (moved here from Finance's Home, 2026-08 - the founder's own feedback:
      * habits belong with the rest of the Home pillar's habit content, not on the Finance
      * screen). The best current streak across all habits - see HabitStreakCalculator's kdoc.
      * 0 means no active streak (or no habits at all), rendered as absent rather than a
      * discouraging "0-day streak". */
     val bestHabitStreak: Int = 0,
-    /** Daily Summary row (2026-08 reference mockups, `ui2/` folder) - spend and budget status
-     * are the same real figures Finance's own screens show, cross-read here rather than
-     * recomputed differently. */
-    val spentToday: Double = 0.0,
-    /** Null when no budgets are set at all - nothing real to report "on track" against. */
-    val allBudgetsOnTrack: Boolean? = null,
     /** Mini "Tasks vs Habits completed" chart (2026-08 visual polish pass, real user request:
      * the empty space beside the Projects card when there's only one project). Deliberately
      * Home-pillar data, not a repeat of Finance's own spend chart - real completedAt/dateEpochDay
@@ -59,8 +69,7 @@ data class ProductivityHomeUiState(
     val projects: List<ProjectRow> = emptyList(),
     /** Reference-mockup "Goal Progress" rings - each ring is 100%/0% from the real `completed`
      * flag, not a fabricated numeric progress GoalEntity doesn't track. */
-    val goals: List<GoalEntity> = emptyList(),
-    val insight: String? = null
+    val goals: List<GoalEntity> = emptyList()
 )
 
 /** Keeps the top-level combine() to a 4-arg overload instead of an untyped vararg across many
@@ -72,8 +81,11 @@ private data class TaskHabitSnapshot(
 )
 
 private data class DailyFinanceSnapshot(
-    val spentToday: Double,
-    val allBudgetsOnTrack: Boolean?
+    /** How much room is left in the "Overall" (categoryId == null) monthly budget, divided by
+     * days remaining in the month - null when no Overall budget is set, per-category budgets
+     * alone aren't summed here to avoid double-counting spend that could fall under more than
+     * one. Feeds the BUDGET tip in [ProductivityHomeUiState.tips]. */
+    val safeToSpendToday: Double?
 )
 
 /**
@@ -109,20 +121,15 @@ class ProductivityHomeViewModel(
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val monthStart = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val todayStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
-        val spentToday = transactions
-            .filter { it.direction == TransactionDirection.DEBIT && it.date >= todayStart }
-            .sumOf { it.amount }
         val thisMonthDebits = transactions.filter { it.direction == TransactionDirection.DEBIT && it.date >= monthStart }
-        val allOnTrack = if (budgets.isEmpty()) {
-            null
-        } else {
-            budgets.all { budget ->
-                val relevant = thisMonthDebits.filter { budget.categoryId == null || it.categoryId == budget.categoryId }
-                relevant.sumOf { it.amount } <= budget.monthlyLimit
-            }
+        val overallBudget = budgets.firstOrNull { it.categoryId == null }
+        val safeToSpendToday = overallBudget?.let { budget ->
+            val spent = thisMonthDebits.sumOf { it.amount }
+            val remaining = budget.monthlyLimit - spent
+            val daysLeftInMonth = (today.lengthOfMonth() - today.dayOfMonth + 1).coerceAtLeast(1)
+            (remaining / daysLeftInMonth).takeIf { it > 0.0 }
         }
-        DailyFinanceSnapshot(spentToday, allOnTrack)
+        DailyFinanceSnapshot(safeToSpendToday)
     }
 
     val uiState: StateFlow<ProductivityHomeUiState> = combine(
@@ -169,6 +176,34 @@ class ProductivityHomeViewModel(
             )
         }
 
+        val doneTodayHabitsCount = habits.size - pendingHabits.size
+
+        // Today Score (see ProductivityHomeUiState.todayScore's kdoc) - average of whichever of
+        // the two components actually has data this pass, so a habits-only or tasks-only day
+        // still gets a real score instead of one component silently dragging it toward zero.
+        val tasksCompletedTodayCount = tasksCompletedLast7Days.last().toInt()
+        val taskComponent = (tasksCompletedTodayCount + todayTasks.size)
+            .takeIf { it > 0 }
+            ?.let { denominator -> tasksCompletedTodayCount.toFloat() / denominator }
+        val habitComponent = habits.size.takeIf { it > 0 }?.let { doneTodayHabitsCount.toFloat() / it }
+        val todayScore = listOfNotNull(taskComponent, habitComponent)
+            .takeIf { it.isNotEmpty() }
+            ?.let { components -> ((components.sum() / components.size) * 100).toInt() }
+
+        // AI Suggestions tips (see HomeTip's kdoc) - up to 3 real signals, never padded with a
+        // fabricated one when fewer are available.
+        val tips = buildList {
+            dailyFinance.safeToSpendToday?.let { safeAmount ->
+                add(HomeTip(HomeTipKind.BUDGET, "Spend below ₹${"%.0f".format(safeAmount)} today to stay within budget."))
+            }
+            todayTasks.maxByOrNull { it.priority.ordinal }?.let { task ->
+                add(HomeTip(HomeTipKind.TASK, "\"${task.title}\" is still open - worth tackling today."))
+            }
+            ProductivityInsightEngine.compute(tasks, habits, completions)?.let { insight ->
+                add(HomeTip(HomeTipKind.INSIGHT, insight))
+            }
+        }
+
         ProductivityHomeUiState(
             displayName = Prefs.getDisplayName(context),
             profilePhotoPath = Prefs.getProfilePhotoPath(context),
@@ -176,15 +211,14 @@ class ProductivityHomeViewModel(
             totalOpenTasks = openTasks.size,
             pendingHabitsToday = pendingHabits,
             totalHabits = habits.size,
-            doneTodayHabitsCount = habits.size - pendingHabits.size,
+            doneTodayHabitsCount = doneTodayHabitsCount,
             bestHabitStreak = bestStreak,
-            spentToday = dailyFinance.spentToday,
-            allBudgetsOnTrack = dailyFinance.allBudgetsOnTrack,
+            todayScore = todayScore,
+            tips = tips,
             tasksCompletedLast7Days = tasksCompletedLast7Days,
             habitsCompletedLast7Days = habitsCompletedLast7Days,
             projects = projectRows,
-            goals = goals,
-            insight = ProductivityInsightEngine.compute(tasks, habits, completions)
+            goals = goals
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProductivityHomeUiState())
 }

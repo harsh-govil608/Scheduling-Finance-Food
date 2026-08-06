@@ -8,6 +8,7 @@ import com.lifeos.expensecapture.data.db.entity.TaskEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.repository.TransactionRepository
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.finance.FinanceQaEngine
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.ZoneId
@@ -35,7 +36,7 @@ class CommandExecutor(private val db: AppDatabase) {
         is CommandIntent.ConfirmSubscription -> confirmSubscription(intent)
         is CommandIntent.DismissSubscription -> dismissSubscription(intent)
         is CommandIntent.RecategorizeTransaction -> recategorizeTransaction(intent)
-        is CommandIntent.Unrecognized -> unrecognized()
+        is CommandIntent.Unrecognized -> unrecognized(intent)
     }
 
     private suspend fun addTransaction(intent: CommandIntent.AddTransaction): String {
@@ -183,8 +184,22 @@ class CommandExecutor(private val db: AppDatabase) {
         billDao = db.billDao()
     )
 
-    private fun unrecognized(): String =
-        "I didn't recognize that yet - try things like \"spent 200 on lunch\", \"add task call mom tomorrow\", " +
+    /** Real user request (2026-08, forwarded suggestion): "let the app proactively answer
+     * questions like 'why did I spend more this month'" - see FinanceQaEngine's kdoc. Neither
+     * interpreter (rule-based or AI) recognizes a genuine question as one of the known action
+     * types, so it lands here exactly like any other unparseable input already did; the only
+     * change is trying a real answer first instead of immediately giving up. Falls back to the
+     * same help text as before if AI isn't available (blank/invalid key, network failure, offline)
+     * - there's no honest deterministic way to answer an open-ended question the way the regex
+     * fallback answers a structured action. */
+    private suspend fun unrecognized(intent: CommandIntent.Unrecognized): String {
+        val rawText = intent.rawText.trim()
+        if (rawText.isNotBlank()) {
+            FinanceQaEngine.answer(rawText, db)?.let { return it }
+        }
+        return "I didn't recognize that yet - try things like \"spent 200 on lunch\", \"add task call mom tomorrow\", " +
             "\"add habit meditate\", \"add milk to shopping\", \"complete task call mom\", " +
-            "\"mark meditate done\", \"check off milk\", \"confirm bill electricity\", or \"set food budget to 5000\"."
+            "\"mark meditate done\", \"check off milk\", \"confirm bill electricity\", \"set food budget to 5000\", " +
+            "or ask a question like \"why did I spend more this month\" (needs AI configured)."
+    }
 }

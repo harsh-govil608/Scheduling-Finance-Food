@@ -16,19 +16,20 @@ import com.lifeos.expensecapture.family.ui.dashboard.FamilyDashboardScreen
  * "family", reached from Profile ("Family" row, not a 6th bottom-nav tab - see PilotApp.kt's
  * routing comment for why). Decides which of three states to show; see FamilyAppViewModel's kdoc.
  * Multi-family switching uses the first family in the list for this pass.
+ *
+ * Documents/Health/Contacts/Members no longer take a direct callback here (2026-08 `ui3/`
+ * redesign) - those moved under FamilyMoreScreen, a separate top-level route the Dashboard reaches
+ * via [FamilyPillar.MORE] on its own bottom bar rather than this screen owning every destination.
  */
 @Composable
 fun FamilyEntryScreen(
     onOpenTasks: (String) -> Unit,
     onOpenCalendar: (String) -> Unit,
     onOpenExpenses: (String) -> Unit,
-    onOpenDocuments: (String) -> Unit,
-    onOpenHealth: (String) -> Unit,
-    onOpenEmergencyContacts: (String) -> Unit,
-    onOpenMembers: (String) -> Unit,
     onOpenInvite: (String) -> Unit,
     onOpenSos: (String) -> Unit,
-    onOpenNotifications: (String) -> Unit
+    onOpenNotifications: (String) -> Unit,
+    onSelectPillar: (FamilyPillar, String) -> Unit
 ) {
     val viewModel = remember { FamilyAppViewModel() }
     val uiState by viewModel.uiState.collectAsState()
@@ -49,13 +50,10 @@ fun FamilyEntryScreen(
                 onOpenTasks = { onOpenTasks(family.id) },
                 onOpenCalendar = { onOpenCalendar(family.id) },
                 onOpenExpenses = { onOpenExpenses(family.id) },
-                onOpenDocuments = { onOpenDocuments(family.id) },
-                onOpenHealth = { onOpenHealth(family.id) },
-                onOpenEmergencyContacts = { onOpenEmergencyContacts(family.id) },
-                onOpenMembers = { onOpenMembers(family.id) },
                 onOpenInvite = { onOpenInvite(family.id) },
                 onOpenSos = { onOpenSos(family.id) },
-                onOpenNotifications = { onOpenNotifications(family.id) }
+                onOpenNotifications = { onOpenNotifications(family.id) },
+                onSelectPillar = { pillar -> onSelectPillar(pillar, family.id) }
             )
         }
     }

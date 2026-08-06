@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.family.data.FamilyAuthRepository
 import com.lifeos.expensecapture.family.data.SharedCalendarRepository
 import com.lifeos.expensecapture.family.model.SharedCalendarEvent
+import com.lifeos.expensecapture.family.ui.FamilyPillar
+import com.lifeos.expensecapture.family.ui.FamilyPillarBottomBar
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -53,7 +55,7 @@ private val dateFormat = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefaul
  * DatePickerDialog+TimePickerDialog pair, to keep this pass's six modules uniform in effort. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarModuleScreen(familyId: String, onBack: () -> Unit) {
+fun CalendarModuleScreen(familyId: String, onBack: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
     val authRepository = remember { FamilyAuthRepository() }
     val repository = remember(familyId) { SharedCalendarRepository(familyId = familyId) }
     val currentUserId = authRepository.currentUser?.uid ?: ""
@@ -72,7 +74,8 @@ fun CalendarModuleScreen(familyId: String, onBack: () -> Unit) {
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Add event") }
-        }
+        },
+        bottomBar = { FamilyPillarBottomBar(current = FamilyPillar.CALENDAR, onSelect = onSelectPillar) }
     ) { padding ->
         if (events.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {

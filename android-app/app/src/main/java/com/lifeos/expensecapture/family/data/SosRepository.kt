@@ -1,7 +1,6 @@
 package com.lifeos.expensecapture.family.data
 
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.lifeos.expensecapture.family.model.FamilyEvent
 import com.lifeos.expensecapture.family.model.FamilyEventType
 import com.lifeos.expensecapture.family.model.FamilyNotification
@@ -103,16 +102,19 @@ class SosRepository(
         }
     }
 
+    /** whereEqualTo + orderBy on different fields needs a composite Firestore index that isn't
+     * provisioned - same class of bug already fixed once this app (see SplitPayRepository's
+     * observeMySplits kdoc history); sorting client-side avoids needing one at all. */
     fun observeActiveAlerts(familyId: String): Flow<List<SOSAlert>> = callbackFlow {
         val registration = sosCollection(familyId)
             .whereEqualTo("status", SOSStatus.ACTIVE.name)
-            .orderBy("triggeredAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     trySend(emptyList())
                     return@addSnapshotListener
                 }
-                trySend(snapshot?.documents?.mapNotNull { it.toObject(SOSAlert::class.java) } ?: emptyList())
+                val alerts = snapshot?.documents?.mapNotNull { it.toObject(SOSAlert::class.java) } ?: emptyList()
+                trySend(alerts.sortedByDescending { it.triggeredAt })
             }
         awaitClose { registration.remove() }
     }

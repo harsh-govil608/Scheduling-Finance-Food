@@ -23,13 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.ContactPhone
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Emergency
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,13 +45,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.family.model.FamilyEvent
 import com.lifeos.expensecapture.family.model.FamilyMember
+import com.lifeos.expensecapture.family.model.FamilyRole
 import com.lifeos.expensecapture.family.model.MemberPresence
 import com.lifeos.expensecapture.family.model.PresenceStatus
+import com.lifeos.expensecapture.family.ui.FamilyPillar
+import com.lifeos.expensecapture.family.ui.FamilyPillarBottomBar
 import com.lifeos.expensecapture.ui.analytics.ChartLegendRow
 import com.lifeos.expensecapture.ui.analytics.DonutChart
 import com.lifeos.expensecapture.ui.analytics.DonutSlice
@@ -68,10 +69,14 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Family Dashboard (2026-08 Family module) - member status grid with presence, recent activity
- * off the real event stream, an upcoming preview (tasks due + calendar events in the next 7
- * days), a deterministic AI insight, and entry points into the six shared modules plus SOS and
- * invites. See FamilyDashboardViewModel's kdoc for where each of those numbers comes from.
+ * Family Dashboard (2026-08 Family module, restyled 2026-08 to match `ui3/` reference mockups) -
+ * member status row with presence, a real "Total Family Spend Today" card (vs. yesterday, see
+ * FamilyDashboardViewModel's kdoc), recent activity off the real event stream, an upcoming
+ * preview, a deterministic AI insight, and a Quick Actions row into the modules people add things
+ * to most (Expenses/Tasks/Calendar - all real destinations, not fabricated one-tap creators, since
+ * this dashboard doesn't own an add-flow itself). The other three shared modules
+ * (Documents/Health/Contacts) plus Members/Invite/SOS/Notifications live under More - see
+ * FamilyPillarBottomBar's kdoc for why only three modules get their own tab.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,13 +86,10 @@ fun FamilyDashboardScreen(
     onOpenTasks: () -> Unit,
     onOpenCalendar: () -> Unit,
     onOpenExpenses: () -> Unit,
-    onOpenDocuments: () -> Unit,
-    onOpenHealth: () -> Unit,
-    onOpenEmergencyContacts: () -> Unit,
-    onOpenMembers: () -> Unit,
     onOpenInvite: () -> Unit,
     onOpenSos: () -> Unit,
-    onOpenNotifications: () -> Unit
+    onOpenNotifications: () -> Unit,
+    onSelectPillar: (FamilyPillar) -> Unit
 ) {
     val viewModel = remember(familyId) { FamilyDashboardViewModel(familyId, currentUserId) }
     val uiState by viewModel.uiState.collectAsState()
@@ -105,26 +107,29 @@ fun FamilyDashboardScreen(
                     }
                 }
             )
-        }
+        },
+        bottomBar = { FamilyPillarBottomBar(current = FamilyPillar.HOME, onSelect = onSelectPillar) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item { GreetingCard(uiState.currentMember?.displayName ?: "") }
+
             item {
                 SosBanner(onClick = onOpenSos)
             }
 
             if (uiState.members.isNotEmpty()) {
-                item { SectionLabel("Family") }
+                item { SectionLabel("Family Members") }
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         items(uiState.members, key = { it.userId }) { member ->
                             MemberStatusColumn(
                                 member = member,
                                 presence = uiState.presence.firstOrNull { it.userId == member.userId },
-                                onClick = onOpenMembers
+                                onClick = onOpenTasks
                             )
                         }
                     }
@@ -133,7 +138,13 @@ fun FamilyDashboardScreen(
 
             if (uiState.totalFamilySpendToday > 0) {
                 item { SectionLabel("Family Expense Tracker") }
-                item { FamilySpendTodayCard(uiState.totalFamilySpendToday, uiState.spendByMemberToday) }
+                item {
+                    FamilySpendTodayCard(
+                        total = uiState.totalFamilySpendToday,
+                        yesterday = uiState.totalFamilySpendYesterday,
+                        byMember = uiState.spendByMemberToday
+                    )
+                }
             }
 
             uiState.insight?.let { insight ->
@@ -168,19 +179,12 @@ fun FamilyDashboardScreen(
                 }
             }
 
-            item { SectionLabel("Shared") }
+            item { SectionLabel("Quick Actions") }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        SharedModuleTile(Icons.Filled.Checklist, "Tasks", onOpenTasks, Modifier.weight(1f))
-                        SharedModuleTile(Icons.Filled.CalendarMonth, "Calendar", onOpenCalendar, Modifier.weight(1f))
-                        SharedModuleTile(Icons.Filled.AccountBalanceWallet, "Expenses", onOpenExpenses, Modifier.weight(1f))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        SharedModuleTile(Icons.Filled.Description, "Documents", onOpenDocuments, Modifier.weight(1f))
-                        SharedModuleTile(Icons.Filled.MonitorHeart, "Health", onOpenHealth, Modifier.weight(1f))
-                        SharedModuleTile(Icons.Filled.ContactPhone, "Contacts", onOpenEmergencyContacts, Modifier.weight(1f))
-                    }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    QuickActionTile(Icons.Filled.AccountBalanceWallet, "Add Expense", onOpenExpenses, Modifier.weight(1f))
+                    QuickActionTile(Icons.Filled.Checklist, "Add Task", onOpenTasks, Modifier.weight(1f))
+                    QuickActionTile(Icons.Filled.CalendarMonth, "Add Event", onOpenCalendar, Modifier.weight(1f))
                 }
             }
 
@@ -204,13 +208,32 @@ fun FamilyDashboardScreen(
     }
 }
 
+@Composable
+private fun GreetingCard(displayName: String) {
+    val hour = remember { java.time.LocalTime.now().hour }
+    val timeOfDay = when {
+        hour < 12 -> "Good Morning"
+        hour < 17 -> "Good Afternoon"
+        else -> "Good Evening"
+    }
+    Column {
+        Text("$timeOfDay, ${displayName.ifBlank { "there" }}", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "Here's what's happening in your family.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 /** Family Expense Tracker (2026-08 real user request: "Total Family Spend Today... a clean pie
  * chart breaking down the entire household's spending") - real data synced from each member's own
  * SMS-auto-capture, see FamilyDashboardViewModel's kdoc on the todayLedgerEntries flow this reads.
  * Reuses the same DonutChart/ChartLegendRow Analytics already built rather than a second chart
- * implementation - only the data source differs. */
+ * implementation - only the data source differs. The "vs yesterday" line only renders when
+ * yesterday actually has spend to compare against - see totalFamilySpendYesterday's kdoc. */
 @Composable
-private fun FamilySpendTodayCard(total: Double, byMember: List<FamilySpendSlice>) {
+private fun FamilySpendTodayCard(total: Double, yesterday: Double?, byMember: List<FamilySpendSlice>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -218,7 +241,20 @@ private fun FamilySpendTodayCard(total: Double, byMember: List<FamilySpendSlice>
     ) {
         Column(Modifier.padding(20.dp)) {
             Text("Total Family Spend Today", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("₹${"%.2f".format(total)}", style = MaterialTheme.typography.headlineMedium)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("₹${"%.2f".format(total)}", style = MaterialTheme.typography.headlineMedium)
+                if (yesterday != null) {
+                    val percentChange = ((total - yesterday) / yesterday) * 100
+                    val lessOrMore = if (percentChange <= 0) "less" else "more"
+                    val color = if (percentChange <= 0) MaterialTheme.colorScheme.primary else WarningStrong
+                    Text(
+                        "  ${"%.0f".format(kotlin.math.abs(percentChange))}% $lessOrMore than yesterday",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = color,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+            }
             if (byMember.isNotEmpty()) {
                 Spacer(Modifier.height(16.dp))
                 val colors = listOf(
@@ -226,7 +262,7 @@ private fun FamilySpendTodayCard(total: Double, byMember: List<FamilySpendSlice>
                     MaterialTheme.colorScheme.tertiary,
                     MaterialTheme.colorScheme.secondary,
                     com.lifeos.expensecapture.ui.theme.Warning,
-                    com.lifeos.expensecapture.ui.theme.WarningStrong,
+                    WarningStrong,
                     MaterialTheme.colorScheme.error
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -299,6 +335,21 @@ private fun MemberStatusColumn(member: FamilyMember, presence: MemberPresence?, 
                     .clip(CircleShape)
                     .background(statusColor)
             )
+            // Owner badge (2026-08, `ui3/` reference shows a crown on the admin's avatar) - real
+            // FamilyRole.OWNER field, not a fabricated "admin" concept layered on top.
+            if (member.role == FamilyRole.OWNER) {
+                Icon(
+                    Icons.Filled.Star,
+                    contentDescription = "Owner",
+                    tint = com.lifeos.expensecapture.ui.theme.Warning,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .align(Alignment.TopEnd)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(2.dp)
+                )
+            }
         }
         Spacer(Modifier.height(6.dp))
         Text(
@@ -312,7 +363,7 @@ private fun MemberStatusColumn(member: FamilyMember, presence: MemberPresence?, 
 }
 
 @Composable
-private fun SharedModuleTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun QuickActionTile(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
@@ -321,7 +372,13 @@ private fun SharedModuleTile(icon: androidx.compose.ui.graphics.vector.ImageVect
         Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             IconBadge(icon = icon, tint = MaterialTheme.colorScheme.primary, containerColor = MaterialTheme.colorScheme.primaryContainer)
             Spacer(Modifier.height(8.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

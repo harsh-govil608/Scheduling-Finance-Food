@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,7 +36,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.ui.common.CategoryVisuals
 import com.lifeos.expensecapture.ui.common.GreetingTitle
+import com.lifeos.expensecapture.ui.common.IconBadge
 import com.lifeos.expensecapture.ui.common.ProfileAvatarButton
 import com.lifeos.expensecapture.ui.common.ProgressRing
 import com.lifeos.expensecapture.ui.common.SectionLabel
@@ -42,6 +46,7 @@ import com.lifeos.expensecapture.ui.common.StatTile
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
+import com.lifeos.expensecapture.ui.theme.AmountBody
 import com.lifeos.expensecapture.ui.theme.Warning
 import com.lifeos.expensecapture.ui.theme.WarningStrong
 import com.lifeos.expensecapture.util.Prefs
@@ -107,7 +112,8 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                            colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
                             Column(Modifier.padding(20.dp)) {
                                 val total = uiState.categoryBreakdown.sumOf { it.amount }
@@ -142,7 +148,8 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         BarChart(
                             labels = uiState.monthLabels,
@@ -180,17 +187,26 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                 if (uiState.topMerchants.isNotEmpty()) {
                     item { SectionLabel("Top merchants") }
                     item {
+                        // Visual polish pass (2026-08, real user request): icon-badge rows +
+                        // dividers, matching every other list in the app (TransactionRow,
+                        // Profile's SettingsRow) - this was plain text-only rows with no visual
+                        // separation, the one list surface in Analytics that hadn't caught up to
+                        // the rest of the app's list-row language.
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                            colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
                             Column {
-                                uiState.topMerchants.forEach { (merchant, amount) ->
+                                uiState.topMerchants.forEachIndexed { index, (merchant, amount) ->
+                                    val (tint, container) = CategoryVisuals.colorPairFor(merchant)
                                     Row(
                                         modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        IconBadge(icon = Icons.Filled.Storefront, tint = tint, containerColor = container)
+                                        Spacer(Modifier.width(12.dp))
                                         Text(
                                             merchant,
                                             style = MaterialTheme.typography.bodyMedium,
@@ -199,7 +215,10 @@ fun AnalyticsScreen(app: App, onSelectPillar: (Pillar) -> Unit, onOpenProfile: (
                                             modifier = Modifier.weight(1f)
                                         )
                                         Spacer(Modifier.width(12.dp))
-                                        Text("₹${"%.2f".format(amount)}", style = MaterialTheme.typography.bodyMedium)
+                                        Text("₹${"%.2f".format(amount)}", style = AmountBody)
+                                    }
+                                    if (index != uiState.topMerchants.lastIndex) {
+                                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                                     }
                                 }
                             }
@@ -229,7 +248,8 @@ private fun FinancialHealthScoreCard(score: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor()),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(modifier = Modifier.padding(20.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             ProgressRing(

@@ -19,7 +19,9 @@ import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.family.ui.FamilyEntryScreen
 import com.lifeos.expensecapture.family.ui.FamilyInviteScreen
 import com.lifeos.expensecapture.family.ui.FamilyMembersScreen
+import com.lifeos.expensecapture.family.ui.FamilyMoreScreen
 import com.lifeos.expensecapture.family.ui.FamilyNotificationCenterScreen
+import com.lifeos.expensecapture.family.ui.FamilyPillar
 import com.lifeos.expensecapture.family.ui.modules.CalendarModuleScreen
 import com.lifeos.expensecapture.family.ui.modules.DocumentsModuleScreen
 import com.lifeos.expensecapture.family.ui.modules.EmergencyContactsModuleScreen
@@ -93,6 +95,20 @@ fun PilotApp(app: App) {
             Pillar.ANALYTICS -> "analytics"
             Pillar.AI -> "assistant"
             Pillar.PROFILE -> "profile"
+        }
+        navController.navigate(target) { launchSingleTop = true }
+    }
+
+    // Family module's own bottom bar (2026-08, `ui3/` reference) - mirrors selectPillar's exact
+    // navigate+launchSingleTop pattern, just with familyId threaded into the non-Home routes
+    // since those are nav args rather than internally derived (see FamilyEntryScreen's kdoc).
+    fun selectFamilyPillar(pillar: FamilyPillar, familyId: String) {
+        val target = when (pillar) {
+            FamilyPillar.HOME -> "family"
+            FamilyPillar.EXPENSES -> "family_expenses/$familyId"
+            FamilyPillar.TASKS -> "family_tasks/$familyId"
+            FamilyPillar.CALENDAR -> "family_calendar/$familyId"
+            FamilyPillar.MORE -> "family_more/$familyId"
         }
         navController.navigate(target) { launchSingleTop = true }
     }
@@ -356,40 +372,60 @@ fun PilotApp(app: App) {
                 onOpenTasks = { familyId -> navController.navigate("family_tasks/$familyId") },
                 onOpenCalendar = { familyId -> navController.navigate("family_calendar/$familyId") },
                 onOpenExpenses = { familyId -> navController.navigate("family_expenses/$familyId") },
-                onOpenDocuments = { familyId -> navController.navigate("family_documents/$familyId") },
-                onOpenHealth = { familyId -> navController.navigate("family_health/$familyId") },
-                onOpenEmergencyContacts = { familyId -> navController.navigate("family_emergency_contacts/$familyId") },
-                onOpenMembers = { familyId -> navController.navigate("family_members/$familyId") },
                 onOpenInvite = { familyId -> navController.navigate("family_invite/$familyId") },
                 onOpenSos = { familyId -> navController.navigate("family_sos/$familyId") },
-                onOpenNotifications = { familyId -> navController.navigate("family_notifications/$familyId") }
+                onOpenNotifications = { familyId -> navController.navigate("family_notifications/$familyId") },
+                onSelectPillar = { pillar, familyId -> selectFamilyPillar(pillar, familyId) }
             )
         }
         composable(
             route = "family_tasks/{familyId}",
             arguments = listOf(navArgument("familyId") { type = NavType.StringType })
         ) { backStackEntry ->
+            val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
             TasksModuleScreen(
-                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
-                onBack = { navController.popBackStack() }
+                familyId = familyId,
+                onBack = { navController.popBackStack() },
+                onSelectPillar = { pillar -> selectFamilyPillar(pillar, familyId) }
             )
         }
         composable(
             route = "family_calendar/{familyId}",
             arguments = listOf(navArgument("familyId") { type = NavType.StringType })
         ) { backStackEntry ->
+            val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
             CalendarModuleScreen(
-                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
-                onBack = { navController.popBackStack() }
+                familyId = familyId,
+                onBack = { navController.popBackStack() },
+                onSelectPillar = { pillar -> selectFamilyPillar(pillar, familyId) }
             )
         }
         composable(
             route = "family_expenses/{familyId}",
             arguments = listOf(navArgument("familyId") { type = NavType.StringType })
         ) { backStackEntry ->
+            val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
             ExpensesModuleScreen(
-                familyId = backStackEntry.arguments?.getString("familyId") ?: "",
-                onBack = { navController.popBackStack() }
+                familyId = familyId,
+                onBack = { navController.popBackStack() },
+                onSelectPillar = { pillar -> selectFamilyPillar(pillar, familyId) }
+            )
+        }
+        composable(
+            route = "family_more/{familyId}",
+            arguments = listOf(navArgument("familyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
+            FamilyMoreScreen(
+                onBack = { navController.popBackStack() },
+                onOpenSos = { navController.navigate("family_sos/$familyId") },
+                onOpenMembers = { navController.navigate("family_members/$familyId") },
+                onOpenInvite = { navController.navigate("family_invite/$familyId") },
+                onOpenNotifications = { navController.navigate("family_notifications/$familyId") },
+                onOpenDocuments = { navController.navigate("family_documents/$familyId") },
+                onOpenHealth = { navController.navigate("family_health/$familyId") },
+                onOpenEmergencyContacts = { navController.navigate("family_emergency_contacts/$familyId") },
+                onSelectPillar = { pillar -> selectFamilyPillar(pillar, familyId) }
             )
         }
         composable(

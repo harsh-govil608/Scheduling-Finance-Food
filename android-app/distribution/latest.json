@@ -1,6 +1,6 @@
 {
-  "versionCode": 50,
-  "versionName": "0.43.1-pilot",
+  "versionCode": 51,
+  "versionName": "0.44.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "New: a check-in reminder notification every 5 hours (\"anything to log?\") - separate from the existing bill/budget/task alerts, always fires on schedule rather than only when something needs attention."
+  "notes": "Home tab and Family Hub redesigned to match the latest reference mockups: Home now leads with a Today Score ring, AI Suggestions, and an Explore grid; Family Hub gets its own bottom nav (Home/Expenses/Tasks/Calendar/More), a restyled dashboard with a real spend-vs-yesterday comparison, and an Expenses Overview tab with category and weekly trend charts. AI Assistant can now also answer open-ended questions about your finances (e.g. \"why did I spend more this month\"), grounded only in your real data. Plus Analytics visual polish."
 }

@@ -48,6 +48,8 @@ import com.lifeos.expensecapture.family.data.FamilyRepository
 import com.lifeos.expensecapture.family.data.SharedTaskRepository
 import com.lifeos.expensecapture.family.model.FamilyMember
 import com.lifeos.expensecapture.family.model.SharedTask
+import com.lifeos.expensecapture.family.ui.FamilyPillar
+import com.lifeos.expensecapture.family.ui.FamilyPillarBottomBar
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import kotlinx.coroutines.launch
 
@@ -59,7 +61,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TasksModuleScreen(familyId: String, onBack: () -> Unit) {
+fun TasksModuleScreen(familyId: String, onBack: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
     val authRepository = remember { FamilyAuthRepository() }
     val familyRepository = remember { FamilyRepository() }
     val taskRepository = remember(familyId) { SharedTaskRepository(familyId = familyId) }
@@ -84,7 +86,8 @@ fun TasksModuleScreen(familyId: String, onBack: () -> Unit) {
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add task")
             }
-        }
+        },
+        bottomBar = { FamilyPillarBottomBar(current = FamilyPillar.TASKS, onSelect = onSelectPillar) }
     ) { padding ->
         if (tasks.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp), contentAlignment = Alignment.Center) {
