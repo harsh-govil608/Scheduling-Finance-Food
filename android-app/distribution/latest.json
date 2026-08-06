@@ -1,6 +1,6 @@
 {
-  "versionCode": 51,
-  "versionName": "0.44.0-pilot",
+  "versionCode": 52,
+  "versionName": "0.44.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Home tab and Family Hub redesigned to match the latest reference mockups: Home now leads with a Today Score ring, AI Suggestions, and an Explore grid; Family Hub gets its own bottom nav (Home/Expenses/Tasks/Calendar/More), a restyled dashboard with a real spend-vs-yesterday comparison, and an Expenses Overview tab with category and weekly trend charts. AI Assistant can now also answer open-ended questions about your finances (e.g. \"why did I spend more this month\"), grounded only in your real data. Plus Analytics visual polish."
+  "notes": "Home tab's Today's Focus card shows your open habits again (not just tasks) - regression from the last redesign, now fixed."
 }

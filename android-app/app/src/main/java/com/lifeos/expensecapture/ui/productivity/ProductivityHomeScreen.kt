@@ -135,7 +135,8 @@ fun ProductivityHomeScreen(
             item {
                 TodaysFocusCard(
                     uiState = uiState,
-                    onOpenTasks = onOpenTasks
+                    onOpenTasks = onOpenTasks,
+                    onOpenHabits = onOpenHabits
                 )
             }
 
@@ -473,18 +474,23 @@ private fun MiniLegendDot(color: Color, label: String) {
 }
 
 /**
- * "Today's Focus" card (2026-08, `ui3/` reference) - simplified back to a single task list (the
- * habit-progress ring this card used to also show is now covered by the Today Score card above,
- * instead of being duplicated in two places) with a priority chip per task (TaskEntity.priority,
- * real and already tracked, just not previously shown on Home) and a "N tasks planned" count that
- * matches the list below it exactly (both read off the same uiState.todayTasks). The floating add
- * button and "View all tasks" both open the same Tasks screen - there's no separate inline
- * add-task flow on Home itself.
+ * "Today's Focus" card (2026-08, `ui3/` reference) - a task list with a priority chip per task
+ * (TaskEntity.priority, real and already tracked, just not previously shown on Home) and a
+ * "N tasks planned" count that matches the list below it exactly (both read off the same
+ * uiState.todayTasks). The floating add button and "View all tasks" both open the same Tasks
+ * screen - there's no separate inline add-task flow on Home itself.
+ *
+ * Habits list re-added below the tasks (2026-08 - founder feedback: the habit ring this card used
+ * to show was dropped on the assumption Today Score's aggregate covered it, but that hid which
+ * *specific* habits are still open, which the old ring/list did show). Read-only like the task
+ * rows above - tapping a row or "View all habits" opens the real Habits screen, same "no inline
+ * completion on Home" pattern as tasks.
  */
 @Composable
 private fun TodaysFocusCard(
     uiState: ProductivityHomeUiState,
-    onOpenTasks: () -> Unit
+    onOpenTasks: () -> Unit,
+    onOpenHabits: () -> Unit
 ) {
     val accent = MaterialTheme.colorScheme.primary
     Card(
@@ -544,6 +550,56 @@ private fun TodaysFocusCard(
                     )
                 }
             }
+
+            if (uiState.totalHabits > 0) {
+                Spacer(Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Habits", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "${uiState.doneTodayHabitsCount}/${uiState.totalHabits} done",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                if (uiState.pendingHabitsToday.isEmpty()) {
+                    Text(
+                        "All habits done for today.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    uiState.pendingHabitsToday.take(5).forEach { habit ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenHabits).padding(vertical = 6.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.CheckBoxOutlineBlank,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                habit.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    if (uiState.pendingHabitsToday.size > 5) {
+                        Text(
+                            "+${uiState.pendingHabitsToday.size - 5} more",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onOpenTasks, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
