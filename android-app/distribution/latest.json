@@ -1,6 +1,6 @@
 {
-  "versionCode": 54,
-  "versionName": "0.44.3-pilot",
+  "versionCode": 55,
+  "versionName": "0.44.4-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixed: deleting a Smart Split could silently fail - the app closed the confirmation dialog and navigated back regardless of whether the delete actually succeeded, so a failed delete (e.g. a permissions error) looked like it worked but the split just reappeared. Failures now show a real error message instead."
+  "notes": "Fixed: sending a family invite failed with permission-denied - a previous fix had added a write to a new Firestore collection with no security rule allowing it. Reverted to a query-based lookup that only touches collections already in use. Note: joining a family by code still needs a one-time Firestore index (see firestore.indexes.json) - deploy it or click the link in the join error to finish that half."
 }
