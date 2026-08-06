@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +42,10 @@ fun FamilyOnboardingScreen(
 ) {
     var familyName by remember { mutableStateOf("") }
     var joinCode by remember { mutableStateOf(prefilledJoinCode ?: "") }
+    // Real gap (2026-08): createFamily/joinFamily's failures were tracked in
+    // FamilyAppViewModel.familyActionError but never actually shown here, so a Firestore error
+    // (e.g. a missing-index message with a direct one-click fix link) was silently swallowed.
+    val actionError by viewModel.familyActionError.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Text("Set up your family", style = MaterialTheme.typography.headlineSmall)
@@ -51,6 +56,20 @@ fun FamilyOnboardingScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
         )
+
+        // Selectable so a Firestore error containing a one-click "create this index" link (the
+        // missing-index case this screen's join flow can hit) can actually be copied out, not
+        // just read.
+        actionError?.let { message ->
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),

@@ -1,6 +1,6 @@
 {
-  "versionCode": 55,
-  "versionName": "0.44.4-pilot",
+  "versionCode": 56,
+  "versionName": "0.44.5-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixed: sending a family invite failed with permission-denied - a previous fix had added a write to a new Firestore collection with no security rule allowing it. Reverted to a query-based lookup that only touches collections already in use. Note: joining a family by code still needs a one-time Firestore index (see firestore.indexes.json) - deploy it or click the link in the join error to finish that half."
+  "notes": "Family setup screen now actually shows the error when creating or joining a family fails - it was tracked internally but never displayed, so a missing-Firestore-index error (with its direct one-click fix link) was invisible. Try joining with a code now and copy the error text if it still fails."
 }
