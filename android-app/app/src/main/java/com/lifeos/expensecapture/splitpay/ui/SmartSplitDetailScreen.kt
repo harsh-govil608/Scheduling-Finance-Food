@@ -84,6 +84,7 @@ fun SmartSplitDetailScreen(splitId: String, onBack: () -> Unit) {
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
 
     val upiLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -194,21 +195,39 @@ fun SmartSplitDetailScreen(splitId: String, onBack: () -> Unit) {
             onDismissRequest = { if (!isDeleting) showDeleteConfirm = false },
             title = { Text("Delete this split?") },
             text = {
-                Text(
-                    "This removes \"${splitToDelete?.description}\" for everyone involved - a short " +
-                        "record stays in your split history for 30 days, then it's gone too. This can't be undone."
-                )
+                Column {
+                    Text(
+                        "This removes \"${splitToDelete?.description}\" for everyone involved - a short " +
+                            "record stays in your split history for 30 days, then it's gone too. This can't be undone."
+                    )
+                    // Real bug (2026-08): the delete call's result was never checked - a failed
+                    // delete (e.g. a Firestore permission error) still closed this dialog and
+                    // navigated back as if it worked, so the split silently reappeared in the
+                    // list with no indication anything went wrong.
+                    deleteError?.let { message ->
+                        Spacer(Modifier.height(8.dp))
+                        Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         val current = splitToDelete ?: return@TextButton
                         isDeleting = true
+                        deleteError = null
                         coroutineScope.launch {
-                            repository.deleteSplit(current, participants)
-                            isDeleting = false
-                            showDeleteConfirm = false
-                            onBack()
+                            when (val result = repository.deleteSplit(current, participants)) {
+                                is com.lifeos.expensecapture.splitpay.data.SplitPayResult.Success -> {
+                                    isDeleting = false
+                                    showDeleteConfirm = false
+                                    onBack()
+                                }
+                                is com.lifeos.expensecapture.splitpay.data.SplitPayResult.Failure -> {
+                                    isDeleting = false
+                                    deleteError = result.message
+                                }
+                            }
                         }
                     },
                     enabled = !isDeleting

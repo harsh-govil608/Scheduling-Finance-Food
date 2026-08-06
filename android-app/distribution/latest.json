@@ -1,6 +1,6 @@
 {
-  "versionCode": 53,
-  "versionName": "0.44.2-pilot",
+  "versionCode": 54,
+  "versionName": "0.44.3-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixed: joining a family with an invite code always failed (\"Couldn't join family\") - the lookup needed a Firestore index that was never provisioned. Joining now works without any extra setup."
+  "notes": "Fixed: deleting a Smart Split could silently fail - the app closed the confirmation dialog and navigated back regardless of whether the delete actually succeeded, so a failed delete (e.g. a permissions error) looked like it worked but the split just reappeared. Failures now show a real error message instead."
 }
