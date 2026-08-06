@@ -10,6 +10,7 @@ package com.lifeos.expensecapture.splitpay.model
  *
  * Collection layout:
  *   users/{uid}                          - UserPayProfile (upiId, phoneNumber, displayName)
+ *   users/{uid}/splitHistory/{id}        - SplitHistoryEntry, see its own kdoc
  *   smartSplits/{splitId}                - SmartSplit
  *   smartSplits/{splitId}/participants/{participantId} - SmartSplitParticipant
  */
@@ -53,4 +54,23 @@ data class SmartSplit(
     val payerUpiId: String = "",
     val date: Long = 0L,
     val createdAt: Long = 0L
+)
+
+/** A lightweight record of a deleted split (2026-08, real user request: "unable to delete the
+ * existing smart split - add history to store records of it and automatically delete after 1
+ * month"). Kept separately from the live `smartSplits` collection rather than just soft-deleting
+ * the SmartSplit doc in place, since deleting also has to purge its `participants` subcollection
+ * (Firestore never cascade-deletes that on its own - same reasoning as FamilyRepository.deleteFamily)
+ * - this is what's left over once that's done. Scoped under the deleting user's own `users/{uid}`
+ * doc rather than a top-level collection, since "my split history" is inherently per-person, not
+ * shared. Auto-purged after 30 days by [SplitPayRepository.pruneOldSplitHistory] - checked
+ * opportunistically when the history screen loads, the same on-demand-cleanup pattern this app
+ * already uses elsewhere (no server-side cron here). */
+data class SplitHistoryEntry(
+    val id: String = "",
+    val description: String = "",
+    val totalAmount: Double = 0.0,
+    val payerName: String = "",
+    val participantNames: String = "",
+    val deletedAt: Long = 0L
 )

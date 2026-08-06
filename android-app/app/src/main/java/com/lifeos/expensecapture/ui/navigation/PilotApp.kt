@@ -31,6 +31,7 @@ import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import com.lifeos.expensecapture.splitpay.ui.SmartSplitCreateScreen
 import com.lifeos.expensecapture.splitpay.ui.SmartSplitDetailScreen
 import com.lifeos.expensecapture.splitpay.ui.SmartSplitsScreen
+import com.lifeos.expensecapture.splitpay.ui.SplitHistoryScreen
 import com.lifeos.expensecapture.ui.analytics.AnalyticsScreen
 import com.lifeos.expensecapture.ui.assistant.AssistantScreen
 import com.lifeos.expensecapture.ui.backup.BackupRestoreScreen
@@ -240,8 +241,12 @@ fun PilotApp(app: App) {
             SmartSplitsScreen(
                 onBack = { navController.popBackStack() },
                 onCreate = { navController.navigate("smart_split_create") },
-                onOpenSplit = { splitId -> navController.navigate("smart_split_detail/$splitId") }
+                onOpenSplit = { splitId -> navController.navigate("smart_split_detail/$splitId") },
+                onOpenHistory = { navController.navigate("smart_split_history") }
             )
+        }
+        composable("smart_split_history") {
+            SplitHistoryScreen(onBack = { navController.popBackStack() })
         }
         composable("smart_split_create") {
             SmartSplitCreateScreen(

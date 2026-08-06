@@ -12,14 +12,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,8 +35,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -76,6 +82,9 @@ fun SmartSplitDetailScreen(splitId: String, onBack: () -> Unit) {
     val isPayer = split?.payerId == currentUserId
     val myParticipantRow = participants.firstOrNull { it.participantUserId == currentUserId }
 
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+
     val upiLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { _ ->
@@ -93,7 +102,21 @@ fun SmartSplitDetailScreen(splitId: String, onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text(split?.description ?: "Smart Split") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+                actions = {
+                    // Real user report, 2026-08: "unable to delete the existing smart split" -
+                    // owner-only (the payer created it and is the one owed money), same
+                    // confirm-before-destructive pattern as Bills/Family delete.
+                    if (isPayer) {
+                        if (isDeleting) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp).padding(end = 12.dp))
+                        } else {
+                            IconButton(onClick = { showDeleteConfirm = true }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete split", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
             )
         }
     ) { padding ->
@@ -163,6 +186,38 @@ fun SmartSplitDetailScreen(splitId: String, onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (showDeleteConfirm) {
+        val splitToDelete = split
+        AlertDialog(
+            onDismissRequest = { if (!isDeleting) showDeleteConfirm = false },
+            title = { Text("Delete this split?") },
+            text = {
+                Text(
+                    "This removes \"${splitToDelete?.description}\" for everyone involved - a short " +
+                        "record stays in your split history for 30 days, then it's gone too. This can't be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val current = splitToDelete ?: return@TextButton
+                        isDeleting = true
+                        coroutineScope.launch {
+                            repository.deleteSplit(current, participants)
+                            isDeleting = false
+                            showDeleteConfirm = false
+                            onBack()
+                        }
+                    },
+                    enabled = !isDeleting
+                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }, enabled = !isDeleting) { Text("Cancel") }
+            }
+        )
     }
 }
 

@@ -5,6 +5,7 @@ import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.splitpay.model.ParticipantStatus
 import com.lifeos.expensecapture.splitpay.model.SmartSplit
 import com.lifeos.expensecapture.splitpay.model.SmartSplitParticipant
+import com.lifeos.expensecapture.splitpay.model.SplitHistoryEntry
 import com.lifeos.expensecapture.splitpay.model.UserPayProfile
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,7 @@ class SplitPayRepository(
     private fun splitsCollection() = firestore.collection("smartSplits")
     private fun participantsCollection(splitId: String) = splitsCollection().document(splitId).collection("participants")
     private fun usersCollection() = firestore.collection("users")
+    private fun splitHistoryCollection(uid: String) = usersCollection().document(uid).collection("splitHistory")
 
     suspend fun upsertPayProfile(profile: UserPayProfile): SplitPayResult<Unit> {
         if (profile.uid.isBlank()) return SplitPayResult.Failure("Not signed in")
@@ -187,5 +189,77 @@ class SplitPayRepository(
         } catch (e: Exception) {
             SplitPayResult.Failure(e.message ?: "Couldn't update status")
         }
+    }
+
+    /** Real user report, 2026-08: "unable to delete the existing smart split" - there was
+     * genuinely no delete anywhere in this module before this. Writes a lightweight
+     * [SplitHistoryEntry] first (so there's still a record of what the split was), then purges
+     * the `participants` subcollection (Firestore never cascade-deletes it) before removing the
+     * SmartSplit doc itself - same order/reasoning as FamilyRepository.deleteFamily, so a failure
+     * partway through leaves the live split intact and re-deletable rather than orphaned. */
+    suspend fun deleteSplit(split: SmartSplit, participants: List<SmartSplitParticipant>): SplitPayResult<Unit> {
+        if (split.payerId.isBlank()) return SplitPayResult.Failure("Missing payer")
+        return try {
+            splitHistoryCollection(split.payerId).document().set(
+                SplitHistoryEntry(
+                    description = split.description,
+                    totalAmount = split.totalAmount,
+                    payerName = split.payerName,
+                    participantNames = participants.joinToString(", ") { it.name }.ifBlank { "-" },
+                    deletedAt = System.currentTimeMillis()
+                )
+            ).await()
+
+            val participantDocs = participantsCollection(split.id).get().await()
+            if (!participantDocs.isEmpty) {
+                val batch = firestore.batch()
+                participantDocs.documents.forEach { batch.delete(it.reference) }
+                batch.commit().await()
+            }
+            splitsCollection().document(split.id).delete().await()
+            SplitPayResult.Success(Unit)
+        } catch (e: Exception) {
+            SplitPayResult.Failure(e.message ?: "Couldn't delete this split")
+        }
+    }
+
+    fun observeSplitHistory(uid: String): Flow<List<SplitHistoryEntry>> = callbackFlow {
+        if (uid.isBlank()) {
+            trySend(emptyList())
+            awaitClose { }
+            return@callbackFlow
+        }
+        val registration = splitHistoryCollection(uid).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                AppLogger.w("SplitPayRepository", "observeSplitHistory failed: ${error.message}")
+                trySend(emptyList())
+                return@addSnapshotListener
+            }
+            val entries = snapshot?.documents?.mapNotNull { it.toObject(SplitHistoryEntry::class.java) } ?: emptyList()
+            trySend(entries.sortedByDescending { it.deletedAt })
+        }
+        awaitClose { registration.remove() }
+    }
+
+    /** Opportunistic cleanup (no server-side cron here - same on-demand pattern this app already
+     * uses elsewhere, e.g. RecurringPatternDetector running on screen load rather than as a
+     * background job), checked whenever the history screen loads: purges any entry older than 30
+     * days, per the real user request ("automatically delete after 1 month"). */
+    suspend fun pruneOldSplitHistory(uid: String) {
+        if (uid.isBlank()) return
+        try {
+            val cutoff = System.currentTimeMillis() - SPLIT_HISTORY_MAX_AGE_MILLIS
+            val stale = splitHistoryCollection(uid).whereLessThan("deletedAt", cutoff).get().await()
+            if (stale.isEmpty) return
+            val batch = firestore.batch()
+            stale.documents.forEach { batch.delete(it.reference) }
+            batch.commit().await()
+        } catch (e: Exception) {
+            AppLogger.w("SplitPayRepository", "pruneOldSplitHistory failed: ${e.message}")
+        }
+    }
+
+    private companion object {
+        const val SPLIT_HISTORY_MAX_AGE_MILLIS = 30L * 24 * 60 * 60 * 1000
     }
 }

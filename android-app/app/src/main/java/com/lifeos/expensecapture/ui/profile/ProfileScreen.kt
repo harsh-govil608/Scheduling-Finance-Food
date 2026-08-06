@@ -1,5 +1,6 @@
 package com.lifeos.expensecapture.ui.profile
 
+import android.content.Intent
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Notifications
@@ -40,6 +42,8 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,11 +55,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,10 +72,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.data.db.entity.TransactionEntity
+import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.ui.common.SectionLabel
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 /**
  * Profile pillar landing surface - stats row + grouped settings sections (2026-08 reference
@@ -98,6 +112,28 @@ fun ProfileScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showPersonalInfo by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+
+    // Export Statement (2026-08, real user request: "move share button to profile and name it
+    // export statement") - moved here verbatim from Finance Home's top bar, same CSV export/share
+    // logic, just reached from Settings instead of a top-bar icon.
+    val coroutineScope = rememberCoroutineScope()
+    var showExportOptions by remember { mutableStateOf(false) }
+    var showExportStartPicker by remember { mutableStateOf(false) }
+    var showExportEndPicker by remember { mutableStateOf(false) }
+    var exportRangeStartMillis by remember { mutableStateOf<Long?>(null) }
+
+    suspend fun exportAndShare(transactions: List<TransactionEntity>) {
+        val categories = app.database.categoryDao().observeAll().first()
+        val uri = CsvExporter.exportTransactions(context, transactions) { categoryId ->
+            categories.firstOrNull { it.id == categoryId }?.name ?: "Uncategorized"
+        }
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Export transactions"))
+    }
 
     Scaffold(
         topBar = {
@@ -211,6 +247,8 @@ fun ProfileScreen(
             item { SectionLabel("Data & Security") }
             item {
                 SettingsGroupCard {
+                    SettingsRow(Icons.Filled.IosShare, "Export Statement", subtitle = "CSV, by month/all time/custom range", onClick = { showExportOptions = true })
+                    SettingsRowDivider()
                     SettingsRow(Icons.Filled.Backup, "Backup & Restore", onClick = onOpenBackupRestore)
                     SettingsRowDivider()
                     SettingsRow(Icons.Filled.Security, "Manage Permissions", onClick = onOpenPermissions)
@@ -275,6 +313,100 @@ fun ProfileScreen(
             text = { Text("Expense Capture\nVersion ${uiState.appVersionName}\n\nA local-only finance and productivity tracker - no accounts, no servers, everything stays on this device.") },
             confirmButton = { TextButton(onClick = { showAbout = false }) { Text("Close") } }
         )
+    }
+
+    if (showExportOptions) {
+        AlertDialog(
+            onDismissRequest = { showExportOptions = false },
+            title = { Text("Export Statement") },
+            text = {
+                Column {
+                    TextButton(
+                        onClick = {
+                            showExportOptions = false
+                            coroutineScope.launch {
+                                val zone = ZoneId.systemDefault()
+                                val monthStart = LocalDate.now(zone).withDayOfMonth(1)
+                                    .atStartOfDay(zone).toInstant().toEpochMilli()
+                                val transactions = app.database.transactionDao().observeAll().first()
+                                    .filter { it.date >= monthStart }
+                                exportAndShare(transactions)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Export this month (CSV)") }
+                    TextButton(
+                        onClick = {
+                            showExportOptions = false
+                            coroutineScope.launch {
+                                val transactions = app.database.transactionDao().observeAll().first()
+                                exportAndShare(transactions)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Export all time (CSV)") }
+                    TextButton(
+                        onClick = {
+                            showExportOptions = false
+                            showExportStartPicker = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Export a custom range (CSV)…") }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showExportOptions = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showExportStartPicker) {
+        val startPickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showExportStartPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    exportRangeStartMillis = startPickerState.selectedDateMillis
+                    showExportStartPicker = false
+                    showExportEndPicker = true
+                }) { Text("Next: end date") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportStartPicker = false }) { Text("Cancel") }
+            }
+        ) { DatePicker(state = startPickerState) }
+    }
+
+    if (showExportEndPicker) {
+        val endPickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showExportEndPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val startMillis = exportRangeStartMillis
+                    val endMillis = endPickerState.selectedDateMillis
+                    showExportEndPicker = false
+                    if (startMillis != null && endMillis != null) {
+                        // DatePickerState.selectedDateMillis is UTC midnight for the picked
+                        // calendar date - recover that date, then build the actual filter range
+                        // in the device's own zone so "end date" means through the end of that
+                        // real day.
+                        val zone = ZoneId.systemDefault()
+                        val startDate = Instant.ofEpochMilli(startMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                        val endDate = Instant.ofEpochMilli(endMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                        val rangeStart = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
+                        val rangeEndExclusive = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                        coroutineScope.launch {
+                            val transactions = app.database.transactionDao().observeAll().first()
+                                .filter { it.date in rangeStart until rangeEndExclusive }
+                            exportAndShare(transactions)
+                        }
+                    }
+                }) { Text("Export") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportEndPicker = false }) { Text("Cancel") }
+            }
+        ) { DatePicker(state = endPickerState) }
     }
 
     if (showDeleteConfirm) {

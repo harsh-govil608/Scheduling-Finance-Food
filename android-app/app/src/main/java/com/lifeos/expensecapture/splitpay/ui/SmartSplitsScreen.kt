@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -70,7 +71,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SmartSplitsScreen(onBack: () -> Unit, onCreate: () -> Unit, onOpenSplit: (String) -> Unit) {
+fun SmartSplitsScreen(onBack: () -> Unit, onCreate: () -> Unit, onOpenSplit: (String) -> Unit, onOpenHistory: () -> Unit) {
     val authRepository = remember { FamilyAuthRepository() }
     val repository = remember { SplitPayRepository() }
 
@@ -140,7 +141,12 @@ fun SmartSplitsScreen(onBack: () -> Unit, onCreate: () -> Unit, onOpenSplit: (St
         topBar = {
             TopAppBar(
                 title = { Text("Smart Split") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+                actions = {
+                    IconButton(onClick = onOpenHistory) {
+                        Icon(Icons.Filled.History, contentDescription = "Split history")
+                    }
+                }
             )
         },
         floatingActionButton = {

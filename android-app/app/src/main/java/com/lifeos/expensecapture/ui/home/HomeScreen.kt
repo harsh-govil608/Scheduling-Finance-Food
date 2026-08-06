@@ -1,6 +1,5 @@
 package com.lifeos.expensecapture.ui.home
 
-import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,7 +25,6 @@ import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
@@ -35,12 +33,7 @@ import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,7 +63,6 @@ import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.data.repository.TransactionRepository
-import com.lifeos.expensecapture.export.CsvExporter
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.ui.common.AccentInfoCard
 import com.lifeos.expensecapture.ui.common.AiInsightCard
@@ -93,12 +85,7 @@ import com.lifeos.expensecapture.ui.theme.WarningStrong
 import com.lifeos.expensecapture.update.UpdateViewModel
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZoneOffset
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Card
@@ -215,120 +202,9 @@ fun HomeScreen(
             TopAppBar(
                 title = { GreetingTitle(uiState.displayName) },
                 actions = {
-                    IconButton(onClick = onOpenSearch) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                    }
-                    // Export range choice (found via a real user report, 2026-07 - "csv file not
-                    // arranged, options needed"): this used to export every transaction ever
-                    // captured with no way to scope it. Quick presets stay for the common cases,
-                    // plus a genuine custom range (a second real user report: "give user
-                    // flexibility to decide time range" - a fixed two-option choice still wasn't
-                    // enough) via two sequential date pickers, same DatePickerDialog pattern
-                    // already proven in ManualEntryDialog.
-                    var showExportMenu by remember { mutableStateOf(false) }
-                    var showExportStartPicker by remember { mutableStateOf(false) }
-                    var showExportEndPicker by remember { mutableStateOf(false) }
-                    var exportRangeStartMillis by remember { mutableStateOf<Long?>(null) }
-
-                    suspend fun exportAndShare(transactions: List<TransactionEntity>) {
-                        val categories = app.database.categoryDao().observeAll().first()
-                        val uri = CsvExporter.exportTransactions(context, transactions) { categoryId ->
-                            categories.firstOrNull { it.id == categoryId }?.name ?: "Uncategorized"
-                        }
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/csv"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Export transactions"))
-                    }
-
-                    IconButton(onClick = { showExportMenu = true }) {
-                        Icon(Icons.Default.Share, contentDescription = "Export your data")
-                    }
-                    DropdownMenu(expanded = showExportMenu, onDismissRequest = { showExportMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Export this month (CSV)") },
-                            onClick = {
-                                showExportMenu = false
-                                coroutineScope.launch {
-                                    val zone = ZoneId.systemDefault()
-                                    val monthStart = LocalDate.now(zone).withDayOfMonth(1)
-                                        .atStartOfDay(zone).toInstant().toEpochMilli()
-                                    val transactions = app.database.transactionDao().observeAll().first()
-                                        .filter { it.date >= monthStart }
-                                    exportAndShare(transactions)
-                                }
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Export all time (CSV)") },
-                            onClick = {
-                                showExportMenu = false
-                                coroutineScope.launch {
-                                    val transactions = app.database.transactionDao().observeAll().first()
-                                    exportAndShare(transactions)
-                                }
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Export a custom range (CSV)…") },
-                            onClick = {
-                                showExportMenu = false
-                                showExportStartPicker = true
-                            }
-                        )
-                    }
-
-                    if (showExportStartPicker) {
-                        val startPickerState = rememberDatePickerState()
-                        DatePickerDialog(
-                            onDismissRequest = { showExportStartPicker = false },
-                            confirmButton = {
-                                TextButton(onClick = {
-                                    exportRangeStartMillis = startPickerState.selectedDateMillis
-                                    showExportStartPicker = false
-                                    showExportEndPicker = true
-                                }) { Text("Next: end date") }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showExportStartPicker = false }) { Text("Cancel") }
-                            }
-                        ) { DatePicker(state = startPickerState) }
-                    }
-
-                    if (showExportEndPicker) {
-                        val endPickerState = rememberDatePickerState()
-                        DatePickerDialog(
-                            onDismissRequest = { showExportEndPicker = false },
-                            confirmButton = {
-                                TextButton(onClick = {
-                                    val startMillis = exportRangeStartMillis
-                                    val endMillis = endPickerState.selectedDateMillis
-                                    showExportEndPicker = false
-                                    if (startMillis != null && endMillis != null) {
-                                        // DatePickerState.selectedDateMillis is UTC midnight for
-                                        // the picked calendar date - recover that date, then
-                                        // build the actual filter range in the device's own zone
-                                        // so "end date" means through the end of that real day.
-                                        val zone = ZoneId.systemDefault()
-                                        val startDate = Instant.ofEpochMilli(startMillis).atZone(ZoneOffset.UTC).toLocalDate()
-                                        val endDate = Instant.ofEpochMilli(endMillis).atZone(ZoneOffset.UTC).toLocalDate()
-                                        val rangeStart = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
-                                        val rangeEndExclusive = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-                                        coroutineScope.launch {
-                                            val transactions = app.database.transactionDao().observeAll().first()
-                                                .filter { it.date in rangeStart until rangeEndExclusive }
-                                            exportAndShare(transactions)
-                                        }
-                                    }
-                                }) { Text("Export") }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showExportEndPicker = false }) { Text("Cancel") }
-                            }
-                        ) { DatePicker(state = endPickerState) }
-                    }
+                    // Search icon removed from here (real user request, 2026-08) - decluttering
+                    // the top bar. Search itself is unaffected - still reachable from the "Search"
+                    // Quick Action button below (see onOpenSearch's other call site).
                     IconButton(onClick = onOpenNotifications) {
                         BadgedBox(badge = {
                             if (uiState.unreadNotifications > 0) Badge { Text("${uiState.unreadNotifications}") }
