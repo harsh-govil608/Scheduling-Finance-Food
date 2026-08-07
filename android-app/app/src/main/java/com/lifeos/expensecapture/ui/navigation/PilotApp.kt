@@ -178,6 +178,7 @@ fun PilotApp(app: App) {
                 onOpenTimeline = { navController.navigate("timeline") },
                 onOpenLedger = { navController.navigate("ledger") },
                 onOpenProfile = { navController.navigate("profile") },
+                onOpenFamily = { navController.navigate("family") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
             )
         }

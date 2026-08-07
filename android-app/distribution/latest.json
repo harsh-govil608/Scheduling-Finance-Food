@@ -1,6 +1,6 @@
 {
-  "versionCode": 59,
-  "versionName": "0.46.0-pilot",
+  "versionCode": 60,
+  "versionName": "0.47.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixed: SMS capture for banks other than ICICI/SBI was missing most real transactions (a mandatory merchant clause in the fallback parser rejected ATM withdrawals, EMI debits, and similar SMS with no \"to/towards/at\" phrase) - this was the cause of a second phone only capturing under 10% of transactions. Diagnostics: crash entries with no message no longer show the literal text \"null\"; \"Clear all\" now asks for confirmation first. Budget cards now lead with how much you have left, not just how much you've spent. Home tab's AI Suggestions are now genuinely AI-polished, not just labeled AI."
+  "notes": "Home tab now shows two things from the original spec that were missing: a \"Family spent today\" card (only visible if you're in a family) and a Recent Activity feed at the bottom, merging your completed tasks/habits, recent transactions, and family events into one real timeline."
 }

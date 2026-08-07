@@ -15,13 +15,22 @@ import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
 import com.lifeos.expensecapture.data.db.entity.TaskEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
+import com.lifeos.expensecapture.family.data.EventStreamRepository
+import com.lifeos.expensecapture.family.data.FamilyAuthRepository
+import com.lifeos.expensecapture.family.data.FamilyLedgerRepository
+import com.lifeos.expensecapture.family.data.FamilyRepository
+import com.lifeos.expensecapture.family.model.FamilyEvent
+import com.lifeos.expensecapture.family.model.FamilyEventType
 import com.lifeos.expensecapture.productivity.HabitStreakCalculator
 import com.lifeos.expensecapture.productivity.ProductivityInsightEngine
 import com.lifeos.expensecapture.ui.projects.ProjectRow
 import com.lifeos.expensecapture.util.Prefs
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
 import java.time.LocalDate
@@ -33,6 +42,9 @@ import java.time.ZoneId
  * ProductivityHomeViewModel's kdoc on why each one is computed, not fabricated. */
 enum class HomeTipKind { BUDGET, TASK, INSIGHT }
 data class HomeTip(val kind: HomeTipKind, val text: String)
+
+enum class ActivityKind { TASK, HABIT, EXPENSE, FAMILY }
+data class RecentActivityItem(val kind: ActivityKind, val text: String, val timestamp: Long)
 
 data class ProductivityHomeUiState(
     val displayName: String = "",
@@ -69,7 +81,18 @@ data class ProductivityHomeUiState(
     val projects: List<ProjectRow> = emptyList(),
     /** Reference-mockup "Goal Progress" rings - each ring is 100%/0% from the real `completed`
      * flag, not a fabricated numeric progress GoalEntity doesn't track. */
-    val goals: List<GoalEntity> = emptyList()
+    val goals: List<GoalEntity> = emptyList(),
+    /** Today's real family spend total, from the same shared ledger the Family Dashboard reads
+     * (2026-08, real user request - the original Home tab text spec's "Family spent ₹1,850"
+     * stat). Null when the signed-in user isn't in any family at all - distinct from 0.0 (in a
+     * family, nothing spent yet) - so the card can hide itself entirely rather than showing a
+     * misleading ₹0 to someone who never linked a family. */
+    val todayFamilySpend: Double? = null,
+    /** Recent Activity feed (2026-08, real user request - the original Home tab text spec's
+     * "Recent Activity" section, previously only shown on the Family Dashboard). Merges real
+     * personal signals (completed tasks/habits, logged transactions) with the same family event
+     * stream Family Dashboard uses, if the user is in a family - newest first, capped at 8. */
+    val recentActivity: List<RecentActivityItem> = emptyList()
 )
 
 /** Keeps the top-level combine() to a 4-arg overload instead of an untyped vararg across many
@@ -85,7 +108,15 @@ private data class DailyFinanceSnapshot(
      * days remaining in the month - null when no Overall budget is set, per-category budgets
      * alone aren't summed here to avoid double-counting spend that could fall under more than
      * one. Feeds the BUDGET tip in [ProductivityHomeUiState.tips]. */
-    val safeToSpendToday: Double?
+    val safeToSpendToday: Double?,
+    /** Real recent debit/credit transactions, newest first, for the Recent Activity feed - a
+     * small slice of the same data the Finance pillar already tracks, not a duplicate ledger. */
+    val recentTransactions: List<RecentActivityItem>
+)
+
+private data class FamilySnapshot(
+    val todayFamilySpend: Double?,
+    val familyActivity: List<RecentActivityItem>
 )
 
 /**
@@ -97,6 +128,7 @@ private data class DailyFinanceSnapshot(
  * Planning PRD's AI-generated focus suggestions and cross-pillar time-blocking are out of scope -
  * this is a plain filtered view of today's due tasks and not-yet-done habits, nothing inferred.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ProductivityHomeViewModel(
     context: Context,
     taskDao: TaskDao,
@@ -105,7 +137,11 @@ class ProductivityHomeViewModel(
     projectDao: ProjectDao,
     goalDao: GoalDao,
     transactionDao: TransactionDao,
-    budgetDao: BudgetDao
+    budgetDao: BudgetDao,
+    familyAuthRepository: FamilyAuthRepository = FamilyAuthRepository(),
+    familyRepository: FamilyRepository = FamilyRepository(),
+    familyLedgerRepository: FamilyLedgerRepository = FamilyLedgerRepository(),
+    eventStreamRepository: EventStreamRepository = EventStreamRepository()
 ) : ViewModel() {
 
     private val taskHabitSnapshot = combine(
@@ -129,15 +165,56 @@ class ProductivityHomeViewModel(
             val daysLeftInMonth = (today.lengthOfMonth() - today.dayOfMonth + 1).coerceAtLeast(1)
             (remaining / daysLeftInMonth).takeIf { it > 0.0 }
         }
-        DailyFinanceSnapshot(safeToSpendToday)
+        val recentTransactions = transactions.sortedByDescending { it.date }.take(8).map { txn ->
+            val verb = if (txn.direction == TransactionDirection.DEBIT) "Spent" else "Received"
+            RecentActivityItem(
+                ActivityKind.EXPENSE,
+                "$verb ₹${"%.0f".format(txn.amount)} - ${txn.merchantRaw}",
+                txn.date
+            )
+        }
+        DailyFinanceSnapshot(safeToSpendToday, recentTransactions)
+    }
+
+    // Family spend + activity (2026-08, real user request) - a one-time snapshot of "am I signed
+    // into the Family module at all," same simplification FamilyEntryScreen already makes
+    // (families.first() = the active family; multi-family switching isn't supported anywhere
+    // yet). A user who never opened Family Sharing gets flowOf(no data) here, never touching
+    // Firestore - this Flow is genuinely optional, not a hidden requirement to sign in.
+    private val familySnapshot: Flow<FamilySnapshot> = run {
+        val uid = familyAuthRepository.currentUser?.uid
+        if (uid == null) {
+            flowOf(FamilySnapshot(null, emptyList()))
+        } else {
+            familyRepository.observeUserFamilies(uid).flatMapLatest { families ->
+                val family = families.firstOrNull()
+                if (family == null) {
+                    flowOf(FamilySnapshot(null, emptyList()))
+                } else {
+                    val zone = ZoneId.systemDefault()
+                    val todayStart = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
+                    combine(
+                        familyLedgerRepository.observeEntries(family.id, todayStart),
+                        eventStreamRepository.observeRecentEvents(family.id, limit = 8)
+                    ) { entries, events ->
+                        val spend = entries.filter { it.direction == "DEBIT" }.sumOf { it.amount }
+                        val activity = events.map { event ->
+                            RecentActivityItem(ActivityKind.FAMILY, familyActivityText(event), event.timestamp)
+                        }
+                        FamilySnapshot(spend, activity)
+                    }
+                }
+            }
+        }
     }
 
     val uiState: StateFlow<ProductivityHomeUiState> = combine(
         taskHabitSnapshot,
         dailyFinanceSnapshot,
         projectDao.observeAll(),
-        goalDao.observeAll()
-    ) { taskHabit, dailyFinance, projects, goals ->
+        goalDao.observeAll(),
+        familySnapshot
+    ) { taskHabit, dailyFinance, projects, goals, family ->
         val (tasks, habits, completions) = taskHabit
         val zone = ZoneId.systemDefault()
         val endOfToday = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -204,6 +281,22 @@ class ProductivityHomeViewModel(
             }
         }
 
+        // Recent Activity (see ProductivityHomeUiState.recentActivity's kdoc) - merges personal
+        // task/habit completions, recent transactions, and family events (if any) into one
+        // newest-first feed.
+        val taskActivity = tasks.mapNotNull { task ->
+            task.completedAt?.let { RecentActivityItem(ActivityKind.TASK, "Completed \"${task.title}\"", it) }
+        }
+        val habitActivity = completions.mapNotNull { completion ->
+            habits.firstOrNull { it.id == completion.habitId }?.let { habit ->
+                val timestamp = completion.dateEpochDay * 86_400_000L
+                RecentActivityItem(ActivityKind.HABIT, "Completed \"${habit.name}\"", timestamp)
+            }
+        }
+        val recentActivity = (taskActivity + habitActivity + dailyFinance.recentTransactions + family.familyActivity)
+            .sortedByDescending { it.timestamp }
+            .take(8)
+
         ProductivityHomeUiState(
             displayName = Prefs.getDisplayName(context),
             profilePhotoPath = Prefs.getProfilePhotoPath(context),
@@ -218,7 +311,23 @@ class ProductivityHomeViewModel(
             tasksCompletedLast7Days = tasksCompletedLast7Days,
             habitsCompletedLast7Days = habitsCompletedLast7Days,
             projects = projectRows,
-            goals = goals
+            goals = goals,
+            todayFamilySpend = family.todayFamilySpend,
+            recentActivity = recentActivity
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProductivityHomeUiState())
+}
+
+/** Small local equivalent of FamilyDashboardScreen's activityText (private to that file) - only
+ * the event types actually meaningful on a personal Home feed get a specific phrase; anything
+ * else falls back to a plain, still-real "did something" description rather than being dropped. */
+private fun familyActivityText(event: FamilyEvent): String {
+    val name = event.actorName.ifBlank { "Someone" }
+    return when (event.type) {
+        FamilyEventType.EXPENSE_ADDED -> "$name added a family expense${event.payload["description"]?.let { ": $it" } ?: ""}"
+        FamilyEventType.TASK_COMPLETED -> "$name completed a family task${event.payload["title"]?.let { ": $it" } ?: ""}"
+        FamilyEventType.SOS_TRIGGERED -> "$name triggered an SOS alert"
+        FamilyEventType.MEMBER_JOINED -> "$name joined the family"
+        else -> "$name updated the family"
+    }
 }

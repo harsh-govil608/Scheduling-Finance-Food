@@ -78,7 +78,9 @@ import com.lifeos.expensecapture.ui.theme.WarningStrong
  * reference mockups (Today Score card, AI Suggestions as a real tip list, priority chips on
  * Today's Focus, Explore as a grid) - see ProductivityHomeUiState's kdoc for what's real vs.
  * deliberately left out (no OCR "Scan Bill" quick action - not built, would be a non-functional
- * button; no Family-spend tile - a separate follow-up, not in this reference).
+ * button). Family-spend and Recent Activity were added in a later pass (real user request,
+ * reconciling this screen against the original text-mockup spec that predated `ui3/`) - see
+ * ProductivityHomeUiState.todayFamilySpend/recentActivity's kdocs.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,6 +97,7 @@ fun ProductivityHomeScreen(
     onOpenTimeline: () -> Unit,
     onOpenLedger: () -> Unit,
     onOpenProfile: () -> Unit,
+    onOpenFamily: () -> Unit,
     onSelectPillar: (Pillar) -> Unit
 ) {
     val context = LocalContext.current
@@ -129,6 +132,10 @@ fun ProductivityHomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { TodayScoreCard(uiState.todayScore, onOpenReview) }
+
+            uiState.todayFamilySpend?.let { spend ->
+                item { FamilySpendTodayCard(spend, onOpenFamily) }
+            }
 
             if (uiState.tips.isNotEmpty()) {
                 item { AiSuggestionsCard(uiState.tips) }
@@ -270,6 +277,74 @@ fun ProductivityHomeScreen(
                     }
                 }
             }
+
+            if (uiState.recentActivity.isNotEmpty()) {
+                item { SectionLabel("Recent Activity") }
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+                    ) {
+                        Column {
+                            uiState.recentActivity.forEachIndexed { index, activity ->
+                                RecentActivityRow(activity)
+                                if (index != uiState.recentActivity.lastIndex) {
+                                    androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** "Family spent today" (2026-08, real user request - the original Home tab text spec's stat,
+ * previously only visible on the Family Dashboard). Only rendered when the signed-in user is
+ * actually in a family - see ProductivityHomeUiState.todayFamilySpend's kdoc. */
+@Composable
+private fun FamilySpendTodayCard(spend: Double, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Family spent today", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("₹${"%.2f".format(spend)}", style = MaterialTheme.typography.titleLarge)
+            }
+            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+private val activityTimeFormat = java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.getDefault())
+
+@Composable
+private fun RecentActivityRow(activity: RecentActivityItem) {
+    val icon = when (activity.kind) {
+        ActivityKind.TASK -> Icons.Filled.CheckCircle
+        ActivityKind.HABIT -> Icons.Filled.AutoAwesome
+        ActivityKind.EXPENSE -> Icons.Filled.AccountBalanceWallet
+        ActivityKind.FAMILY -> Icons.Filled.Folder
+    }
+    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconBadge(icon = icon, tint = MaterialTheme.colorScheme.primary, containerColor = MaterialTheme.colorScheme.primaryContainer, size = 32.dp)
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(activity.text, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                activityTimeFormat.format(java.util.Date(activity.timestamp)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
