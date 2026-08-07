@@ -48,6 +48,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.data.db.entity.TaskPriority
 import com.lifeos.expensecapture.ui.common.ActionTile
 import com.lifeos.expensecapture.ui.common.GreetingTitle
@@ -356,10 +358,15 @@ private fun StatusChipLabel(text: String, color: Color) {
 
 /**
  * "AI Suggestions" card (2026-08, `ui3/` reference - redesigned from a single AiInsightCard
- * paragraph into a short tappable-looking tip list). Deliberately not AI-polished per tip (unlike
- * the single-paragraph insights elsewhere in this app via AiTextPolisher) - see
- * ProductivityHomeUiState.tips' kdoc: up to 3 independently real, already-computed signals, not
- * one AI call inventing several.
+ * paragraph into a short tappable-looking tip list). Each tip's deterministic sentence (see
+ * ProductivityHomeUiState.tips' kdoc: up to 3 independently real, already-computed signals, never
+ * one AI call inventing several) is now individually AI-polished via AiTextPolisher, the same
+ * "real facts, AI only rewords" pattern already used elsewhere (Budget, Finance Home, Family
+ * Dashboard) - see AiTextPolisher's kdoc. Real bug fix (founder question, 2026-08: "is AI
+ * connected with Home tab in AI suggestions?"): this card carried a "Live" badge and an "AI
+ * Suggestions" title over 100% deterministic text with no AI call anywhere in its pipeline -
+ * honest per the kdoc a developer would read, but misleading to a user who has no way to tell
+ * that from the UI alone.
  */
 @Composable
 private fun AiSuggestionsCard(tips: List<HomeTip>) {
@@ -390,7 +397,10 @@ private fun AiSuggestionsCard(tips: List<HomeTip>) {
                 ) {
                     IconBadge(icon = icon, tint = tint, containerColor = container, size = 32.dp)
                     Spacer(Modifier.width(12.dp))
-                    Text(tip.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    val polished by produceState(initialValue = tip.text, tip.text) {
+                        value = AiTextPolisher.polish(tip.text)
+                    }
+                    Text(polished, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
                 }
             }

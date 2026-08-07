@@ -164,6 +164,11 @@ fun BudgetScreen(app: App, onBack: () -> Unit) {
  * is also no longer rendered as a duplicate card in the list below - this ring IS its
  * representation, per the user's own ask for it to read as a health bar, not just another
  * category row.
+ *
+ * Leads with remaining budget, not spend (real user request, 2026-08: "add how much budget is
+ * remaining instead of how much I spent") - "how much can I still spend" is the more actionable
+ * question day-to-day than "how much have I used so far," which the ring already shows visually
+ * anyway. Over-budget still reads as an overspend amount, not a negative "remaining" number.
  */
 @Composable
 private fun BudgetOverviewCard(
@@ -173,6 +178,7 @@ private fun BudgetOverviewCard(
 ) {
     val totalSpent = overall.spentThisMonth
     val totalLimit = overall.budget.monthlyLimit
+    val remaining = totalLimit - totalSpent
     val ratio = if (totalLimit > 0) (totalSpent / totalLimit).coerceIn(0.0, 1.0) else 0.0
     val ringColor = when {
         totalSpent > totalLimit -> WarningStrong
@@ -197,13 +203,17 @@ private fun BudgetOverviewCard(
                 Spacer(Modifier.width(20.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Budget Utilized",
+                        if (remaining >= 0) "Budget Remaining" else "Over Budget",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "You spent ₹${"%.2f".format(totalSpent)} of your total ₹${"%.2f".format(totalLimit)} budget limit.",
+                        if (remaining >= 0) {
+                            "₹${"%.2f".format(remaining)} left of your ₹${"%.2f".format(totalLimit)} budget this month."
+                        } else {
+                            "₹${"%.2f".format(-remaining)} over your ₹${"%.2f".format(totalLimit)} budget this month."
+                        },
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -252,6 +262,19 @@ private fun BudgetCard(
             Text(
                 "₹${"%.2f".format(progress.spentThisMonth)} of ₹${"%.2f".format(progress.budget.monthlyLimit)}",
                 style = AmountBody
+            )
+            // Remaining-per-category (real user request, 2026-08: "add how much budget remains
+            // under each category with the expenses already there") - alongside the existing
+            // spent/limit line above, not replacing it.
+            val remaining = progress.budget.monthlyLimit - progress.spentThisMonth
+            Text(
+                if (remaining >= 0) {
+                    "₹${"%.2f".format(remaining)} remaining"
+                } else {
+                    "₹${"%.2f".format(-remaining)} over budget"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (remaining >= 0) MaterialTheme.colorScheme.onSurfaceVariant else WarningStrong
             )
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(

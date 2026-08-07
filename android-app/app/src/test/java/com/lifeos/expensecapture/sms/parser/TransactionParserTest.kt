@@ -60,6 +60,51 @@ class TransactionParserTest {
         assertEquals("sbi", result.bankTemplateName)
     }
 
+    // Bug fix regression coverage (real user report, 2026-08: a second phone's SMS history scan
+    // captured under 10% of real transactions) - see BankTemplate.kt's genericTransactionAlert
+    // kdoc. Any bank other than ICICI/SBI falls to this template; it used to require a "to/
+    // towards/at"/"from/by" merchant clause to match at all, so a plain ATM withdrawal or EMI
+    // debit with no such clause silently failed to parse.
+
+    @Test
+    fun `generic debit SMS with a merchant clause still parses correctly`() {
+        val body = "Rs.250.00 debited from A/c XX1234 on 12-07-26 to merchant@upi. Ref No 123456789"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(250.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.DEBIT, result.direction)
+        assertEquals("merchant@upi", result.merchantRaw)
+        assertEquals("generic_transaction_alert", result.bankTemplateName)
+    }
+
+    @Test
+    fun `generic debit SMS with no merchant clause still parses, as Unknown`() {
+        val body = "Rs.500.00 debited from A/c XX1234 on 12-07-26. Avl Bal Rs.5000.00"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(500.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.DEBIT, result.direction)
+        assertEquals("Unknown", result.merchantRaw)
+        assertEquals("generic_transaction_alert", result.bankTemplateName)
+    }
+
+    @Test
+    fun `generic credit SMS with no merchant clause still parses, as Unknown`() {
+        val body = "Rs.1000.00 credited to A/c XX1234 on 12-07-26. Avl Bal Rs.6000.00"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(1000.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.CREDIT, result.direction)
+        assertEquals("Unknown", result.merchantRaw)
+        assertEquals("generic_transaction_alert", result.bankTemplateName)
+    }
+
     @Test
     fun `unrelated personal SMS is not parsed as a transaction`() {
         val result = parser.parse(sender = "MOM", body = "Call me when you're free")

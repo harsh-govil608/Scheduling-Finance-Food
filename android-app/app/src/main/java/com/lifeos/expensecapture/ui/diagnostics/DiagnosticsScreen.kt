@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,7 +28,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +55,11 @@ fun DiagnosticsScreen(app: App, onBack: () -> Unit) {
     val viewModel = remember { DiagnosticsViewModel(app.database.crashLogDao()) }
     val entries by viewModel.entries.collectAsState()
     val dateFormat = remember { SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()) }
+    // Bug fix (real user report, 2026-08): this used to wipe the whole crash/error log on a
+    // single tap, the only destructive action in the app with no confirm dialog - every other
+    // delete (Profile's "Delete all data", Budget/Bills/Ledger/Habits/Goals removes) gates behind
+    // an AlertDialog first.
+    var showClearConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -97,11 +105,28 @@ fun DiagnosticsScreen(app: App, onBack: () -> Unit) {
                     items(entries, key = { it.id }) { entry -> CrashLogRow(entry, dateFormat) }
                 }
                 TextButton(
-                    onClick = { viewModel.clearAll() },
+                    onClick = { showClearConfirm = true },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Clear all") }
             }
         }
+    }
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            title = { Text("Clear all diagnostics?") },
+            text = { Text("This permanently deletes every error/crash record kept on this device. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.clearAll()
+                    showClearConfirm = false
+                }) { Text("Clear all", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirm = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 

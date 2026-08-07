@@ -44,12 +44,20 @@ object CrashHandler {
 
     private fun writeSync(context: Context, thread: Thread, throwable: Throwable) {
         val file = File(context.filesDir, CRASH_FILE_NAME)
+        // Bug fix (found via a real Diagnostics audit, 2026-08): throwable.message is very
+        // commonly null (any exception thrown with no message string, e.g. bare
+        // NullPointerException()) - a Kotlin string template renders that as the literal text
+        // "null", which then got persisted and displayed on the Diagnostics screen as if it
+        // were real message content instead of "no message provided". Omitting the field
+        // entirely when there's no message keeps adoptPendingCrashIfAny's field lookup naturally
+        // null instead of the string "null".
+        val messageLine = throwable.message?.let { "message=$it\n" } ?: ""
         file.appendText(
             BLOCK_DELIMITER +
                 "timestamp=${System.currentTimeMillis()}\n" +
                 "thread=${thread.name}\n" +
                 "type=${throwable::class.java.name}\n" +
-                "message=${throwable.message}\n" +
+                messageLine +
                 "version=${AppLogger.appVersionName(context)}\n" +
                 "$STACK_FIELD_PREFIX${Log.getStackTraceString(throwable)}\n"
         )
