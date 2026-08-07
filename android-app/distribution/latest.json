@@ -1,6 +1,6 @@
 {
-  "versionCode": 56,
-  "versionName": "0.44.5-pilot",
+  "versionCode": 57,
+  "versionName": "0.45.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Family setup screen now actually shows the error when creating or joining a family fails - it was tracked internally but never displayed, so a missing-Firestore-index error (with its direct one-click fix link) was invisible. Try joining with a code now and copy the error text if it still fails."
+  "notes": "Infra hardening: crashes and handled errors now also report to Firebase Crashlytics (previously only visible in a local per-device log), the project now has CI (GitHub Actions builds + tests every push) and a proper Gradle wrapper, and the app has its first real release-signing setup as a first step toward eventual Play Store distribution. No user-facing feature changes."
 }

@@ -1,6 +1,13 @@
 *.iml
 .gradle/
 /local.properties
+# Release signing (2026-08 infra hardening) - the keystore is the app's permanent Play Store
+# identity; if it ever leaked via git (this repo is public - distribution/app-latest.apk is
+# served straight off raw.githubusercontent.com), anyone could sign a malicious update as this
+# app. keystore.properties holds the passwords read by build.gradle.kts, same local-file pattern
+# already used for local.properties/OPENROUTER_API_KEY - never committed either.
+/keystore/
+/keystore.properties
 .idea/
 .DS_Store
 /build

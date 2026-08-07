@@ -6,6 +6,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 // Keeps the OpenRouter key (and anything else secret) out of git entirely - local.properties is
@@ -17,6 +18,17 @@ val localProperties = Properties().apply {
     if (file.exists()) load(FileInputStream(file))
 }
 
+// Release signing (2026-08 infra hardening) - same local/gitignored-file pattern as
+// localProperties above. Deliberately optional: a fresh checkout (or CI, which never has this
+// file - see .github/workflows/android-ci.yml, which only builds/tests the debug variant) must
+// still be able to run `assembleDebug`/tests without it. Only `assembleRelease` actually needs
+// these values, and that's gated below on the file existing at all.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) load(FileInputStream(file))
+}
+val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
+
 android {
     namespace = "com.lifeos.expensecapture"
     compileSdk = 34
@@ -25,14 +37,28 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 56
-        versionName = "0.44.5-pilot"
+        versionCode = 57
+        versionName = "0.45.0-pilot"
         buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY", "")}\"")
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -95,6 +121,9 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    // Infra hardening (2026-08) - see AppLogger.e's kdoc for how this complements, not replaces,
+    // the local Room-backed crash_logs table CrashHandler already writes to.
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     testImplementation("junit:junit:4.13.2")

@@ -2,6 +2,7 @@ package com.lifeos.expensecapture.logging
 
 import android.content.Context
 import android.util.Log
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.CrashLogEntity
 import kotlinx.coroutines.CoroutineScope
@@ -38,9 +39,19 @@ object AppLogger {
 
     /** A handled exception - the app keeps running. Logged immediately; persisted to the local
      * crash_logs table best-effort (a failure to persist must never itself throw or block the
-     * caller, so it's fire-and-forget on a supervisor scope). */
+     * caller, so it's fire-and-forget on a supervisor scope). Also reported to Crashlytics
+     * (2026-08 infra hardening) as a non-fatal - the local table is per-device and only ever seen
+     * if someone opens Diagnostics on that exact phone; Crashlytics is what actually makes a
+     * handled exception visible to the founder without needing physical access to the device it
+     * happened on. try/catch around the Crashlytics call for the same reason as the DB write
+     * below - a logging call must never itself become a new source of crashes. */
     fun e(tag: String, message: String, throwable: Throwable) {
         Log.e("$TAG_PREFIX:$tag", message, throwable)
+        try {
+            FirebaseCrashlytics.getInstance().recordException(throwable)
+        } catch (crashlyticsError: Exception) {
+            Log.e("$TAG_PREFIX:AppLogger", "failed to report to Crashlytics", crashlyticsError)
+        }
         val context = appContext ?: return
         logScope.launch {
             try {
