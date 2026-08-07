@@ -1,0 +1,167 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Extra read against the family doc itself - only used in subcollection rules where
+    // `resource.data` isn't the family doc. Family-doc-level rules check memberIds directly
+    // off `resource.data`/`request.resource.data` instead, to avoid a redundant self-read.
+    function isFamilyMember(familyId) {
+      return isSignedIn() &&
+        request.auth.uid in get(/databases/$(database)/documents/families/$(familyId)).data.memberIds;
+    }
+
+    function canManageFamily(familyId) {
+      return isFamilyMember(familyId) &&
+        get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role in ['OWNER', 'PARENT'];
+    }
+
+    function isFamilyOwner(familyId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/families/$(familyId)).data.ownerId == request.auth.uid;
+    }
+
+    // ---------------------------------------------------------------------
+    // users/{uid} - profile + own split history
+    // ---------------------------------------------------------------------
+    match /users/{uid} {
+      // Smart Split's "does this phone number belong to an app user" lookup
+      // (SplitPayRepository.findUserByPhone) queries across ALL user docs by phone - can't be
+      // scoped to self-only without breaking that feature.
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == uid;
+
+      match /splitHistory/{entryId} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // smartSplits/{splitId} + participants - cross-device by design (a split has to be
+    // readable by people who aren't its owner), so "readable by anyone signed in" is
+    // deliberate here, not a gap - see SplitPayRepository's own kdoc.
+    // ---------------------------------------------------------------------
+    match /smartSplits/{splitId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.payerId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.payerId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.payerId == request.auth.uid;
+      // No update rule: nothing in the app updates the split doc itself after creation -
+      // status changes live on the participants subcollection below.
+
+      match /participants/{participantId} {
+        allow create: if isSignedIn() &&
+          get(/databases/$(database)/documents/smartSplits/$(splitId)).data.payerId == request.auth.uid;
+        // Both the participant (marking themselves paid) and the payer (confirming receipt)
+        // legitimately write here - restrict by FIELD instead of identity.
+        allow update: if isSignedIn() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt', 'confirmedAt']);
+        allow delete: if isSignedIn() &&
+          get(/databases/$(database)/documents/smartSplits/$(splitId)).data.payerId == request.auth.uid;
+      }
+    }
+
+    // Collection-group read for SplitPayRepository.observeSplitsIOwe (a participant reading
+    // their own rows across every OTHER user's splits) and for viewing a split via a shared
+    // link before the split doc's own subcollection rule above would apply.
+    match /{path=**}/participants/{participantId} {
+      allow read: if isSignedIn();
+    }
+
+    // ---------------------------------------------------------------------
+    // families/{familyId} + every shared-module subcollection
+    // ---------------------------------------------------------------------
+    match /families/{familyId} {
+      allow get: if isSignedIn() && request.auth.uid in resource.data.memberIds;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberIds;
+      allow create: if isSignedIn() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.memberIds == [request.auth.uid];
+      // Only known update: joinFamilyByCode's arrayUnion(self) - nothing else in the app
+      // updates the family doc, so nothing else is allowed to either.
+      allow update: if isSignedIn() &&
+        request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds']);
+      allow delete: if isFamilyOwner(familyId);
+
+      match /members/{userId} {
+        allow get, list: if isFamilyMember(familyId);
+        // Known gap: this can't verify a valid invitation was actually used (that check
+        // happens client-side in joinFamilyByCode before this write) - only that you're
+        // writing your own uid under a familyId you already know. Residual risk is low since
+        // familyId is an unguessable 20-char Firestore auto-ID, not enumerable, and this is
+        // strictly tighter than today's "any signed-in user, any field, anywhere" rule either
+        // way. Closing it fully needs a Cloud Function, out of scope for this pass.
+        allow create: if isSignedIn() && request.auth.uid == userId;
+        allow update: if canManageFamily(familyId);
+        allow delete: if isFamilyOwner(familyId);
+      }
+
+      match /invitations/{inviteId} {
+        allow create: if isFamilyMember(familyId);
+        allow delete: if isFamilyOwner(familyId);
+        // get/list/status-update handled by the collection-group rule below - joining by code
+        // is inherently a non-member (or member-of-a-different-family) operation.
+      }
+
+      match /events/{eventId} {
+        allow read, create: if isFamilyMember(familyId);
+        allow delete: if isFamilyOwner(familyId);
+      }
+
+      match /tasks/{taskId} {
+        allow read, create, update, delete: if isFamilyMember(familyId);
+      }
+      match /calendarEvents/{eventId} {
+        allow read, create, update, delete: if isFamilyMember(familyId);
+      }
+      match /expenses/{expenseId} {
+        allow read, create, update, delete: if isFamilyMember(familyId);
+      }
+      match /documents/{documentId} {
+        allow read, create, update, delete: if isFamilyMember(familyId);
+      }
+      match /healthRecords/{recordId} {
+        // Client-side PermissionGate (PermissionSet.healthVisible) is the only thing today
+        // that restricts who sees these per member - this rule only enforces family
+        // membership, same as before. Tightening per-member visibility server-side is a
+        // separate, bigger change - flagged, not solved, in this pass.
+        allow read, create, update, delete: if isFamilyMember(familyId);
+      }
+      match /emergencyContacts/{contactId} {
+        allow read, create, update, delete: if isFamilyMember(familyId);
+      }
+      match /sosAlerts/{alertId} {
+        allow read, create, update: if isFamilyMember(familyId);
+        allow delete: if isFamilyOwner(familyId);
+      }
+      match /notifications/{notificationId} {
+        // Shared family feed, not per-recipient inboxes - any member can read/mark-read any
+        // notification, matching FamilyNotificationRepository's actual data model.
+        allow read, create, update: if isFamilyMember(familyId);
+      }
+      match /presence/{userId} {
+        allow read: if isFamilyMember(familyId);
+        allow write: if isSignedIn() && request.auth.uid == userId;
+      }
+      match /ledger/{entryId} {
+        allow read, create: if isFamilyMember(familyId);
+      }
+    }
+
+    // Collection-group read + status-only update for joining a family by code
+    // (FamilyRepository.joinFamilyByCode) - the joiner is, by definition, not yet a member of
+    // this family (or a member of a different one), so the nested rule above can't cover it.
+    match /{path=**}/invitations/{inviteId} {
+      allow read: if isSignedIn();
+      allow update: if isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    }
+  }
+}
