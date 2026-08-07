@@ -333,7 +333,6 @@ private fun RecentActivityRow(activity: RecentActivityItem) {
         ActivityKind.TASK -> Icons.Filled.CheckCircle
         ActivityKind.HABIT -> Icons.Filled.AutoAwesome
         ActivityKind.EXPENSE -> Icons.Filled.AccountBalanceWallet
-        ActivityKind.FAMILY -> Icons.Filled.Folder
     }
     Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
         IconBadge(icon = icon, tint = MaterialTheme.colorScheme.primary, containerColor = MaterialTheme.colorScheme.primaryContainer, size = 32.dp)

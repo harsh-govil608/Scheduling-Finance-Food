@@ -1,6 +1,6 @@
 {
-  "versionCode": 61,
-  "versionName": "0.47.1-pilot",
+  "versionCode": 62,
+  "versionName": "0.47.2-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Diagnostics screen is now friendlier - it used to show the raw exception class name (e.g. \"java.lang.NullPointerException\") by default, which reads as unexplained code to anyone non-technical. Now shows a plain description (\"The app closed unexpectedly\" / \"A minor issue was handled automatically\") with the technical details tucked behind a \"Show technical details\" toggle."
+  "notes": "Home tab's Recent Activity is now personal-only (your own tasks/habits/transactions) - family events were removed, since that's why two different family members were seeing different feeds. Also capped at 5 items instead of 8."
 }
