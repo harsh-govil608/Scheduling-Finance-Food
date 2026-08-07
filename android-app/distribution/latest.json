@@ -1,6 +1,6 @@
 {
-  "versionCode": 57,
-  "versionName": "0.45.0-pilot",
+  "versionCode": 58,
+  "versionName": "0.45.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Infra hardening: crashes and handled errors now also report to Firebase Crashlytics (previously only visible in a local per-device log), the project now has CI (GitHub Actions builds + tests every push) and a proper Gradle wrapper, and the app has its first real release-signing setup as a first step toward eventual Play Store distribution. No user-facing feature changes."
+  "notes": "Fixed: deleting a family didn't clean up its presence and ledger data, leaving them orphaned in the database instead of removed. Found during a Firestore security audit."
 }

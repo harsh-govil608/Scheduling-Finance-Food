@@ -29,10 +29,13 @@ private const val INVITE_EXPIRY_MILLIS = 7L * 24 * 60 * 60 * 1000 // 7 days
  * [FamilyRepository.deleteFamily] has to purge each of these itself before removing the family
  * doc. "members" and "invitations" are included even though this file also has dedicated
  * accessors for them, since deletion needs every subcollection, not just the two this class
- * otherwise reads/writes. */
+ * otherwise reads/writes. "presence" (PresenceRepository) and "ledger" (FamilyLedgerRepository)
+ * were missing here (real bug, found via a 2026-08 Firestore rules audit) - deleting a family
+ * orphaned both instead of removing them. */
 private val FAMILY_SUBCOLLECTIONS = listOf(
     "members", "invitations", "events", "tasks", "calendarEvents", "expenses",
-    "documents", "healthRecords", "emergencyContacts", "sosAlerts", "notifications"
+    "documents", "healthRecords", "emergencyContacts", "sosAlerts", "notifications",
+    "presence", "ledger"
 )
 
 /**
