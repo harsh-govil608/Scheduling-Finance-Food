@@ -130,8 +130,18 @@ fun DiagnosticsScreen(app: App, onBack: () -> Unit) {
     }
 }
 
+/**
+ * Friendlier by default (real founder request, 2026-08: "koi diagnostic click karega to usko
+ * codes dikhega?" - the raw exception class name, e.g. "java.lang.NullPointerException", read as
+ * unexplained "code" to anyone non-technical looking at this screen). The plain-language headline
+ * is what shows by default; the exception type/message stay available, just tucked behind a
+ * "Show technical details" toggle instead of always visible - still exactly what
+ * DiagnosticsExporter's share output includes in full either way, this only changes the in-app
+ * list's default view.
+ */
 @Composable
 private fun CrashLogRow(entry: CrashLogEntity, dateFormat: SimpleDateFormat) {
+    var showTechnical by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -139,18 +149,33 @@ private fun CrashLogRow(entry: CrashLogEntity, dateFormat: SimpleDateFormat) {
     ) {
         Column(Modifier.padding(12.dp)) {
             Text(
-                if (entry.fatal) "Fatal - ${entry.exceptionType}" else "Handled - ${entry.exceptionType}",
+                if (entry.fatal) "The app closed unexpectedly" else "A minor issue was handled automatically",
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (entry.fatal) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
             )
             Text(
-                "${dateFormat.format(Date(entry.timestamp))} - v${entry.appVersionName}" +
-                    (entry.source?.let { " - $it" } ?: ""),
+                "${dateFormat.format(Date(entry.timestamp))} - v${entry.appVersionName}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            entry.message?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall)
+            TextButton(
+                onClick = { showTechnical = !showTechnical },
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) {
+                Text(if (showTechnical) "Hide technical details" else "Show technical details")
+            }
+            if (showTechnical) {
+                Text(
+                    entry.exceptionType,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                entry.message?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                entry.source?.let {
+                    Text("Source: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

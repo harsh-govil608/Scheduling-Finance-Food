@@ -1,6 +1,6 @@
 {
-  "versionCode": 60,
-  "versionName": "0.47.0-pilot",
+  "versionCode": 61,
+  "versionName": "0.47.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Home tab now shows two things from the original spec that were missing: a \"Family spent today\" card (only visible if you're in a family) and a Recent Activity feed at the bottom, merging your completed tasks/habits, recent transactions, and family events into one real timeline."
+  "notes": "Diagnostics screen is now friendlier - it used to show the raw exception class name (e.g. \"java.lang.NullPointerException\") by default, which reads as unexplained code to anyone non-technical. Now shows a plain description (\"The app closed unexpectedly\" / \"A minor issue was handled automatically\") with the technical details tucked behind a \"Show technical details\" toggle."
 }
