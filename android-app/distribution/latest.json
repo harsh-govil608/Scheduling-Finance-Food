@@ -1,6 +1,6 @@
 {
-  "versionCode": 62,
-  "versionName": "0.47.2-pilot",
+  "versionCode": 63,
+  "versionName": "0.48.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Home tab's Recent Activity is now personal-only (your own tasks/habits/transactions) - family events were removed, since that's why two different family members were seeing different feeds. Also capped at 5 items instead of 8."
+  "notes": "SMS capture now has an AI fallback for banks without a dedicated verified template (previously only ICICI/SBI were fully covered). When the fast offline regex parser can't read a message from a real bank sender, it's now sent to AI as a second attempt before falling back to Needs Review - should meaningfully improve capture on phones using other banks. A history re-scan on a phone with lots of previously-unparsed messages may take longer the first time."
 }
