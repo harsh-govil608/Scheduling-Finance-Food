@@ -38,5 +38,11 @@ data class TransactionEntity(
     val isUserCorrected: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val synced: Boolean = false,
-    val sourceHash: String = UUID.randomUUID().toString()
+    val sourceHash: String = UUID.randomUUID().toString(),
+    /** Bank/UPI reference or transaction ID, when the parser could extract one (see
+     * GenericTransactionExtractor/TransactionParser). Null for manual entries and for any SMS
+     * format with no extractable reference. Used as a secondary duplicate check alongside
+     * `sourceHash` - see TransactionDao.countByReferenceId's kdoc for why the exact-text hash
+     * alone isn't enough. */
+    val referenceId: String? = null
 )

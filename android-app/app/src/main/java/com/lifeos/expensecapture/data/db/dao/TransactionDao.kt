@@ -44,4 +44,19 @@ interface TransactionDao {
      * side effect, not a correction the user made to this specific transaction. */
     @Query("UPDATE transactions SET categoryId = :uncategorizedId WHERE categoryId = :deletedCategoryId")
     suspend fun reassignCategoryToUncategorized(deletedCategoryId: Long, uncategorizedId: Long)
+
+    /** Secondary duplicate signal (see TransactionEntity.referenceId's kdoc): catches the same
+     * real transaction described by two different SMS with different wording - e.g. the bank's
+     * alert and a UPI app's own notification - that the exact sender+body sourceHash can't. */
+    @Query("SELECT COUNT(*) FROM transactions WHERE referenceId = :referenceId AND referenceId IS NOT NULL")
+    suspend fun countByReferenceId(referenceId: String): Int
+
+    /** Bulk-loaded once by SmsDiagnosticsScanner rather than queried per-message - a full-inbox
+     * dry-run scan can be thousands of messages, and a per-row suspend query for each would be
+     * far slower than one query plus in-memory set membership checks. */
+    @Query("SELECT sourceHash FROM transactions")
+    suspend fun getAllSourceHashes(): List<String>
+
+    @Query("SELECT referenceId FROM transactions WHERE referenceId IS NOT NULL")
+    suspend fun getAllReferenceIds(): List<String>
 }

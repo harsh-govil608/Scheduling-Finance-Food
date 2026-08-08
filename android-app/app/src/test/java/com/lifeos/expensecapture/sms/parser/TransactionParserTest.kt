@@ -61,10 +61,11 @@ class TransactionParserTest {
     }
 
     // Bug fix regression coverage (real user report, 2026-08: a second phone's SMS history scan
-    // captured under 10% of real transactions) - see BankTemplate.kt's genericTransactionAlert
-    // kdoc. Any bank other than ICICI/SBI falls to this template; it used to require a "to/
-    // towards/at"/"from/by" merchant clause to match at all, so a plain ATM withdrawal or EMI
-    // debit with no such clause silently failed to parse.
+    // captured under 10% of real transactions). The old single-regex genericTransactionAlert
+    // template required a "to/towards/at"/"from/by" merchant clause to match at all, so a plain
+    // ATM withdrawal or EMI debit with no such clause silently failed to parse. It's been
+    // replaced entirely by GenericTransactionExtractor - see its kdoc for the full root cause
+    // (narrow keyword vocabulary, rigid word order, mandatory currency prefix).
 
     @Test
     fun `generic debit SMS with a merchant clause still parses correctly`() {
@@ -76,7 +77,7 @@ class TransactionParserTest {
         assertEquals(250.00, result.amount, 0.001)
         assertEquals(TransactionDirection.DEBIT, result.direction)
         assertEquals("merchant@upi", result.merchantRaw)
-        assertEquals("generic_transaction_alert", result.bankTemplateName)
+        assertEquals("generic_v2", result.bankTemplateName)
     }
 
     @Test
@@ -89,7 +90,7 @@ class TransactionParserTest {
         assertEquals(500.00, result.amount, 0.001)
         assertEquals(TransactionDirection.DEBIT, result.direction)
         assertEquals("Unknown", result.merchantRaw)
-        assertEquals("generic_transaction_alert", result.bankTemplateName)
+        assertEquals("generic_v2", result.bankTemplateName)
     }
 
     @Test
@@ -102,7 +103,90 @@ class TransactionParserTest {
         assertEquals(1000.00, result.amount, 0.001)
         assertEquals(TransactionDirection.CREDIT, result.direction)
         assertEquals("Unknown", result.merchantRaw)
-        assertEquals("generic_transaction_alert", result.bankTemplateName)
+        assertEquals("generic_v2", result.bankTemplateName)
+    }
+
+    // Broader keyword vocabulary coverage (real founder request, 2026-08): the old generic
+    // template only ever recognized "debited"/"dr." and "credited"/"cr." - real bank SMS
+    // routinely use other real words for the same action, in either word order relative to the
+    // amount, and sometimes with no currency symbol at all before it.
+
+    @Test
+    fun `ATM withdrawal with no currency-before-keyword order still parses`() {
+        val body = "Rs.2000.00 withdrawn from A/c XX4321 on 12-07-26. Avl Bal Rs.8000.00"
+
+        val result = parser.parse(sender = "AX-AXISBK-S", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(2000.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.DEBIT, result.direction)
+        assertEquals("generic_v2", result.bankTemplateName)
+    }
+
+    @Test
+    fun `a credit alert using 'received' instead of 'credited' still parses, with its reference id`() {
+        val body = "Rs.3000.00 received from A/c XX9999 on 12-07-26. Ref No 987654321"
+
+        val result = parser.parse(sender = "AX-AXISBK-S", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(3000.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.CREDIT, result.direction)
+        assertEquals("987654321", result.referenceId)
+    }
+
+    @Test
+    fun `a debit alert using 'spent' instead of 'debited' still parses`() {
+        val body = "You have spent Rs.799.00 on your card ending 4321 at bigbasket. Avl Bal Rs.15000.00"
+
+        val result = parser.parse(sender = "AD-ICICIT-S", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(799.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.DEBIT, result.direction)
+    }
+
+    // UPI DR/CR compact reference format (real founder request, 2026-08): several banks/PSPs emit
+    // a structured "UPI/DR/<ref>/<merchant>/<provider>" segment alongside the prose sentence -
+    // e.g. UPI/DR/D127456139556/Zepto/ybl means channel=UPI, type=debit, merchant=Zepto,
+    // provider=ybl. This is an unambiguous, higher-confidence signal than keyword proximity.
+
+    @Test
+    fun `UPI DR reference format is extracted for direction, merchant, and reference id`() {
+        val body = "Rs.199.00 debited from A/c XX1234 via UPI/DR/D127456139556/Zepto/ybl on 12-07-26"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(199.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.DEBIT, result.direction)
+        assertEquals("Zepto", result.merchantRaw)
+        assertEquals("D127456139556", result.referenceId)
+        assertEquals("generic_upi_ref", result.bankTemplateName)
+    }
+
+    @Test
+    fun `UPI CR reference format is recognized as a credit`() {
+        val body = "Rs.500.00 credited to A/c XX1234 via UPI/CR/R987654321000/SohomJana/oksbi on 12-07-26"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(TransactionDirection.CREDIT, result.direction)
+        assertEquals("SohomJana", result.merchantRaw)
+    }
+
+    // False-positive guard (the flip side of the capture-rate fix): broadening the keyword
+    // vocabulary must not turn an ordinary personal text about money into a fabricated
+    // transaction just because it happens to contain an amount and a word like "paid"/"sent".
+
+    @Test
+    fun `a personal text mentioning an amount and a debit-like word is not parsed as a transaction`() {
+        val body = "I paid Rs.500 for the cab, can you send it back?"
+
+        val result = parser.parse(sender = "MOM", body = body)
+
+        assertTrue(result is ParseResult.Unparsed)
     }
 
     @Test

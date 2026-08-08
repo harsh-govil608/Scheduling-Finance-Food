@@ -32,6 +32,15 @@ object TransactionIngestor {
         val categorizationEngine = CategorizationEngine(db.merchantRuleDao(), db.categoryDao())
 
         suspend fun insertParsed(result: ParseResult.Parsed): TransactionEntity? {
+            // Secondary dedup signal (see TransactionEntity.referenceId's kdoc): the exact
+            // sender+body sourceHash below only catches a literal re-scan of the identical SMS.
+            // A real reference/transaction number repeating means the same money movement was
+            // already recorded, even if a different SMS (e.g. the bank's vs. a UPI app's own
+            // notification) described it in different words.
+            if (!result.referenceId.isNullOrBlank() && db.transactionDao().countByReferenceId(result.referenceId) > 0) {
+                return null
+            }
+
             val categoryId = categorizationEngine.categorize(result.merchantRaw)
             val entity = TransactionEntity(
                 amount = result.amount,
@@ -42,7 +51,8 @@ object TransactionIngestor {
                 date = timestamp,
                 source = TransactionSource.SMS_AUTO,
                 confidenceScore = result.confidence,
-                sourceHash = "$sender::$body"
+                sourceHash = "$sender::$body",
+                referenceId = result.referenceId
             )
             val insertedId = db.transactionDao().insert(entity)
             return if (insertedId > 0) entity.copy(id = insertedId) else null // 0 means the unique-index IGNORE rejected a duplicate

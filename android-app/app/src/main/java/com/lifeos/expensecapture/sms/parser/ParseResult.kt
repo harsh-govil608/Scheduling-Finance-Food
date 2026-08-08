@@ -8,7 +8,13 @@ sealed class ParseResult {
         val direction: TransactionDirection,
         val merchantRaw: String,
         val confidence: Float,
-        val bankTemplateName: String
+        val bankTemplateName: String,
+        /** Bank/UPI reference or transaction ID extracted from the SMS body, when present. A
+         * stronger duplicate signal than the exact sender+body hash alone - see
+         * TransactionIngestor's dedup logic - because two different SMS (e.g. the bank's and a
+         * UPI app's) can describe the exact same real transaction with different wording but the
+         * same reference number. */
+        val referenceId: String? = null
     ) : ParseResult()
 
     /**

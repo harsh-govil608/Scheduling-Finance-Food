@@ -1,6 +1,6 @@
 {
-  "versionCode": 63,
-  "versionName": "0.48.0-pilot",
+  "versionCode": 64,
+  "versionName": "0.49.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "SMS capture now has an AI fallback for banks without a dedicated verified template (previously only ICICI/SBI were fully covered). When the fast offline regex parser can't read a message from a real bank sender, it's now sent to AI as a second attempt before falling back to Needs Review - should meaningfully improve capture on phones using other banks. A history re-scan on a phone with lots of previously-unparsed messages may take longer the first time."
+  "notes": "SMS parser rebuilt to be bank-agnostic instead of one regex guess per bank: recognizes the full debit/credit keyword vocabulary (withdrawn, spent, paid, deducted, purchase, sent, transferred, deposited, received, refund, reversed, added - not just \"debited\"/\"credited\"), in either word order and with or without a currency symbol, plus dedicated UPI/DR//UPI/CR reference-line parsing. This targets the confirmed under-10%-capture bug on phones using banks other than ICICI/SBI. Also: reference-ID-based duplicate detection (catches the same transaction described by two different SMS), a new SMS Scan Diagnostics tool in Profile > Diagnostics (see exactly how many SMS were found/parsed/skipped/duplicated on your phone), \"Delete All My Data\" renamed to \"Clear All My Data and Log Out\" and fixed so SMS history actually re-scans fresh afterward, and an AI chat guardrail against confidently forecasting from too little history."
 }

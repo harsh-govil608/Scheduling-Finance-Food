@@ -20,30 +20,36 @@ class TransactionParser(
             return ParseResult.Ignored(reason = "otp_or_verification")
         }
 
+        // Deliberately no early "no candidates" return here (there used to be one): a message
+        // that matches no verified per-bank template's sender/keyword filter can still be a real
+        // transaction from an uncovered bank - it must still reach GenericTransactionExtractor
+        // below instead of being discarded before that fallback ever runs.
         val candidateTemplates = templates.filter { template ->
             template.senderPatterns.any { it.containsMatchIn(sender) } || looksLikeTransactionSms(body)
         }
 
-        if (candidateTemplates.isEmpty()) {
-            return ParseResult.Unparsed(body, reason = "no_matching_template")
-        }
-
         for (template in candidateTemplates) {
             template.debitPattern.find(body)?.let { match ->
-                return buildParsed(match, template, TransactionDirection.DEBIT)
+                return buildParsed(match, template, TransactionDirection.DEBIT, body)
             }
             template.creditPattern.find(body)?.let { match ->
-                return buildParsed(match, template, TransactionDirection.CREDIT)
+                return buildParsed(match, template, TransactionDirection.CREDIT, body)
             }
         }
 
-        return ParseResult.Unparsed(body, reason = "template_matched_but_no_regex_hit")
+        // Bank-agnostic fallback for every bank/UPI app without a verified template above - see
+        // GenericTransactionExtractor's kdoc for why this replaced a single fixed-shape regex.
+        GenericTransactionExtractor.extract(sender, body)?.let { return it }
+
+        val reason = if (candidateTemplates.isEmpty()) "no_matching_template" else "template_matched_but_no_regex_hit"
+        return ParseResult.Unparsed(body, reason = reason)
     }
 
     private fun buildParsed(
         match: MatchResult,
         template: BankTemplate,
-        direction: TransactionDirection
+        direction: TransactionDirection,
+        body: String
     ): ParseResult.Parsed {
         val amountRaw = match.groupValues.getOrElse(1) { "0" }.replace(",", "")
         val amount = amountRaw.toDoubleOrNull() ?: 0.0
@@ -57,7 +63,8 @@ class TransactionParser(
             direction = direction,
             merchantRaw = merchant,
             confidence = confidence,
-            bankTemplateName = template.name
+            bankTemplateName = template.name,
+            referenceId = GenericTransactionExtractor.extractReferenceId(body)
         )
     }
 

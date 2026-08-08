@@ -13,7 +13,9 @@ import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.data.seed.DefaultCategories
 import com.lifeos.expensecapture.finance.FinancialHealthScore
 import com.lifeos.expensecapture.logging.AppLogger
+import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import com.lifeos.expensecapture.util.Prefs
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -157,11 +159,36 @@ class ProfileViewModel(private val context: Context, private val database: AppDa
         _capturePaused.value = paused
     }
 
+    /**
+     * "Clear all my data and log out" (renamed from "Delete All My Data" - real founder report,
+     * 2026-08: this appeared not to work). It did wipe the Room tables, but nothing ever came
+     * back afterward, which reads as broken: SmsHistoryScanner's `last_scanned_date` watermark
+     * lives in its own SharedPreferences file, not a Room table, so `clearAllTables()` never
+     * touched it - the very next scan (ProfileScreen already navigates back to onboarding, which
+     * re-runs one) believed every message up to that watermark was already handled and skipped
+     * all of it, silently leaving the ledger empty forever. This is the exact same class of bug
+     * AppDatabase's onDestructiveMigration callback already exists to prevent for a schema-bump
+     * wipe (see SmsHistoryScanner.resetScanFlag's kdoc) - this manual path just never called it.
+     *
+     * Also now signs out of the Family module's Firebase account (a real "log out", not just a
+     * local data wipe - the Family SDK session otherwise survives this) and clears the local
+     * display name/photo, so this is genuinely a fresh start, not a fresh start with old identity
+     * bits still attached.
+     */
     fun deleteAllData(onDone: () -> Unit) {
         viewModelScope.launch {
             database.clearAllTables()
             database.categoryDao().insertAll(DefaultCategories.asEntities())
+            SmsHistoryScanner.resetScanFlag(context)
             Prefs.setCapturePaused(context, false)
+            Prefs.setDisplayName(context, "")
+            Prefs.getProfilePhotoPath(context)?.let { java.io.File(it).delete() }
+            Prefs.setProfilePhotoPath(context, null)
+            try {
+                FirebaseAuth.getInstance().signOut()
+            } catch (e: Exception) {
+                AppLogger.e("ProfileViewModel", "sign-out failed during clear-all-data", e)
+            }
             onDone()
         }
     }

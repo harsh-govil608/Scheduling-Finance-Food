@@ -262,6 +262,16 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
     }
 }
 
+/** SMS capture audit fix (2026-08, real user report: a second phone's history scan captured
+ * under 10% of real transactions): a reference/transaction ID lets duplicate detection catch the
+ * same real-world transaction described by two differently-worded SMS - see
+ * TransactionDao.countByReferenceId's kdoc. Nullable, so every existing row is simply unset. */
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE transactions ADD COLUMN referenceId TEXT")
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -286,7 +296,7 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
         SplitExpenseEntity::class,
         SplitParticipantEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -353,7 +363,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

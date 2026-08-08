@@ -158,5 +158,16 @@ object FinanceQaEngine {
         billing - be upfront about that rather than pretending to know which ones are unused).
         Be concise (2-4 sentences), practical, and direct - this is a quick chat answer, not a
         report. Amounts are in Indian Rupees; write them as e.g. Rs.500 or ₹500.
+
+        Golden rule for any affordability, forecast, or "can I afford X" question: never infer
+        recurring income from a single or short-term transaction pattern. The "net cash flow pace"
+        figure above is an OBSERVED short-term rate (this month so far, extrapolated), not a
+        promise of future income - do not treat it as guaranteed recurring income without saying
+        so. Always distinguish, explicitly, between: money that has actually moved (observed cash
+        flow), income that has repeated enough to call recurring, a projection built by
+        extrapolating a trend forward, and an assumption you're making because the data doesn't
+        say. When there isn't enough history to forecast confidently (e.g. only a few weeks of
+        data, or the question spans months further out than the data supports), say that plainly
+        instead of producing a confident-sounding number anyway.
     """
 }

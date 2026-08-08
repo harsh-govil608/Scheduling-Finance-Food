@@ -96,42 +96,11 @@ object BankTemplates {
         merchantExtractor = { match -> match.groupValues.getOrElse(2) { "Unknown" }.trim() }
     )
 
-    /**
-     * Loosely matches the common shape of OTHER Indian bank/UPI transaction alerts, e.g.
-     * "Rs.250.00 debited from A/c XX1234 on 12-07-26 to merchant@upi. Ref No 123456789".
-     * This is a starting-point guess, NOT verified against a real sample - unlike iciciBank
-     * above. Replace/extend with a verified template as soon as you have real SMS text from
-     * whichever other banks your pilot cohort uses; do not assume this one actually works.
-     *
-     * Bug fix (real user report, 2026-08: a second phone's SMS history scan captured under 10%
-     * of real transactions): the "to/towards/at"/"from/by" merchant clause used to be mandatory,
-     * so any real alert without one - a plain ATM withdrawal ("Rs.500 debited from A/c XX1234 on
-     * 12-07-26. Avl Bal Rs...") or an EMI/standing-instruction debit with no merchant phrase at
-     * all - failed to match this template entirely and silently became Unparsed, for every bank
-     * other than the two verified ones (ICICI, SBI). The merchant clause is now optional; when
-     * it's genuinely absent, the transaction still gets captured with merchant "Unknown" (same
-     * honest fallback SBI's raw-VPA case already uses) rather than not being captured at all.
-     */
-    val genericTransactionAlert = BankTemplate(
-        name = "generic_transaction_alert",
-        senderPatterns = listOf(
-            Regex("(?i)^[A-Z]{2}-[A-Z0-9]+$"), // typical DLT sender-ID shape, e.g. "VM-HDFCBK"
-            Regex("(?i)bank|upi|hdfc|sbi|axis|kotak", RegexOption.IGNORE_CASE)
-        ),
-        debitPattern = Regex(
-            "(?i)(?:Rs\\.?|INR)\\s?([0-9,]+(?:\\.\\d{1,2})?)\\s*" +
-                "(?:has been debited|debited|dr\\.?)\\b" +
-                "(?:.*?(?:to|towards|at)\\s+([A-Za-z0-9@._\\-\\s]+?)(?:\\.|,|\\son\\s|\\sRef|\\sref|$))?"
-        ),
-        creditPattern = Regex(
-            "(?i)(?:Rs\\.?|INR)\\s?([0-9,]+(?:\\.\\d{1,2})?)\\s*" +
-                "(?:has been credited|credited|cr\\.?)\\b" +
-                "(?:.*?(?:from|by)\\s+([A-Za-z0-9@._\\-\\s]+?)(?:\\.|,|\\son\\s|\\sRef|\\sref|$))?"
-        ),
-        merchantExtractor = { match -> match.groupValues.getOrElse(2) { "" }.trim().ifBlank { "Unknown" } }
-    )
-
     // Order matters: more specific/verified templates first, so a message matching both a
-    // specific bank's shape and the generic fallback's loose keyword match resolves correctly.
-    val all = listOf(iciciBank, sbiBank, genericTransactionAlert)
+    // specific bank's shape and a looser fallback resolves to the verified one. Any bank not
+    // covered by a specific template above falls through to GenericTransactionExtractor (see
+    // TransactionParser.parse) rather than one more single-regex guess - a fixed sentence shape
+    // (the old genericTransactionAlert here) could never cover the real variety of Indian bank/
+    // UPI SMS wording; see GenericTransactionExtractor's kdoc for why.
+    val all = listOf(iciciBank, sbiBank)
 }

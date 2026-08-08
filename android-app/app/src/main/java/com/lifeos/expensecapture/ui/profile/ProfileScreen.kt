@@ -288,7 +288,7 @@ fun ProfileScreen(
                     ) {
                         Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                         Spacer(Modifier.width(12.dp))
-                        Text("Delete All My Data", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyLarge)
+                        Text("Clear All My Data and Log Out", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }
@@ -412,19 +412,20 @@ fun ProfileScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete all data?") },
+            title = { Text("Clear all data and log out?") },
             text = {
                 Text(
                     "This permanently erases every transaction, budget, subscription, bill, " +
-                        "and rule stored on this device. There's no server-side account to " +
-                        "delete separately - this is everything. This cannot be undone."
+                        "and rule stored on this device, signs you out of Family if you're " +
+                        "signed in, and resets automatic SMS capture so it starts fresh from " +
+                        "scratch next time you grant access. This cannot be undone."
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteAllData { onDataDeleted() }
                     showDeleteConfirm = false
-                }) { Text("Delete everything", color = MaterialTheme.colorScheme.error) }
+                }) { Text("Clear everything", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
