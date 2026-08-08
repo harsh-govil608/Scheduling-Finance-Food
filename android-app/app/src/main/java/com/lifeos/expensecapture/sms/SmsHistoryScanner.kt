@@ -33,6 +33,7 @@ object SmsHistoryScanner {
 
     private const val PREFS_NAME = "sms_history_scan"
     private const val KEY_LAST_SCANNED_DATE = "last_scanned_date"
+    private const val WATERMARK_CHECKPOINT_INTERVAL = 25
 
     /**
      * A destructive migration (fallbackToDestructiveMigration) wipes the transactions table but
@@ -65,15 +66,31 @@ object SmsHistoryScanner {
             val bodyIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.BODY)
             val dateIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
 
+            var processedSinceCheckpoint = 0
             while (cursor.moveToNext()) {
                 val sender = cursor.getString(addressIndex) ?: continue
                 val body = cursor.getString(bodyIndex) ?: continue
                 val date = cursor.getLong(dateIndex)
                 TransactionIngestor.ingest(db, sender, body, date, parser)
-                // Persisted after EVERY message, not once at the end - this is the actual fix.
-                // If anything interrupts the scan right here, the next call resumes from this
-                // exact point instead of either being stuck forever or restarting from zero.
-                prefs.edit().putLong(KEY_LAST_SCANNED_DATE, date).apply()
+                // Checkpointed every WATERMARK_CHECKPOINT_INTERVAL messages rather than every
+                // single one (perf fix, real founder report 2026-08: a full-history scan "taking
+                // a lot of time" on a real device - thousands of individual SharedPreferences
+                // writes added real overhead on top of the parser's own per-message cost). Still
+                // resumable, not "restart from zero" - see this object's own kdoc for why that
+                // matters: an interruption now costs at most one batch's worth of re-processed
+                // messages instead of the whole remaining scan, and re-processing is a safe no-op
+                // either way (TransactionIngestor's dedup rejects anything already ingested).
+                processedSinceCheckpoint++
+                if (processedSinceCheckpoint >= WATERMARK_CHECKPOINT_INTERVAL) {
+                    prefs.edit().putLong(KEY_LAST_SCANNED_DATE, date).apply()
+                    processedSinceCheckpoint = 0
+                }
+            }
+            // Final checkpoint so the last partial batch (< WATERMARK_CHECKPOINT_INTERVAL
+            // messages) isn't left unrecorded once the cursor is exhausted.
+            cursor.moveToLast()
+            if (cursor.count > 0) {
+                prefs.edit().putLong(KEY_LAST_SCANNED_DATE, cursor.getLong(dateIndex)).apply()
             }
         }
 

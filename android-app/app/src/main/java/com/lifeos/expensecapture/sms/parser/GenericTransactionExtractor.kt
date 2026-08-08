@@ -38,6 +38,15 @@ object GenericTransactionExtractor {
         "credited", "credit", "deposited", "received", "refund", "reversed", "added"
     )
 
+    /** Perf fix (real founder report, 2026-08: a full-history scan "taking a lot of time" on a
+     * real device): findKeywordHits used to build a brand-new Regex (a fresh
+     * java.util.regex.Pattern.compile call) for every one of these 18 keywords, on EVERY message
+     * this extractor runs against - thousands of redundant compilations across a real inbox scan.
+     * Compiled once here instead of inside the per-message loop. */
+    private val KEYWORD_PATTERNS: List<Pair<Regex, TransactionDirection>> =
+        DEBIT_KEYWORDS.map { Regex("(?i)\\b${Regex.escape(it)}\\b") to TransactionDirection.DEBIT } +
+            CREDIT_KEYWORDS.map { Regex("(?i)\\b${Regex.escape(it)}\\b") to TransactionDirection.CREDIT }
+
     private val AMOUNT_PATTERN = Regex("(?i)(?:rs\\.?|inr|₹)\\s?([0-9][0-9,]{0,14}(?:\\.\\d{1,2})?)")
     private val BALANCE_CONTEXT = Regex("(?i)(?:avl|available|closing|current)\\.?\\s*bal(?:ance)?|\\bbal\\b\\s*[:.]?\\s*$")
     private val BOILERPLATE_SIGNAL = Regex(
@@ -136,15 +145,8 @@ object GenericTransactionExtractor {
 
     private fun findKeywordHits(body: String): List<KeywordHit> {
         val hits = mutableListOf<KeywordHit>()
-        DEBIT_KEYWORDS.forEach { kw ->
-            Regex("(?i)\\b${Regex.escape(kw)}\\b").findAll(body).forEach {
-                hits += KeywordHit(it.range, TransactionDirection.DEBIT)
-            }
-        }
-        CREDIT_KEYWORDS.forEach { kw ->
-            Regex("(?i)\\b${Regex.escape(kw)}\\b").findAll(body).forEach {
-                hits += KeywordHit(it.range, TransactionDirection.CREDIT)
-            }
+        KEYWORD_PATTERNS.forEach { (pattern, direction) ->
+            pattern.findAll(body).forEach { hits += KeywordHit(it.range, direction) }
         }
         return hits
     }

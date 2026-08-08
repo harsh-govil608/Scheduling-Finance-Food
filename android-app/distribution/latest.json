@@ -1,6 +1,6 @@
 {
-  "versionCode": 64,
-  "versionName": "0.49.0-pilot",
+  "versionCode": 65,
+  "versionName": "0.49.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "SMS parser rebuilt to be bank-agnostic instead of one regex guess per bank: recognizes the full debit/credit keyword vocabulary (withdrawn, spent, paid, deducted, purchase, sent, transferred, deposited, received, refund, reversed, added - not just \"debited\"/\"credited\"), in either word order and with or without a currency symbol, plus dedicated UPI/DR//UPI/CR reference-line parsing. This targets the confirmed under-10%-capture bug on phones using banks other than ICICI/SBI. Also: reference-ID-based duplicate detection (catches the same transaction described by two different SMS), a new SMS Scan Diagnostics tool in Profile > Diagnostics (see exactly how many SMS were found/parsed/skipped/duplicated on your phone), \"Delete All My Data\" renamed to \"Clear All My Data and Log Out\" and fixed so SMS history actually re-scans fresh afterward, and an AI chat guardrail against confidently forecasting from too little history."
+  "notes": "Perf fix for v0.49.0's SMS parser rebuild: the broader keyword-based extraction was recompiling regex patterns on every single message instead of once, which made a full-inbox history scan noticeably slower on real devices. Also checkpoints the scan's resume point every 25 messages instead of after every single one, cutting disk writes during a large scan. No behavior change to what gets captured - same parsing rules as 0.49.0, just much faster."
 }

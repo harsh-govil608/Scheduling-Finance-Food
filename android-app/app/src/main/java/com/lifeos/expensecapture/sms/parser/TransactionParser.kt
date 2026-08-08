@@ -136,9 +136,18 @@ class TransactionParser(
          * unparseable messages are silently skipped rather than reviewed, the same class of
          * tradeoff as the OTP-detection heuristic above. Extend the list as new banks appear.
          */
+        // Perf fix (real founder report, 2026-08: a full-history scan "taking a lot of time" on
+        // a real device after the parser rewrite below started calling this per-message):
+        // this used to compile a brand-new Regex (== a fresh java.util.regex.Pattern.compile)
+        // on every single call. This function runs once per message during a scan - thousands
+        // of times for a real inbox - and GenericTransactionExtractor now also calls it for
+        // every message that reaches its fallback path, so the redundant compilation cost
+        // multiplied badly. Compiled once here instead.
+        private val DLT_SENDER_SHAPE = Regex("(?i)^[A-Z]{2}-[A-Z0-9]{3,10}(-[A-Z])?$")
+
         fun looksLikeInstitutionalSender(sender: String): Boolean {
             val trimmed = sender.trim()
-            if (!Regex("(?i)^[A-Z]{2}-[A-Z0-9]{3,10}(-[A-Z])?$").matches(trimmed)) return false
+            if (!DLT_SENDER_SHAPE.matches(trimmed)) return false
             return BANK_OR_PAYMENT_SENDER_FRAGMENTS.any { trimmed.contains(it, ignoreCase = true) }
         }
     }
