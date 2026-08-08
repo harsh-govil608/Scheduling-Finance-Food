@@ -1,6 +1,6 @@
 {
-  "versionCode": 65,
-  "versionName": "0.49.1-pilot",
+  "versionCode": 66,
+  "versionName": "0.49.2-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Perf fix for v0.49.0's SMS parser rebuild: the broader keyword-based extraction was recompiling regex patterns on every single message instead of once, which made a full-inbox history scan noticeably slower on real devices. Also checkpoints the scan's resume point every 25 messages instead of after every single one, cutting disk writes during a large scan. No behavior change to what gets captured - same parsing rules as 0.49.0, just much faster."
+  "notes": "Urgent correctness fix for v0.49.0/0.49.1: the broader SMS parser was misreading bank/fintech PROMOTIONAL messages (pre-approved loan offers, insurance cover amounts, cashback promos) as real transactions, since marketing copy uses words like \"paid\"/\"credited\" loosely and often comes from real bank sender IDs. Added a promotional/marketing filter (same treatment as OTP messages - recognized and skipped, not recorded) plus a sanity cap so an implausibly large amount is never silently auto-inserted from the unverified generic path. If you already have a wrong large transaction in your ledger from 0.49.0/0.49.1, delete it manually from the Ledger, or use Clear All My Data and Log Out to rebuild your ledger fresh from SMS with this fix in place - also includes the v0.49.1 scan-speed fix."
 }

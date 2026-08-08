@@ -47,6 +47,17 @@ object GenericTransactionExtractor {
         DEBIT_KEYWORDS.map { Regex("(?i)\\b${Regex.escape(it)}\\b") to TransactionDirection.DEBIT } +
             CREDIT_KEYWORDS.map { Regex("(?i)\\b${Regex.escape(it)}\\b") to TransactionDirection.CREDIT }
 
+    /** Defense-in-depth against the same failure class as
+     * TransactionParser.looksLikePromotionalOrMarketing (real founder report, 2026-08:
+     * fabricated multi-lakh/crore "transactions" from promotional SMS that slipped past keyword
+     * matching) - in case a marketing message doesn't happen to contain any of that function's
+     * phrases but still satisfies every other signal this extractor checks. A personal SMS-
+     * tracked expense app essentially never sees a single legitimate transaction this large; if
+     * one genuinely occurs, Needs Review (not silent auto-insert) is the safe place for it to
+     * land - unlike the promotional filter above, this is specific to the unverified generic
+     * path, not the structurally-precise verified per-bank templates, which don't need it. */
+    private const val MAX_PLAUSIBLE_AMOUNT = 500_000.0
+
     private val AMOUNT_PATTERN = Regex("(?i)(?:rs\\.?|inr|₹)\\s?([0-9][0-9,]{0,14}(?:\\.\\d{1,2})?)")
     private val BALANCE_CONTEXT = Regex("(?i)(?:avl|available|closing|current)\\.?\\s*bal(?:ance)?|\\bbal\\b\\s*[:.]?\\s*$")
     private val BOILERPLATE_SIGNAL = Regex(
@@ -119,7 +130,7 @@ object GenericTransactionExtractor {
             merchant = extractMerchant(body, direction)
         }
 
-        if (amount <= 0.0) return null
+        if (amount <= 0.0 || amount > MAX_PLAUSIBLE_AMOUNT) return null
 
         return ParseResult.Parsed(
             amount = amount,

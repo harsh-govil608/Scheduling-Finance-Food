@@ -189,6 +189,55 @@ class TransactionParserTest {
         assertTrue(result is ParseResult.Unparsed)
     }
 
+    // Real production bug (real founder report, 2026-08: "sohom ko 2 cr ka transaction dikha rha
+    // hai, 5 lakh ka" - fabricated multi-lakh/crore transactions from bank/fintech PROMOTIONAL
+    // SMS, sent from real bank-sounding sender IDs, satisfying every signal the broadened
+    // extractor checks). Fixed via TransactionParser.looksLikePromotionalOrMarketing (an Ignored
+    // gate, same treatment as OTP) plus GenericTransactionExtractor's amount sanity cap as
+    // defense in depth.
+
+    @Test
+    fun `an insurance cover promo mentioning crores is not parsed as a transaction`() {
+        val body = "Get life insurance cover of Rs.2,00,00,000 starting at just Rs.500/month. " +
+            "Apply now! T&C apply."
+
+        val result = parser.parse(sender = "AD-HDFCLI-S", body = body)
+
+        assertTrue(result is ParseResult.Ignored)
+    }
+
+    @Test
+    fun `a pre-approved loan promo mentioning lakhs is not parsed as a transaction`() {
+        val body = "Congratulations! You are eligible for a pre-approved loan of Rs.5,00,000 " +
+            "credited to your account instantly. Avail now."
+
+        val result = parser.parse(sender = "AD-SBICRD-S", body = body)
+
+        assertTrue(result is ParseResult.Ignored)
+    }
+
+    @Test
+    fun `an implausibly large amount is not auto-inserted even without promotional wording`() {
+        // Defense-in-depth check: even if a message somehow avoids every promotional phrase,
+        // the generic (unverified) path should never silently record a transaction this large.
+        val body = "Rs.25,00,000 debited from A/c XX1234 on 12-07-26. Avl Bal Rs.30,00,000.00"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        assertTrue(result is ParseResult.Unparsed)
+    }
+
+    @Test
+    fun `a real EMI auto-debit still parses - bare 'EMI' and 'loan' are not treated as promotional`() {
+        val body = "Rs.5000.00 debited towards EMI for loan account XX7890 on 12-07-26. Avl Bal Rs.20000.00"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(5000.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.DEBIT, result.direction)
+    }
+
     @Test
     fun `unrelated personal SMS is not parsed as a transaction`() {
         val result = parser.parse(sender = "MOM", body = "Call me when you're free")

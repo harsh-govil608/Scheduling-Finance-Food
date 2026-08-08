@@ -19,6 +19,9 @@ class TransactionParser(
         if (looksLikeOtpOrVerification(body)) {
             return ParseResult.Ignored(reason = "otp_or_verification")
         }
+        if (looksLikePromotionalOrMarketing(body)) {
+            return ParseResult.Ignored(reason = "promotional_or_marketing")
+        }
 
         // Deliberately no early "no candidates" return here (there used to be one): a message
         // that matches no verified per-bank template's sender/keyword filter can still be a real
@@ -88,6 +91,49 @@ class TransactionParser(
                 "otp", "one time password", "one-time password", "one time pin",
                 "verification code", "verification pin", "security code", "auth code",
                 "do not share", "don't share"
+            )
+            return signals.any { body.contains(it, ignoreCase = true) }
+        }
+
+        /**
+         * Bug fix (real founder report, 2026-08: "sohom ko 2 cr ka transaction dikha rha hai, 5
+         * lakh ka" - a real device showed fabricated multi-lakh/crore "transactions" that were
+         * never real money movements). Root cause: GenericTransactionExtractor's broadened
+         * keyword vocabulary (added the same day) is loose enough that bank/fintech PROMOTIONAL
+         * SMS - "pre-approved loan of Rs.5,00,000", "insurance cover of Rs.2 Crore", "cashback
+         * upto Rs.500" - satisfies every signal it checks: a real currency amount, a keyword like
+         * "paid"/"credited"/"purchase" used loosely in marketing copy, banking-boilerplate words
+         * ("account", "transaction"), and often even a legitimate bank/fintech sender ID (banks
+         * send marketing SMS from the same DLT codes as real transaction alerts). None of the
+         * existing checks (OTP filter, institutional-sender allowlist) were built to catch this -
+         * they assume "real sender + real amount + real keyword" means a real transaction, which
+         * marketing SMS from a real bank sender satisfies by construction. Checked before any
+         * candidate/generic matching, the same way looksLikeOtpOrVerification is - a promotional
+         * message is confidently never a real transaction, same Ignored (not Unparsed) treatment.
+         *
+         * Deliberately multi-word phrases, not single ambiguous words: a real EMI auto-debit SMS
+         * legitimately contains "EMI" and a real loan-disbursement debit legitimately contains
+         * "loan" - excluding those bare words would silently break real transaction capture again.
+         * "EMI as low as"/"pre-approved loan" are marketing-specific in a way "EMI"/"loan" alone
+         * are not.
+         */
+        fun looksLikePromotionalOrMarketing(body: String): Boolean {
+            val signals = listOf(
+                "pre-approved", "pre approved", "preapproved",
+                "instant loan of", "loan offer", "apply for loan", "avail loan",
+                "insurance cover", "sum assured", "premium starting", "policy premium",
+                "cashback upto", "cashback up to", "flat cashback", "get cashback",
+                "click here", "click on the link", "click to apply", "click to avail",
+                "download the app", "download now",
+                "apply now", "avail now", "avail this offer",
+                "you are eligible", "eligible for a", "pre-qualified", "prequalified",
+                "limited period offer", "limited time offer", "exclusive offer", "special offer",
+                "congratulations you", "you have won", "lucky draw", "winner of",
+                "interest rate starting", "lowest interest", "% p.a", "p.a.",
+                "emi starting", "emi as low as", "no cost emi",
+                "t&c apply", "tnc apply", "terms and conditions apply",
+                "unsubscribe", "opt-out", "opt out", "reply stop", "stop sms",
+                "recharge plan", "recharge now", "data pack", "talktime"
             )
             return signals.any { body.contains(it, ignoreCase = true) }
         }
