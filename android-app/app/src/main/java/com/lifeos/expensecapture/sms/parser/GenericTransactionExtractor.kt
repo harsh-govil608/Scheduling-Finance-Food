@@ -58,8 +58,40 @@ object GenericTransactionExtractor {
      * path, not the structurally-precise verified per-bank templates, which don't need it. */
     private const val MAX_PLAUSIBLE_AMOUNT = 500_000.0
 
+    /** Defense-in-depth alongside the balance-exclusion fix above: even with that fixed, a real
+     * SMS can still mention an unrelated amount (a running monthly total, a credit limit, a
+     * second account's balance the exclusion regex's lookback window doesn't reach) somewhere
+     * near an incidental keyword occurrence (e.g. "credit limit" also contains "credit"). A real
+     * transaction's direction keyword sits immediately next to its amount in every verified real
+     * sample this project has ("debited for Rs X", "Rs X credited", "spent Rs X on") - never
+     * separated by more than a few words. If the closest keyword-amount pairing found is farther
+     * apart than this, it's more likely a mismatched pairing than a real transaction phrase, and
+     * Needs Review is the safe place for it to land instead of a guessed amount. */
+    private const val MAX_KEYWORD_AMOUNT_DISTANCE = 40
+
+    /** Same defense-in-depth idea for the UPI/DR//UPI/CR branch, but more generous: the UPI
+     * reference line's own presence is already a strong, unambiguous structural signal (unlike a
+     * bare keyword, which needs proximity to disambiguate which of several occurrences is real),
+     * and the reference line itself is long, so a plausible amount can legitimately sit a bit
+     * further away than a keyword typically does. */
+    private const val MAX_UPI_AMOUNT_DISTANCE = 80
+
     private val AMOUNT_PATTERN = Regex("(?i)(?:rs\\.?|inr|₹)\\s?([0-9][0-9,]{0,14}(?:\\.\\d{1,2})?)")
-    private val BALANCE_CONTEXT = Regex("(?i)(?:avl|available|closing|current)\\.?\\s*bal(?:ance)?|\\bbal\\b\\s*[:.]?\\s*$")
+
+    /** Bug fix (real founder report, 2026-08: a real device recorded the account BALANCE instead
+     * of the actual debited/credited amount, on both debit and credit SMS). Root cause: the old
+     * pattern only recognized "avl"/"available" as balance-qualifier prefixes and required bare
+     * "bal" to be the LITERAL last word before the amount - it never matched "Avail Bal" (the
+     * single most common real Indian bank abbreviation, distinct from both "avl" and the full
+     * word "available"), "Balance is Rs.X"/"Balance: Rs.X" (bare "balance", not "bal", is a
+     * different token to \bbal\b), or "Bal Amt: Rs.X" (a filler word breaking the end-anchor).
+     * Simplified deliberately: if "bal"/"balance" appears ANYWHERE in the lookback window before
+     * a currency amount, that amount is the account balance, not this transaction's amount - real
+     * bank SMS reliably uses that word specifically to label the balance figure, so this is a
+     * much more robust signal than trying to enumerate every qualifier-word/filler-word
+     * combination banks use. */
+    private val BALANCE_CONTEXT = Regex("(?i)\\bbal(?:ance)?\\b")
+    private const val BALANCE_LOOKBACK_CHARS = 35
     private val BOILERPLATE_SIGNAL = Regex(
         "(?i)\\b(a/?c|acct|account|upi|ref\\.?\\s*no|reference|txn|transaction|avl\\s*bal|available\\s*bal|imps|neft|rtgs)\\b"
     )
@@ -114,8 +146,9 @@ object GenericTransactionExtractor {
             }
             // Prefer the amount nearest the UPI reference line itself when more than one
             // non-balance amount is present in the message.
-            amount = amountMatches.minByOrNull { distance(it.range, upiMatch.range) }
-                ?.groupValues?.get(1)?.replace(",", "")?.toDoubleOrNull() ?: return null
+            val nearestAmount = amountMatches.minByOrNull { distance(it.range, upiMatch.range) } ?: return null
+            if (distance(nearestAmount.range, upiMatch.range) > MAX_UPI_AMOUNT_DISTANCE) return null
+            amount = nearestAmount.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
             merchant = upiMatch.groupValues[3].ifBlank { "Unknown" }
         } else {
             val keywordHits = findKeywordHits(body)
@@ -124,6 +157,7 @@ object GenericTransactionExtractor {
             val best = amountMatches
                 .flatMap { amt -> keywordHits.map { kw -> Triple(amt, kw.direction, distance(amt.range, kw.range)) } }
                 .minByOrNull { it.third } ?: return null
+            if (best.third > MAX_KEYWORD_AMOUNT_DISTANCE) return null
 
             amount = best.first.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
             direction = best.second
@@ -147,7 +181,7 @@ object GenericTransactionExtractor {
     }
 
     private fun isBalanceAmount(body: String, match: MatchResult): Boolean {
-        val windowStart = (match.range.first - 25).coerceAtLeast(0)
+        val windowStart = (match.range.first - BALANCE_LOOKBACK_CHARS).coerceAtLeast(0)
         val context = body.substring(windowStart, match.range.first)
         return BALANCE_CONTEXT.containsMatchIn(context)
     }

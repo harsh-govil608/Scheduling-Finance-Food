@@ -238,6 +238,55 @@ class TransactionParserTest {
         assertEquals(TransactionDirection.DEBIT, result.direction)
     }
 
+    // Real production bug (real founder report, 2026-08-11: "recorded the remaining balances
+    // instead of debited money" / "the total balance is being recorded... only the credited
+    // money has to be recorded"). Root cause: the balance-exclusion pattern only recognized "avl"
+    // and "available" as qualifier prefixes and required bare "bal" to be the literal last word
+    // before the amount - "Avail Bal" (the most common real abbreviation), "Balance is Rs.X", and
+    // "Bal Amt: Rs.X" all slipped through unexcluded.
+
+    @Test
+    fun `a debit SMS with 'Avail Bal' (not 'Avl Bal') records the debited amount, not the balance`() {
+        val body = "Rs.750.00 debited from A/c XX1234 on 12-07-26 to Zomato. Avail Bal Rs.12500.00"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(750.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.DEBIT, result.direction)
+    }
+
+    @Test
+    fun `a credit SMS with 'Avail Bal' records the credited amount, not the balance`() {
+        val body = "Rs.2000.00 credited to A/c XX1234 on 12-07-26 from Sohom Jana. Avail Bal Rs.45000.00"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(2000.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.CREDIT, result.direction)
+    }
+
+    @Test
+    fun `'Balance is Rs' phrasing (bare 'balance', no qualifier prefix) is still excluded`() {
+        val body = "Rs.300.00 debited from A/c XX1234 on 12-07-26 to Swiggy. Balance is Rs.9700.00"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(300.00, result.amount, 0.001)
+    }
+
+    @Test
+    fun `'Bal Amt' phrasing with a filler word before the amount is still excluded`() {
+        val body = "Rs.150.00 spent at Starbucks using card XX9876 on 12-07-26. Bal Amt: Rs.8850.00"
+
+        val result = parser.parse(sender = "VM-HDFCBK", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(150.00, result.amount, 0.001)
+    }
+
     @Test
     fun `unrelated personal SMS is not parsed as a transaction`() {
         val result = parser.parse(sender = "MOM", body = "Call me when you're free")

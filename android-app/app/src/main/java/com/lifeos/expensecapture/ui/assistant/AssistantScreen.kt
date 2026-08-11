@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +57,7 @@ import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
 fun AssistantScreen(app: App, onSelectPillar: (Pillar) -> Unit) {
     val viewModel = remember { AssistantViewModel(app.database) }
     val messages by viewModel.messages.collectAsState()
+    val isResponding by viewModel.isResponding.collectAsState()
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
@@ -70,8 +72,9 @@ fun AssistantScreen(app: App, onSelectPillar: (Pillar) -> Unit) {
         }
     }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(messages.size, isResponding) {
+        val lastIndex = messages.size - 1 + if (isResponding) 1 else 0
+        if (lastIndex >= 0) listState.animateScrollToItem(lastIndex)
     }
 
     Scaffold(
@@ -125,6 +128,27 @@ fun AssistantScreen(app: App, onSelectPillar: (Pillar) -> Unit) {
             items(messages) { message ->
                 MessageBubble(message)
             }
+            if (isResponding) {
+                item { TypingIndicatorBubble() }
+            }
+        }
+    }
+}
+
+/** Real user request, 2026-08: some indication the assistant is actually working on a response,
+ * not just a blank gap between sending and the reply appearing - same bubble shape/alignment as a
+ * real AI message so it reads as "the AI is about to say something" rather than a generic spinner. */
+@Composable
+private fun TypingIndicatorBubble() {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         }
     }
 }

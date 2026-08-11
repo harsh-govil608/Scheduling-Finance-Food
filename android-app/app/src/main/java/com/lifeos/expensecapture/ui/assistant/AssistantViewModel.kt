@@ -40,17 +40,26 @@ class AssistantViewModel(
     )
     val messages: StateFlow<List<AssistantMessage>> = _messages.asStateFlow()
 
+    /** Real user request, 2026-08: no feedback at all while waiting for a response - a
+     * FinanceQaEngine/AI round-trip can take a few real seconds, and with nothing on screen in
+     * that gap it reads as the tap not having registered rather than "thinking." */
+    private val _isResponding = MutableStateFlow(false)
+    val isResponding: StateFlow<Boolean> = _isResponding.asStateFlow()
+
     fun send(text: String) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
         _messages.value = _messages.value + AssistantMessage(trimmed, isUser = true)
 
         viewModelScope.launch {
+            _isResponding.value = true
             val response = try {
                 executor.execute(interpreter.interpret(trimmed))
             } catch (e: Exception) {
                 AppLogger.e("AssistantViewModel", "command execution failed for: $trimmed", e)
                 "Something went wrong doing that, so nothing was changed."
+            } finally {
+                _isResponding.value = false
             }
             _messages.value = _messages.value + AssistantMessage(response, isUser = false)
         }
