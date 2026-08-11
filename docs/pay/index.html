@@ -11,13 +11,24 @@
   so it can be served directly by GitHub Pages from this /docs folder - see PAY_WEB_BASE_URL in
   SmartSplitDetailScreen.kt for the exact URL this needs to be reachable at.
 
-  SETUP NEEDED before this works: the firebaseConfig object below is a placeholder. Register a Web
-  app in the same Firebase project the Android app uses (Firebase console > Project settings >
-  Add app > Web), then replace the object below with the real config it gives you. This is
-  public/client-side config (not a secret) - safe to commit, same as google-services.json.
+  SETUP NEEDED before this works (three separate things, not just one - confirmed 2026-08-11):
+  1. GitHub Pages isn't enabled for this repo yet - Settings > Pages > Source: Deploy from a
+     branch > Branch: main, folder /docs > Save.
+  2. The firebaseConfig object below is a placeholder. Register a Web app in the same Firebase
+     project the Android app uses (Firebase console > Project settings > Add app > Web), then
+     replace the object below with the real config it gives you. This is public/client-side
+     config (not a secret) - safe to commit, same as google-services.json.
+  3. Enable Anonymous auth: Firebase console > Authentication > Sign-in method > Anonymous >
+     Enable. Every firestore.rules path this page touches requires request.auth != null
+     (isSignedIn()) - this page has no login UI (an external Track B participant shouldn't need
+     one), so it signs in anonymously below before its first Firestore read. No rule changes
+     needed: isSignedIn() only checks request.auth != null, which an anonymous session already
+     satisfies, and the existing update rule already restricts a participant's write to just the
+     status/paidAt/confirmedAt fields regardless of who (or what kind of session) is writing.
 -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -61,6 +72,7 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+  const auth = firebase.auth();
 
   const params = new URLSearchParams(window.location.search);
   const splitId = params.get("s");
@@ -79,6 +91,17 @@
   async function load() {
     if (!splitId || !participantId) {
       render('<div class="label">This payment link looks incomplete. Ask them to resend it.</div>');
+      return;
+    }
+
+    // Every firestore.rules path below requires request.auth != null - this visitor never logs
+    // in (that's the whole point of the Track B "no app needed" flow), so an anonymous session
+    // is what satisfies that check. Requires Anonymous sign-in enabled in the Firebase console -
+    // see the setup comment at the top of this file.
+    try {
+      await auth.signInAnonymously();
+    } catch (e) {
+      render('<div class="label">Couldn\'t start a session to load this payment. Try again in a moment.</div>');
       return;
     }
 
