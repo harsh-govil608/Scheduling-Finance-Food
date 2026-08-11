@@ -2,6 +2,7 @@ package com.lifeos.expensecapture.ui.ledger
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,7 +45,8 @@ fun CategorizeSheet(
     categories: List<CategoryEntity>,
     onCategorySelected: (Long) -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onToggleTransfer: (Boolean) -> Unit = {}
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Row(
@@ -62,6 +65,25 @@ fun CategorizeSheet(
                     tint = MaterialTheme.colorScheme.error
                 )
             }
+        }
+        // Pattern Engine design, 2026-08-12 - see TransactionEntity.isTransfer's kdoc. Manual
+        // only: a recurring transfer between your own accounts would otherwise look identical to
+        // recurring income and pollute income-pattern detection, and there's no reliable way to
+        // tell the two apart from SMS text alone.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Transfer between my own accounts", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Excluded from income/expense patterns and forecasts",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(checked = transaction.isTransfer, onCheckedChange = onToggleTransfer)
         }
         HorizontalDivider()
         LazyColumn {

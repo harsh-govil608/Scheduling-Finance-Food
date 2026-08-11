@@ -39,9 +39,17 @@ object RecurringPatternDetector {
      */
     const val SUBSCRIPTION_VARIANCE_THRESHOLD_PERCENT = 15.0
 
-    fun detect(transactions: List<TransactionEntity>): List<RecurringGroup> {
+    /** `direction` defaults to DEBIT (subscriptions/bills, the original use of this detector) -
+     * IncomePatternDetector (2026-08-12) reuses the exact same interval/variance algorithm for
+     * CREDIT instead of duplicating it. `isTransfer` is always excluded regardless of direction -
+     * see TransactionEntity.isTransfer's kdoc for why a transfer between someone's own accounts
+     * must never be mistaken for a recurring bill OR recurring income. */
+    fun detect(
+        transactions: List<TransactionEntity>,
+        direction: TransactionDirection = TransactionDirection.DEBIT
+    ): List<RecurringGroup> {
         return transactions
-            .filter { it.direction == TransactionDirection.DEBIT }
+            .filter { it.direction == direction && !it.isTransfer }
             .groupBy { it.merchantNormalized }
             .mapNotNull { (merchant, txns) ->
                 if (txns.size < MIN_OCCURRENCES) return@mapNotNull null

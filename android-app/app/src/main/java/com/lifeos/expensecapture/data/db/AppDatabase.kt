@@ -282,6 +282,14 @@ val MIGRATION_16_17 = object : Migration(16, 17) {
     }
 }
 
+/** Pattern Engine design, 2026-08-12 - see TransactionEntity.isTransfer's kdoc. Defaults every
+ * existing row to false; nothing is retroactively classified as a transfer. */
+val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE transactions ADD COLUMN isTransfer INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -306,7 +314,7 @@ val MIGRATION_16_17 = object : Migration(16, 17) {
         SplitExpenseEntity::class,
         SplitParticipantEntity::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -373,7 +381,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

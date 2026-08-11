@@ -59,4 +59,8 @@ interface TransactionDao {
 
     @Query("SELECT referenceId FROM transactions WHERE referenceId IS NOT NULL")
     suspend fun getAllReferenceIds(): List<String>
+
+    /** Pattern Engine design, 2026-08-12 - see TransactionEntity.isTransfer's kdoc. */
+    @Query("UPDATE transactions SET isTransfer = :isTransfer WHERE id = :transactionId")
+    suspend fun setTransfer(transactionId: Long, isTransfer: Boolean)
 }

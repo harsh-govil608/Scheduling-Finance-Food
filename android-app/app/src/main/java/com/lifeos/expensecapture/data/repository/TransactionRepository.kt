@@ -72,4 +72,10 @@ class TransactionRepository(
     suspend fun deleteTransaction(transaction: TransactionEntity) {
         transactionDao.delete(transaction)
     }
+
+    /** Pattern Engine design, 2026-08-12 - see TransactionEntity.isTransfer's kdoc for why this
+     * is a manual, user-driven action rather than something detected automatically. */
+    suspend fun setTransfer(transaction: TransactionEntity, isTransfer: Boolean) {
+        transactionDao.setTransfer(transaction.id, isTransfer)
+    }
 }

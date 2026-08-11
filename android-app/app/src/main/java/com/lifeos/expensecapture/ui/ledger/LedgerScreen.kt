@@ -209,7 +209,11 @@ fun LedgerScreen(app: App, onBack: () -> Unit) {
                 viewModel.deleteTransaction(transaction)
                 selectedTransaction = null
             },
-            onDismiss = { selectedTransaction = null }
+            onDismiss = { selectedTransaction = null },
+            onToggleTransfer = { isTransfer ->
+                viewModel.setTransfer(transaction, isTransfer)
+                selectedTransaction = transaction.copy(isTransfer = isTransfer)
+            }
         )
     }
 

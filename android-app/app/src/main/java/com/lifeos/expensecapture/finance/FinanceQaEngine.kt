@@ -82,7 +82,20 @@ object FinanceQaEngine {
         val bills = db.billDao().observeAll().first()
         val goals = db.goalDao().observeAll().first().filter { !it.completed }
 
-        val netPaceMonthly = ((thisMonthCredits - thisMonthDebits.sumOf { it.amount }) / daysElapsedThisMonth) * 30.0
+        // Pattern Engine design, 2026-08-12: replaces the old single "net cash flow pace"
+        // extrapolation (this month's raw credits-minus-debits, stretched to 30 days) with
+        // ForecastEngine's confidence-tagged breakdown - real code separating confirmed-recurring
+        // income from estimated from variable/one-off, instead of asking the AI to correctly
+        // apply that distinction to one undifferentiated number every single time.
+        val forecast = ForecastEngine.compute(transactions, subscriptions, bills)
+
+        // Pattern Engine design, 2026-08-12 - the cross-domain piece: Habits sitting right next
+        // to Finance is what no competitor's "AI insights" can do. See HabitSpendCorrelator's
+        // own kdoc for why this is a plain fact, never a causal claim - "the habit isn't working"
+        // is an inference the AI/user makes, not something asserted here.
+        val habits = db.habitDao().observeAll().first()
+        val habitCompletions = db.habitCompletionDao().observeAll().first()
+        val habitCorrelations = HabitSpendCorrelator.correlate(habits, habitCompletions, categories, transactions)
 
         return buildString {
             appendLine("Today's date: ${today} (day $daysElapsedThisMonth of this month so far)")
@@ -139,7 +152,52 @@ object FinanceQaEngine {
                 }
                 appendLine()
             }
-            appendLine("Net cash flow pace (income minus spending), extrapolated to a 30-day month: Rs.${"%.2f".format(netPaceMonthly)}/month")
+            appendLine()
+            if (!forecast.hasEnoughHistoryToForecast) {
+                appendLine(
+                    "Forecast: only ${forecast.historyDays} days of transaction history exist - not enough to " +
+                        "forecast income or affordability with any confidence yet. Say so plainly if asked; do not " +
+                        "produce a confident monthly figure from this little data."
+                )
+            } else {
+                appendLine("Monthly forecast (Pattern Engine - each figure is what it says, do not blur these together):")
+                appendLine("- Confirmed recurring income (3+ regular payments, consistent amount): Rs.${"%.2f".format(forecast.confirmedMonthlyIncome)}/month")
+                if (forecast.estimatedMonthlyIncome > 0.0) {
+                    appendLine("- Estimated recurring income (a likely pattern, thinner evidence than confirmed): Rs.${"%.2f".format(forecast.estimatedMonthlyIncome)}/month")
+                }
+                if (forecast.variableMonthlyIncomeAverage > 0.0) {
+                    appendLine("- Variable/irregular income (real money received, no repeating pattern - NOT guaranteed to recur): Rs.${"%.2f".format(forecast.variableMonthlyIncomeAverage)}/month average")
+                }
+                appendLine("- Confirmed recurring expenses (tracked subscriptions/bills): Rs.${"%.2f".format(forecast.confirmedMonthlyExpenses)}/month")
+                if (forecast.estimatedMonthlyExpenses > 0.0) {
+                    appendLine("- Estimated recurring expenses (detected, not yet confirmed by the user): Rs.${"%.2f".format(forecast.estimatedMonthlyExpenses)}/month")
+                }
+                appendLine("- Discretionary/day-to-day spending average: Rs.${"%.2f".format(forecast.discretionaryMonthlyAverage)}/month")
+                appendLine("- Conservative net/month (confirmed income only, minus every expense): Rs.${"%.2f".format(forecast.conservativeNetMonthly)}")
+                appendLine("- Fuller net/month (adds estimated + variable income too - less certain): Rs.${"%.2f".format(forecast.fullNetMonthly)}")
+                appendLine(
+                    "For any affordability question, lead with the conservative figure and mention the fuller one " +
+                        "only as an upside case, clearly labeled as less certain - never present the fuller number " +
+                        "as the safe answer."
+                )
+            }
+            if (habitCorrelations.isNotEmpty()) {
+                appendLine()
+                appendLine(
+                    "Habit/spending correlation (a fact, not a cause-and-effect claim - do not say the habit " +
+                        "\"isn't working\" or \"caused\" a spend change, only report the two facts together):"
+                )
+                habitCorrelations.forEach { c ->
+                    val change = if (c.categorySpendLastMonth > 0) {
+                        ((c.categorySpendThisMonth - c.categorySpendLastMonth) / c.categorySpendLastMonth) * 100.0
+                    } else null
+                    val changeText = change?.let { " (${if (it >= 0) "+" else ""}${"%.0f".format(it)}% vs last month)" } ?: ""
+                    appendLine(
+                        "- \"${c.habit.name}\" logged ${c.completionCount} time${if (c.completionCount == 1) "" else "s"} in the " +
+                            "last ${c.windowDays} days; ${c.categoryName} spend this month is Rs.${"%.2f".format(c.categorySpendThisMonth)}$changeText"
+                    )
+                }
+            }
             if (goals.isEmpty()) {
                 appendLine("No active goals are set.")
             } else {
@@ -152,8 +210,9 @@ object FinanceQaEngine {
                     appendLine("- \"${g.title}\" ($targetText$dateText)")
                 }
                 appendLine(
-                    "To estimate months-to-target for a goal, use: target amount / (current monthly pace above + any " +
-                        "extra monthly saving mentioned in the question). Only do this if the current pace is positive."
+                    "To estimate months-to-target for a goal, use: target amount / (conservative net/month above + " +
+                        "any extra monthly saving mentioned in the question). Only do this if that figure is " +
+                        "positive, and only if hasEnoughHistoryToForecast was true above."
                 )
             }
         }
@@ -169,14 +228,14 @@ object FinanceQaEngine {
         report. Amounts are in Indian Rupees; write them as e.g. Rs.500 or ₹500.
 
         Golden rule for any affordability, forecast, or "can I afford X" question: never infer
-        recurring income from a single or short-term transaction pattern. The "net cash flow pace"
-        figure above is an OBSERVED short-term rate (this month so far, extrapolated), not a
-        promise of future income - do not treat it as guaranteed recurring income without saying
-        so. Always distinguish, explicitly, between: money that has actually moved (observed cash
-        flow), income that has repeated enough to call recurring, a projection built by
-        extrapolating a trend forward, and an assumption you're making because the data doesn't
-        say. When there isn't enough history to forecast confidently (e.g. only a few weeks of
-        data, or the question spans months further out than the data supports), say that plainly
-        instead of producing a confident-sounding number anyway.
+        recurring income from a single or short-term transaction pattern. The Monthly forecast
+        section above already separates confirmed-recurring income from estimated from variable/
+        irregular - never collapse those into one number or treat estimated/variable income as
+        guaranteed. Lead every affordability answer with the conservative net/month figure; only
+        mention the fuller figure as an explicitly-labeled upside case, never as the safe answer.
+        If the data says there isn't enough history to forecast yet, say that plainly instead of
+        producing a confident-sounding number anyway - do not work around that by falling back to
+        the raw category/budget numbers elsewhere in the data to manufacture a forecast the
+        Monthly forecast section itself declined to make.
     """
 }

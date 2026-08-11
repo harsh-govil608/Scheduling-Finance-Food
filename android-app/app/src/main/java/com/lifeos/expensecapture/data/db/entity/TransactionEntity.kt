@@ -52,5 +52,15 @@ data class TransactionEntity(
      * as refunds" - or, later, to decide deliberately whether refunds should net against "Spent
      * This Month" instead of always leaving it untouched. Always false for manual entries and
      * DEBIT transactions. */
-    val isRefund: Boolean = false
+    val isRefund: Boolean = false,
+    /** True when the user has explicitly marked this as money moving between their OWN accounts
+     * (e.g. a personal transfer between two bank accounts, or to/from a wallet they also own) -
+     * not real income or real spending. Pattern Engine design, 2026-08-12 (see
+     * IncomePatternDetector's kdoc): a recurring transfer would otherwise look identical to
+     * recurring income and pollute income-pattern detection. Deliberately manual-only for now,
+     * not auto-detected - telling apart "my own money moving" from "a spouse's genuine monthly
+     * contribution" from bank/UPI SMS text alone is a real, unsolved classification problem, and
+     * guessing wrong here would silently suppress real income from someone's forecast. Always
+     * false until a user marks it; never set automatically. */
+    val isTransfer: Boolean = false
 )

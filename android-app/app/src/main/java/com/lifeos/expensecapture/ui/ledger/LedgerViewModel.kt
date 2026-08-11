@@ -123,6 +123,12 @@ class LedgerViewModel(
         }
     }
 
+    fun setTransfer(transaction: TransactionEntity, isTransfer: Boolean) {
+        viewModelScope.launch {
+            repository.setTransfer(transaction, isTransfer)
+        }
+    }
+
     /** Cold-start AI category assist (2026-08) - see AiCategorySuggester's kdoc. Batches every
      * currently-Uncategorized transaction's merchant into one AI call; the user reviews and
      * accepts/rejects each suggestion individually (see [acceptSuggestion]/[rejectSuggestion]) -
