@@ -63,14 +63,27 @@ data class SmartSplit(
  * (Firestore never cascade-deletes that on its own - same reasoning as FamilyRepository.deleteFamily)
  * - this is what's left over once that's done. Scoped under the deleting user's own `users/{uid}`
  * doc rather than a top-level collection, since "my split history" is inherently per-person, not
- * shared. Auto-purged after 30 days by [SplitPayRepository.pruneOldSplitHistory] - checked
- * opportunistically when the history screen loads, the same on-demand-cleanup pattern this app
- * already uses elsewhere (no server-side cron here). */
+ * shared.
+ *
+ * Two cleanup mechanisms, deliberately both: [SplitPayRepository.pruneOldSplitHistory] is an
+ * opportunistic client-side purge checked whenever the history screen loads (works immediately,
+ * but never runs if that screen is never opened again). `expiresAt` (real founder request,
+ * 2026-08-11: "enable auto cleanup" for real, not just opportunistically) is a genuine
+ * server-side Firestore TTL field - Firestore auto-deletes a document once its TTL field's value
+ * is in the past, no app code involved, works even if this user never opens the app again. This
+ * is the one field in this entire project stored as a Firestore Timestamp instead of a plain
+ * epoch-millis Long - a hard Firestore platform requirement, TTL policies only ever act on a
+ * Timestamp-typed field, never a number. Requires a TTL policy actually created in the Firebase
+ * console (collection group `splitHistory`, field `expiresAt`) - the field alone does nothing
+ * until that policy exists. `deletedAt` (still a plain Long) is kept separately for the history
+ * list's own "deleted 3 days ago" display - the two fields answer different questions (when was
+ * this deleted vs. when should Firestore remove the record) and shouldn't be conflated. */
 data class SplitHistoryEntry(
     val id: String = "",
     val description: String = "",
     val totalAmount: Double = 0.0,
     val payerName: String = "",
     val participantNames: String = "",
-    val deletedAt: Long = 0L
+    val deletedAt: Long = 0L,
+    val expiresAt: com.google.firebase.Timestamp = com.google.firebase.Timestamp.now()
 )

@@ -1,6 +1,6 @@
 {
-  "versionCode": 68,
-  "versionName": "0.50.0-pilot",
+  "versionCode": 69,
+  "versionName": "0.50.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Urgent correctness fix: the SMS parser was recording your account BALANCE instead of the actual debited/credited amount on some messages - root cause was 'Avail Bal' (the common real-world abbreviation) not being recognized as a balance figure to exclude, so it could get picked over the real transaction amount. Fixed with a broader, more robust balance-exclusion check plus a sanity distance check between the amount and the debit/credit keyword. If you already have wrong amounts in your ledger from before this fix, delete those entries manually or use Clear All My Data and Log Out to rebuild fresh. Also: the AI Assistant chat now shows a loading indicator while it's thinking instead of going quiet with no feedback."
+  "notes": "Smart Split history now supports real server-side auto-cleanup: deleted splits get a Firestore TTL expiry field (30 days out) alongside the existing on-open cleanup, so old history entries get removed even if you never open that screen again. Requires a one-time Firestore TTL policy setup on the backend (collection group splitHistory, field expiresAt) - no action needed on your phone, this is a backend/console step. No other user-facing changes in this release."
 }

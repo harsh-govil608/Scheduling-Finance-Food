@@ -1,5 +1,6 @@
 package com.lifeos.expensecapture.splitpay.data
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.splitpay.model.ParticipantStatus
@@ -11,6 +12,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.Date
 
 sealed class SplitPayResult<out T> {
     data class Success<T>(val value: T) : SplitPayResult<T>()
@@ -206,7 +208,12 @@ class SplitPayRepository(
                     totalAmount = split.totalAmount,
                     payerName = split.payerName,
                     participantNames = participants.joinToString(", ") { it.name }.ifBlank { "-" },
-                    deletedAt = System.currentTimeMillis()
+                    deletedAt = System.currentTimeMillis(),
+                    // The TTL field's value IS the expiry moment itself, not "when this was
+                    // created" - Firestore deletes a document once this timestamp is in the
+                    // past, so this has to be stamped 30 days out, not "now" (see
+                    // SplitHistoryEntry's kdoc for why this is a separate field from deletedAt).
+                    expiresAt = Timestamp(Date(System.currentTimeMillis() + SPLIT_HISTORY_MAX_AGE_MILLIS))
                 )
             ).await()
 
