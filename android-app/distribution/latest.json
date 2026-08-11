@@ -1,6 +1,6 @@
 {
-  "versionCode": 72,
-  "versionName": "0.53.0-pilot",
+  "versionCode": 73,
+  "versionName": "0.53.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "First real piece of the Pattern Engine (financial planning direction): the AI chat's forecast is no longer one raw extrapolated number - it now separates confirmed recurring income (3+ regular payments) from estimated from variable/irregular income, and confirmed vs estimated recurring expenses, each clearly labeled. New: you can mark a transaction as a transfer between your own accounts (tap it > toggle) so it's excluded from income/expense patterns. New: if you name a habit after something you're trying to cut back on (e.g. \"No eating out\"), the AI chat can now mention how that category's spend is trending alongside it. Needs at least a month of transaction history before it will forecast anything - by design, not a bug."
+  "notes": "Smart Split fix: \"I've already paid\" no longer shows immediately when you open a split - it only appears after you've actually tapped Settle Up via UPI at least once. Previously it sat right next to the real payment button from the start, with zero friction, which made it too easy to mark yourself paid without actually paying. As a side effect this is also more honest: tapping Settle Up via UPI no longer auto-marks you as paid the instant the UPI app opens (it couldn't reliably tell if you actually completed the payment) - now it requires that explicit follow-up confirmation instead of assuming."
 }

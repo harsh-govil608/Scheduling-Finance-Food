@@ -80,23 +80,28 @@ fun SmartSplitDetailScreen(splitId: String, onBack: () -> Unit) {
     val split by remember(splitId) { repository.observeSplit(splitId) }.collectAsState(initial = null)
     val participants by remember(splitId) { repository.observeParticipants(splitId) }.collectAsState(initial = emptyList())
     val isPayer = split?.payerId == currentUserId
-    val myParticipantRow = participants.firstOrNull { it.participantUserId == currentUserId }
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
     var deleteError by remember { mutableStateOf<String?>(null) }
 
+    // Real user report, 2026-08-12: "I've already paid" appeared right from the start, with zero
+    // friction, sitting next to the real payment button - inviting a false/accidental claim
+    // before anyone had actually tried to pay anything. It's now gated on this: only revealed
+    // once Settle Up via UPI has actually been tapped and returned at least once this session.
+    // Deliberately NOT persisted across app restarts - the worst case of losing this flag is
+    // having to tap Settle Up again, which is a minor inconvenience, not a real cost.
+    var hasAttemptedUpi by remember(splitId) { mutableStateOf(false) }
+
     val upiLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { _ ->
-        val participant = myParticipantRow ?: return@rememberLauncherForActivityResult
-        // UpiPay.isSuccessResult exists for a future stricter flow, but isn't trusted here:
-        // launching the UPI app at all means the user attempted payment, so this always marks
-        // PAID_VIA_UPI regardless of what (if anything) the UPI app's response contains -
-        // matching this screen's own kdoc on why a manual "I've already paid" fallback exists too.
-        coroutineScope.launch {
-            repository.updateParticipantStatus(splitId, participant.id, ParticipantStatus.PAID_VIA_UPI)
-        }
+        // No longer auto-marks PAID_VIA_UPI on return (real fix alongside the above): whether
+        // the UPI app chooser was cancelled, failed, or actually completed a payment isn't
+        // reliably knowable from this result (see UpiPay.isSuccessResult's own kdoc on why it
+        // isn't trusted). Marking paid now requires the explicit "I've already paid" tap this
+        // unlocks, instead of assuming a completed payment just because the UPI app was opened.
+        hasAttemptedUpi = true
     }
 
     Scaffold(
@@ -155,6 +160,7 @@ fun SmartSplitDetailScreen(splitId: String, onBack: () -> Unit) {
                         participant = participant,
                         isMine = participant.participantUserId == currentUserId,
                         isPayer = isPayer,
+                        hasAttemptedUpi = hasAttemptedUpi,
                         onSettleUp = {
                             val vpa = currentSplit.payerUpiId
                             if (vpa.isNotBlank()) {
@@ -245,6 +251,7 @@ private fun ParticipantCard(
     participant: SmartSplitParticipant,
     isMine: Boolean,
     isPayer: Boolean,
+    hasAttemptedUpi: Boolean,
     onSettleUp: () -> Unit,
     onMarkPaidManually: () -> Unit,
     onConfirmReceived: () -> Unit,
@@ -268,8 +275,12 @@ private fun ParticipantCard(
                 Spacer(Modifier.height(12.dp))
                 Row {
                     androidx.compose.material3.Button(onClick = onSettleUp) { Text("Settle Up via UPI") }
-                    Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = onMarkPaidManually) { Text("I've already paid") }
+                    // Real user report, 2026-08-12: this must not appear until a real payment
+                    // attempt has actually happened - see hasAttemptedUpi's own kdoc.
+                    if (hasAttemptedUpi) {
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = onMarkPaidManually) { Text("I've already paid") }
+                    }
                 }
             }
 
