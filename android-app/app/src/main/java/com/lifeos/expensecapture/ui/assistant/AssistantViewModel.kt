@@ -1,5 +1,6 @@
 package com.lifeos.expensecapture.ui.assistant
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeos.expensecapture.assistant.CommandExecutor
@@ -22,10 +23,11 @@ data class AssistantMessage(val text: String, val isUser: Boolean)
  */
 class AssistantViewModel(
     private val db: AppDatabase,
+    context: Context,
     private val interpreter: CommandInterpreter = AiCommandInterpreter()
 ) : ViewModel() {
 
-    private val executor = CommandExecutor(db)
+    private val executor = CommandExecutor(db, context.applicationContext)
 
     private val _messages = MutableStateFlow(
         listOf(

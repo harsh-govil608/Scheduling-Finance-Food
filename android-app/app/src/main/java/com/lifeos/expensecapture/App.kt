@@ -1,6 +1,7 @@
 package com.lifeos.expensecapture
 
 import android.app.Application
+import com.lifeos.expensecapture.billing.BillingRepository
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.seed.DefaultCategories
@@ -21,6 +22,14 @@ class App : Application() {
     lateinit var database: AppDatabase
         private set
 
+    /** Monetization scaffolding (2026-08-12) - see BillingRepository's own kdoc for why this is
+     * inert (connects fine, but every purchase/product query comes back empty) until the app has
+     * a real Play Console listing. Application-scoped like `database`, for the same reason: it
+     * needs to outlive any single screen, and every screen that cares about entitlement should
+     * observe the same instance rather than each opening its own billing connection. */
+    lateinit var billingRepository: BillingRepository
+        private set
+
     override fun onCreate() {
         super.onCreate()
         // Pre-beta hardening (Priority 2): must be the first two lines, before anything else can
@@ -29,7 +38,20 @@ class App : Application() {
         CrashHandler.install(this)
 
         database = AppDatabase.getInstance(this)
+        billingRepository = BillingRepository(this)
         NotificationChannels.ensureCreated(this)
+        applicationScope.launch {
+            // Best-effort, deliberately outside the try/catch below: a billing connection
+            // failure (e.g. no Play Store on this device at all, or - right now - simply because
+            // this app isn't installed via Play yet) must never be able to block or crash the
+            // rest of startup. isPremium just stays at its locally-cached value (false, until a
+            // real purchase ever completes) if this doesn't succeed.
+            try {
+                if (billingRepository.connect()) billingRepository.restorePurchases()
+            } catch (e: Exception) {
+                AppLogger.e("App", "billing connect/restore failed", e)
+            }
+        }
         applicationScope.launch {
             // Pre-beta hardening (Priority 4 - reliability): this runs unconditionally on every
             // single app launch. Before this try/catch, an exception here (e.g. a transient DB

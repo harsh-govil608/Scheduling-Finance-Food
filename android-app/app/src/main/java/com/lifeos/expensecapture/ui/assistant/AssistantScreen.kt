@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.ui.navigation.Pillar
@@ -55,7 +56,8 @@ import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AssistantScreen(app: App, onSelectPillar: (Pillar) -> Unit) {
-    val viewModel = remember { AssistantViewModel(app.database) }
+    val context = LocalContext.current
+    val viewModel = remember { AssistantViewModel(app.database, context) }
     val messages by viewModel.messages.collectAsState()
     val isResponding by viewModel.isResponding.collectAsState()
     var input by remember { mutableStateOf("") }

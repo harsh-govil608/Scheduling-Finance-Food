@@ -1,6 +1,6 @@
 {
-  "versionCode": 70,
-  "versionName": "0.51.0-pilot",
+  "versionCode": 71,
+  "versionName": "0.52.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "The SMS parser now distinguishes a REFUND (money coming back from an earlier purchase) from unrelated income (salary, being paid back by a friend) - both used to become the same undifferentiated 'credited' transaction with no way to tell them apart. 'Spent This Month' still isn't reduced by refunds (that's unchanged - a deliberate choice, not an oversight, since redefining that number needs its own decision), but the AI chat can now correctly answer questions about how much came back to you as refunds vs. real new income."
+  "notes": "Monetization scaffolding: a new Premium row in Profile, a paywall screen, and Play Billing wiring underneath it. It won't actually work yet - purchases only function once the app has a real Google Play Console listing, which is account setup, not code. The free tier now has a 20-question/month cap on the AI financial-question chat specifically (not on logging expenses by typing, and not on automatic SMS capture - those stay unlimited and free)."
 }

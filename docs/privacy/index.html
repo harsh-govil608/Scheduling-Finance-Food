@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Privacy Policy - Expense Capture Pilot</title>
+<!--
+  DRAFT - written 2026-08-12 directly from the actual app source (see the Android app under
+  android-app/app/src/main/java/com/lifeos/expensecapture) so every claim below matches real
+  behavior, not aspirational copy. Three things need your input before this is submission-ready:
+  1. CONTACT_EMAIL below - currently your git commit email (harshgovil460@gmail.com), a
+     reasonable default since it's already public in this repo's history, but confirm or change it.
+  2. EFFECTIVE_DATE - set to the date you actually publish this.
+  3. This is a competent draft grounded in the real codebase, not a substitute for a lawyer's
+     review - read it yourself at minimum before it's linked from a Play Store listing.
+  Served by GitHub Pages from this /docs folder (already enabled) - live at
+  https://harsh-govil608.github.io/Scheduling-Finance-Food/privacy/ once pushed.
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0B0F0E; color: #F3F5F4;
+    font-family: -apple-system, Roboto, "Segoe UI", sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .updated { color: #93A19B; font-size: 14px; margin-bottom: 40px; }
+  h2 { font-size: 19px; margin-top: 40px; margin-bottom: 12px; color: #2EDDA6; }
+  h3 { font-size: 15px; margin-top: 20px; margin-bottom: 6px; }
+  p, li { color: #D7DBDA; font-size: 15px; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 8px; }
+  .callout {
+    background: #151C1A; border-radius: 16px; padding: 16px 20px; margin: 16px 0;
+    border-left: 3px solid #2EDDA6;
+  }
+  a { color: #2EDDA6; }
+  code { background: #151C1A; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #2A312F; color: #93A19B; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Privacy Policy</h1>
+  <div class="updated">Expense Capture Pilot &middot; Last updated: <strong>[EFFECTIVE_DATE - fill in before publishing]</strong></div>
+
+  <p>
+    Expense Capture Pilot ("the app," "we," "us") is a personal finance tracker that reads bank
+    and UPI transaction SMS on your device to log expenses automatically. This policy explains
+    exactly what data the app touches, what stays on your device, and what - if anything - is
+    sent anywhere else.
+  </p>
+
+  <div class="callout">
+    <strong>The short version:</strong> your bank/UPI SMS messages are read and processed
+    entirely on your device and are never transmitted anywhere. Only if you choose to use Family
+    Sharing or Smart Split - both optional, off by default - does any of your data leave your
+    device, and even then it's limited to what those specific features need.
+  </div>
+
+  <h2>1. Data we collect and how it's used</h2>
+
+  <h3>1.1 SMS messages (on-device only)</h3>
+  <p>
+    With your permission, the app reads SMS messages on your device to detect bank and UPI
+    transaction alerts. This happens entirely on your device using local pattern matching - the
+    raw text of your SMS messages is never uploaded, transmitted, or sent to us or anyone else,
+    under any circumstance. Only the information extracted from a genuine transaction message
+    (amount, merchant/payee name, category, date, and direction) is saved, and it's saved in a
+    local database on your device.
+  </p>
+  <p>
+    Non-financial messages (personal texts, OTPs, promotional messages) are recognized and
+    ignored - they are never stored, in any form, by this app.
+  </p>
+  <p>
+    If the app's on-device parser can't confidently read a message from a recognized bank/payment
+    sender, and you have an AI-assisted parsing feature enabled, a summary derived from that
+    single message may be sent to our AI provider (see Section 2) to attempt to extract the
+    transaction - never the full SMS inbox, never anything beyond that one message, and only when
+    the on-device parser has already failed.
+  </p>
+
+  <h3>1.2 Data you enter directly</h3>
+  <p>
+    Budgets, goals, habits, tasks, notes, shopping lists, and manually-added transactions are
+    stored locally on your device only.
+  </p>
+
+  <h3>1.3 Family Sharing and Smart Split (optional, opt-in)</h3>
+  <p>
+    These are the only features in the app that store data outside your device, and only if you
+    actively create or join a Family or a Smart Split. When you do, the following is stored on
+    our backend (Google Firebase, in the same project this app uses) so it can be shared across
+    the relevant devices:
+  </p>
+  <ul>
+    <li>Your display name and phone number (used to identify you to other members)</li>
+    <li>Shared expense/split records you're part of (description, amount, who owes what)</li>
+    <li>Your UPI ID, if you choose to add one for receiving split payments</li>
+    <li>Shared Family module content (tasks, calendar, documents, etc.) you or other members add</li>
+  </ul>
+  <p>
+    This data is visible only to members of the same Family or the same Smart Split, enforced by
+    server-side access rules - not to us for any purpose beyond operating the service, and never
+    to advertisers or data brokers.
+  </p>
+
+  <h3>1.4 Crash and diagnostic data</h3>
+  <p>
+    We use Firebase Crashlytics to automatically collect crash reports (device model, OS version,
+    app version, and the technical stack trace of what went wrong) so we can fix bugs. Crash
+    reports do not include your financial data, SMS content, or transaction history.
+  </p>
+
+  <h3>1.5 Profile photo</h3>
+  <p>If you add a profile photo, it's copied into the app's private storage on your device only - it is never uploaded.</p>
+
+  <h2>2. Third-party services we use</h2>
+  <ul>
+    <li><strong>Google Firebase</strong> (Authentication, Firestore database, Crashlytics) - powers Family Sharing, Smart Split, and crash reporting. Google's own privacy policy applies to how they process this on our behalf.</li>
+    <li><strong>OpenRouter</strong> - processes AI Assistant questions and AI-assisted parsing (Section 1.1). Only the specific data needed to answer your question or read one message is sent - never your full transaction history or SMS inbox in bulk, and never your raw SMS text.</li>
+  </ul>
+
+  <h2>3. What we don't do</h2>
+  <ul>
+    <li>We do not sell your data, to anyone, ever.</li>
+    <li>We do not show ads or use your data for advertising.</li>
+    <li>We do not share your data with data brokers.</li>
+    <li>We do not transmit your raw SMS text off your device, under any circumstance.</li>
+  </ul>
+
+  <h2>4. Permissions the app requests</h2>
+  <ul>
+    <li><code>READ_SMS</code> / <code>RECEIVE_SMS</code> - to detect and log bank/UPI transaction messages automatically, as described in Section 1.1. You can decline this and still use the app with manual expense entry.</li>
+    <li><code>POST_NOTIFICATIONS</code> - to remind you about upcoming bills, budget limits, and subscription renewals you're already tracking in the app.</li>
+    <li>Photo/media access - only when you choose to set a profile photo.</li>
+  </ul>
+
+  <h2>5. Your data, your control</h2>
+  <p>
+    You can delete everything the app has stored on your device at any time from
+    <strong>Profile &gt; Clear All My Data and Log Out</strong> - this permanently erases your
+    local transaction history, budgets, and settings, and signs you out of Family/Smart Split if
+    you were signed in. Deleting or leaving a Family/Smart Split removes your association with it
+    on our backend as well.
+  </p>
+
+  <h2>6. Data security</h2>
+  <p>
+    On-device data is stored in the app's private storage, inaccessible to other apps on your
+    device. Data stored on our backend (Family/Smart Split) is protected by access rules that
+    restrict it to members of that specific Family or Split.
+  </p>
+
+  <h2>7. Children's privacy</h2>
+  <p>
+    This app is not directed at children and we do not knowingly collect data from children under
+    13 (or the relevant minimum age in your jurisdiction).
+  </p>
+
+  <h2>8. Changes to this policy</h2>
+  <p>
+    If this policy changes, we'll update the date at the top of this page. Continued use of the
+    app after a change means you accept the updated policy.
+  </p>
+
+  <h2>9. Contact</h2>
+  <p>
+    Questions about this policy or your data: <a href="mailto:[CONTACT_EMAIL]">[CONTACT_EMAIL]</a>
+  </p>
+
+  <div class="footer">
+    Expense Capture Pilot is developed independently. This policy describes the app's actual
+    data handling as implemented in its source code.
+  </div>
+</div>
+</body>
+</html>

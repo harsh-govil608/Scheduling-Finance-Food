@@ -342,6 +342,7 @@ fun PilotApp(app: App) {
                 onOpenBackupRestore = { navController.navigate("backup_restore") },
                 onOpenNotifications = { navController.navigate("notifications") },
                 onOpenFamily = { navController.navigate("family") },
+                onOpenPremium = { navController.navigate("premium") },
                 onSelectPillar = { pillar -> selectPillar(pillar) },
                 onDataDeleted = {
                     navController.navigate("permission") {
@@ -361,6 +362,9 @@ fun PilotApp(app: App) {
         }
         composable("backup_restore") {
             BackupRestoreScreen(app = app, onBack = { navController.popBackStack() })
+        }
+        composable("premium") {
+            com.lifeos.expensecapture.ui.paywall.PaywallScreen(app = app, onBack = { navController.popBackStack() })
         }
 
         // Family module (2026-08) - a cross-device, Firebase-backed module distinct from every

@@ -37,8 +37,8 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 70
-        versionName = "0.51.0-pilot"
+        versionCode = 71
+        versionName = "0.52.0-pilot"
         buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY", "")}\"")
     }
 
@@ -125,6 +125,12 @@ dependencies {
     // the local Room-backed crash_logs table CrashHandler already writes to.
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // Monetization scaffolding (2026-08-12, real founder request - "implementation to be paid").
+    // Only functions once this app is installed via Google Play (even just the internal testing
+    // track) - a sideloaded APK, which is everything distributed so far via distribution/, will
+    // never be able to complete a real purchase through this library. See BillingRepository's kdoc.
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

@@ -1,5 +1,6 @@
 package com.lifeos.expensecapture.assistant
 
+import android.content.Context
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
@@ -9,6 +10,7 @@ import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.repository.TransactionRepository
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.finance.FinanceQaEngine
+import com.lifeos.expensecapture.util.Prefs
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.ZoneId
@@ -19,7 +21,7 @@ import java.time.ZoneId
  * the interpreter. Returns a plain-language confirmation (or a clear explanation of what's
  * missing) rather than throwing, so the chat UI always has something to show the user.
  */
-class CommandExecutor(private val db: AppDatabase) {
+class CommandExecutor(private val db: AppDatabase, private val context: Context) {
 
     suspend fun execute(intent: CommandIntent): String = when (intent) {
         is CommandIntent.AddTransaction -> addTransaction(intent)
@@ -195,7 +197,25 @@ class CommandExecutor(private val db: AppDatabase) {
     private suspend fun unrecognized(intent: CommandIntent.Unrecognized): String {
         val rawText = intent.rawText.trim()
         if (rawText.isNotBlank()) {
-            FinanceQaEngine.answer(rawText, db)?.let { return it }
+            // Monetization scaffolding (2026-08-12) - this is the ONE AI touchpoint gated behind
+            // the free-tier quota, deliberately: FinanceQaEngine.answer is the proactive
+            // financial Q&A feature ("why did I spend more this month", forecasting-adjacent
+            // questions), the "unlimited AI chat" the paid tier is meant to unlock. Structured
+            // command interpretation above (logging an expense by typing "spent 200 on lunch")
+            // and the SMS-parsing AI fallback are deliberately NOT gated here - those support the
+            // core free tracking experience, not an insights feature someone would pay for, and
+            // gating them would make the free tier feel broken rather than just less generous.
+            val quotaAvailable = Prefs.isPremium(context) ||
+                Prefs.aiQuestionsUsedThisMonth(context) < Prefs.FREE_AI_QUESTIONS_PER_MONTH
+            if (quotaAvailable) {
+                FinanceQaEngine.answer(rawText, db)?.let { answer ->
+                    if (!Prefs.isPremium(context)) Prefs.recordAiQuestionUsed(context)
+                    return answer
+                }
+            } else {
+                return "You've used all ${Prefs.FREE_AI_QUESTIONS_PER_MONTH} free AI questions this month - " +
+                    "upgrade to Premium for unlimited questions, or this resets next month."
+            }
         }
         return "I didn't recognize that yet - try things like \"spent 200 on lunch\", \"add task call mom tomorrow\", " +
             "\"add habit meditate\", \"add milk to shopping\", \"complete task call mom\", " +

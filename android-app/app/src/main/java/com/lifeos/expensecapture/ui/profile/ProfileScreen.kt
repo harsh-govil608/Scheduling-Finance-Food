@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -103,12 +104,14 @@ fun ProfileScreen(
     onOpenBackupRestore: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenFamily: () -> Unit,
+    onOpenPremium: () -> Unit,
     onSelectPillar: (Pillar) -> Unit,
     onDataDeleted: () -> Unit
 ) {
     val context = LocalContext.current
     val viewModel = remember { ProfileViewModel(context, app.database) }
     val uiState by viewModel.uiState.collectAsState()
+    val isPremium by app.billingRepository.isPremium.collectAsState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showPersonalInfo by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
@@ -209,6 +212,17 @@ fun ProfileScreen(
                         ProfileStat("${uiState.habitCount}", "Habits", Modifier.weight(1f))
                         ProfileStat("${uiState.healthScore}", "Score", Modifier.weight(1f))
                     }
+                }
+            }
+
+            item {
+                SettingsGroupCard {
+                    SettingsRow(
+                        icon = Icons.Filled.Star,
+                        title = if (isPremium) "Premium" else "Upgrade to Premium",
+                        subtitle = if (isPremium) "Thanks for your support" else "Unlimited AI questions, full Family Sharing",
+                        onClick = onOpenPremium
+                    )
                 }
             }
 
