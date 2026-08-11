@@ -174,20 +174,35 @@ class ProfileViewModel(private val context: Context, private val database: AppDa
      * local data wipe - the Family SDK session otherwise survives this) and clears the local
      * display name/photo, so this is genuinely a fresh start, not a fresh start with old identity
      * bits still attached.
+     *
+     * Bug fix (real founder report, 2026-08-11: still not working after the fix above):
+     * `database.clearAllTables()` is a plain blocking call, not a suspend function, and Room
+     * throws IllegalStateException when a query/write reaches it from the main thread unless
+     * `allowMainThreadQueries()` was set on the builder (AppDatabase's builder never sets it -
+     * intentionally, so a real accidental main-thread query fails loudly instead of silently
+     * janking the UI). `viewModelScope.launch { ... }` defaults to Dispatchers.Main.immediate,
+     * so this was calling clearAllTables() directly on the main thread the whole time - every
+     * other file-I/O call in this same class (setProfilePhoto, removeProfilePhoto) already wraps
+     * itself in withContext(Dispatchers.IO); this one never did. The exception was thrown before
+     * a single line of cleanup ran, `onDone()` never fired, and the button appeared to do
+     * nothing at all - a stronger/different symptom than the earlier watermark bug, not a
+     * leftover instance of it.
      */
     fun deleteAllData(onDone: () -> Unit) {
         viewModelScope.launch {
-            database.clearAllTables()
-            database.categoryDao().insertAll(DefaultCategories.asEntities())
-            SmsHistoryScanner.resetScanFlag(context)
-            Prefs.setCapturePaused(context, false)
-            Prefs.setDisplayName(context, "")
-            Prefs.getProfilePhotoPath(context)?.let { java.io.File(it).delete() }
-            Prefs.setProfilePhotoPath(context, null)
-            try {
-                FirebaseAuth.getInstance().signOut()
-            } catch (e: Exception) {
-                AppLogger.e("ProfileViewModel", "sign-out failed during clear-all-data", e)
+            withContext(Dispatchers.IO) {
+                database.clearAllTables()
+                database.categoryDao().insertAll(DefaultCategories.asEntities())
+                SmsHistoryScanner.resetScanFlag(context)
+                Prefs.setCapturePaused(context, false)
+                Prefs.setDisplayName(context, "")
+                Prefs.getProfilePhotoPath(context)?.let { java.io.File(it).delete() }
+                Prefs.setProfilePhotoPath(context, null)
+                try {
+                    FirebaseAuth.getInstance().signOut()
+                } catch (e: Exception) {
+                    AppLogger.e("ProfileViewModel", "sign-out failed during clear-all-data", e)
+                }
             }
             onDone()
         }

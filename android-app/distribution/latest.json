@@ -1,6 +1,6 @@
 {
-  "versionCode": 66,
-  "versionName": "0.49.2-pilot",
+  "versionCode": 67,
+  "versionName": "0.49.3-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Urgent correctness fix for v0.49.0/0.49.1: the broader SMS parser was misreading bank/fintech PROMOTIONAL messages (pre-approved loan offers, insurance cover amounts, cashback promos) as real transactions, since marketing copy uses words like \"paid\"/\"credited\" loosely and often comes from real bank sender IDs. Added a promotional/marketing filter (same treatment as OTP messages - recognized and skipped, not recorded) plus a sanity cap so an implausibly large amount is never silently auto-inserted from the unverified generic path. If you already have a wrong large transaction in your ledger from 0.49.0/0.49.1, delete it manually from the Ledger, or use Clear All My Data and Log Out to rebuild your ledger fresh from SMS with this fix in place - also includes the v0.49.1 scan-speed fix."
+  "notes": "Fixes Clear All My Data and Log Out actually doing nothing when tapped: it was calling the database wipe directly on the main thread, which Room silently rejects, so the whole operation died before any cleanup ran. Now runs off the main thread like every other file/database operation in the app. This is a different bug from the earlier watermark fix - that one is still in place too, so a full clear now correctly wipes everything, resets SMS scanning, and signs out of Family in one go."
 }
