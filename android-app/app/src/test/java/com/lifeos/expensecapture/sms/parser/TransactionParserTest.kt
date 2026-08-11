@@ -133,6 +133,44 @@ class TransactionParserTest {
         assertEquals(3000.00, result.amount, 0.001)
         assertEquals(TransactionDirection.CREDIT, result.direction)
         assertEquals("987654321", result.referenceId)
+        assertFalse("plain 'received' is not a refund", result.isRefund)
+    }
+
+    // Real user suggestion, 2026-08-12: a refund and unrelated income both become an
+    // undifferentiated CREDIT today - tag the ones that are specifically a refund/reversal so
+    // "Spent This Month" behavior can be reasoned about deliberately later, and so the AI can
+    // already answer "how much came back to me as refunds" correctly.
+
+    @Test
+    fun `a 'refund' credit is tagged as a refund`() {
+        val body = "Rs.499.00 refund of your order is credited to A/c XX1234 on 12-07-26. Ref No 555666777"
+
+        val result = parser.parse(sender = "AX-AXISBK-S", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(499.00, result.amount, 0.001)
+        assertEquals(TransactionDirection.CREDIT, result.direction)
+        assertTrue(result.isRefund)
+    }
+
+    @Test
+    fun `a 'reversed' credit is tagged as a refund`() {
+        val body = "Rs.250.00 reversed to A/c XX1234 on 12-07-26. Ref No 111222333"
+
+        val result = parser.parse(sender = "AX-AXISBK-S", body = body)
+
+        require(result is ParseResult.Parsed)
+        assertEquals(TransactionDirection.CREDIT, result.direction)
+        assertTrue(result.isRefund)
+    }
+
+    @Test
+    fun `an ordinary 'credited' or 'deposited' credit is not tagged as a refund`() {
+        val salary = "Rs.50000.00 credited to A/c XX1234 on 12-07-26 from Acme Corp. Ref No 222333444"
+        val result = parser.parse(sender = "AX-AXISBK-S", body = salary)
+
+        require(result is ParseResult.Parsed)
+        assertFalse(result.isRefund)
     }
 
     @Test

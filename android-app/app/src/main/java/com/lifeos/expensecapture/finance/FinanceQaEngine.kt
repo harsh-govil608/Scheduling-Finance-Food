@@ -63,8 +63,9 @@ object FinanceQaEngine {
         val lastMonthComparableDebits = transactions.filter {
             it.direction == TransactionDirection.DEBIT && it.date in lastMonthStart until lastMonthComparableEnd
         }
-        val thisMonthCredits = transactions.filter { it.direction == TransactionDirection.CREDIT && it.date >= thisMonthStart }
-            .sumOf { it.amount }
+        val thisMonthCreditTxns = transactions.filter { it.direction == TransactionDirection.CREDIT && it.date >= thisMonthStart }
+        val thisMonthCredits = thisMonthCreditTxns.sumOf { it.amount }
+        val thisMonthRefunds = thisMonthCreditTxns.filter { it.isRefund }.sumOf { it.amount }
 
         val thisByCategory = thisMonthDebits.groupBy { categoryName(it.categoryId) }.mapValues { it.value.sumOf { t -> t.amount } }
         val lastByCategory = lastMonthComparableDebits.groupBy { categoryName(it.categoryId) }.mapValues { it.value.sumOf { t -> t.amount } }
@@ -87,6 +88,14 @@ object FinanceQaEngine {
             appendLine("Today's date: ${today} (day $daysElapsedThisMonth of this month so far)")
             appendLine()
             appendLine("This month so far - spent: Rs.${"%.2f".format(thisMonthDebits.sumOf { it.amount })}, received: Rs.${"%.2f".format(thisMonthCredits)}")
+            if (thisMonthRefunds > 0.0) {
+                appendLine(
+                    "Of that received amount, Rs.${"%.2f".format(thisMonthRefunds)} was refunds (money coming back from an " +
+                        "earlier purchase, not new income) - the \"spent\" figure above is NOT reduced by refunds, it's every " +
+                        "debit regardless. If asked about real/net/effective spending, mention both figures rather than " +
+                        "picking one silently."
+                )
+            }
             appendLine("Spend by category this month (vs the same number of days last month):")
             (thisByCategory.keys + lastByCategory.keys).distinct().forEach { cat ->
                 val thisAmt = thisByCategory[cat] ?: 0.0

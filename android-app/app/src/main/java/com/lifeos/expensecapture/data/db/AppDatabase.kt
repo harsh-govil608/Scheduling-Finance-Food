@@ -272,6 +272,16 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
     }
 }
 
+/** Real user observation, 2026-08-12: a refund and unrelated income both land as the same
+ * generic CREDIT today, with no way to tell them apart afterward - see
+ * TransactionEntity.isRefund's kdoc. Defaults every existing row to false (not a refund), which
+ * is the correct/safe assumption for anything already in the ledger. */
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE transactions ADD COLUMN isRefund INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -296,7 +306,7 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         SplitExpenseEntity::class,
         SplitParticipantEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -363,7 +373,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

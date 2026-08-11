@@ -38,14 +38,27 @@ object GenericTransactionExtractor {
         "credited", "credit", "deposited", "received", "refund", "reversed", "added"
     )
 
+    /** Real user suggestion, 2026-08-12: "if after spending someone receives money again... was
+     * that to just calculate more effectively." A generic CREDIT (salary, a friend paying you
+     * back) is genuinely separate money and correctly leaves "Spent This Month" untouched - but a
+     * refund specifically reverses part of an earlier purchase, and today the app can't tell the
+     * two apart at all (both just become an undifferentiated CREDIT transaction). This doesn't
+     * change what "Spent This Month" means anywhere yet - deliberately: silently redefining a
+     * number budgets are compared against is a bigger call than this suggestion asked for. It
+     * tags WHICH credits are refunds so that decision can be made deliberately later, and so
+     * FinanceQaEngine can already answer "how much came back to me as refunds" correctly today. */
+    private val REFUND_KEYWORDS = setOf("refund", "reversed")
+
     /** Perf fix (real founder report, 2026-08: a full-history scan "taking a lot of time" on a
      * real device): findKeywordHits used to build a brand-new Regex (a fresh
      * java.util.regex.Pattern.compile call) for every one of these 18 keywords, on EVERY message
      * this extractor runs against - thousands of redundant compilations across a real inbox scan.
      * Compiled once here instead of inside the per-message loop. */
-    private val KEYWORD_PATTERNS: List<Pair<Regex, TransactionDirection>> =
-        DEBIT_KEYWORDS.map { Regex("(?i)\\b${Regex.escape(it)}\\b") to TransactionDirection.DEBIT } +
-            CREDIT_KEYWORDS.map { Regex("(?i)\\b${Regex.escape(it)}\\b") to TransactionDirection.CREDIT }
+    private val KEYWORD_PATTERNS: List<Triple<Regex, TransactionDirection, Boolean>> =
+        DEBIT_KEYWORDS.map { Triple(Regex("(?i)\\b${Regex.escape(it)}\\b"), TransactionDirection.DEBIT, false) } +
+            CREDIT_KEYWORDS.map {
+                Triple(Regex("(?i)\\b${Regex.escape(it)}\\b"), TransactionDirection.CREDIT, it in REFUND_KEYWORDS)
+            }
 
     /** Defense-in-depth against the same failure class as
      * TransactionParser.looksLikePromotionalOrMarketing (real founder report, 2026-08:
@@ -137,6 +150,10 @@ object GenericTransactionExtractor {
         val direction: TransactionDirection
         val amount: Double
         val merchant: String
+        // UPI/DR//UPI/CR is a structural protocol field, not a keyword - it carries no refund
+        // signal, so a UPI-routed refund (rare, but real) isn't tagged here. Not a regression:
+        // it was never distinguishable before this change either.
+        var isRefund = false
 
         if (upiMatch != null) {
             direction = if (upiMatch.groupValues[1].equals("DR", ignoreCase = true)) {
@@ -155,12 +172,13 @@ object GenericTransactionExtractor {
             if (keywordHits.isEmpty()) return null
 
             val best = amountMatches
-                .flatMap { amt -> keywordHits.map { kw -> Triple(amt, kw.direction, distance(amt.range, kw.range)) } }
+                .flatMap { amt -> keywordHits.map { kw -> Triple(amt, kw, distance(amt.range, kw.range)) } }
                 .minByOrNull { it.third } ?: return null
             if (best.third > MAX_KEYWORD_AMOUNT_DISTANCE) return null
 
             amount = best.first.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
-            direction = best.second
+            direction = best.second.direction
+            isRefund = best.second.isRefund
             merchant = extractMerchant(body, direction)
         }
 
@@ -176,7 +194,8 @@ object GenericTransactionExtractor {
             confidence = 0.6f,
             bankTemplateName = if (upiMatch != null) "generic_upi_ref" else "generic_v2",
             referenceId = upiMatch?.groupValues?.get(2)?.takeIf { it.isNotBlank() }
-                ?: REFERENCE_ID_PATTERN.find(body)?.groupValues?.get(1)
+                ?: REFERENCE_ID_PATTERN.find(body)?.groupValues?.get(1),
+            isRefund = isRefund
         )
     }
 
@@ -186,12 +205,12 @@ object GenericTransactionExtractor {
         return BALANCE_CONTEXT.containsMatchIn(context)
     }
 
-    private data class KeywordHit(val range: IntRange, val direction: TransactionDirection)
+    private data class KeywordHit(val range: IntRange, val direction: TransactionDirection, val isRefund: Boolean)
 
     private fun findKeywordHits(body: String): List<KeywordHit> {
         val hits = mutableListOf<KeywordHit>()
-        KEYWORD_PATTERNS.forEach { (pattern, direction) ->
-            pattern.findAll(body).forEach { hits += KeywordHit(it.range, direction) }
+        KEYWORD_PATTERNS.forEach { (pattern, direction, isRefund) ->
+            pattern.findAll(body).forEach { hits += KeywordHit(it.range, direction, isRefund) }
         }
         return hits
     }

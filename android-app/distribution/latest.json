@@ -1,6 +1,6 @@
 {
-  "versionCode": 69,
-  "versionName": "0.50.1-pilot",
+  "versionCode": 70,
+  "versionName": "0.51.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Smart Split history now supports real server-side auto-cleanup: deleted splits get a Firestore TTL expiry field (30 days out) alongside the existing on-open cleanup, so old history entries get removed even if you never open that screen again. Requires a one-time Firestore TTL policy setup on the backend (collection group splitHistory, field expiresAt) - no action needed on your phone, this is a backend/console step. No other user-facing changes in this release."
+  "notes": "The SMS parser now distinguishes a REFUND (money coming back from an earlier purchase) from unrelated income (salary, being paid back by a friend) - both used to become the same undifferentiated 'credited' transaction with no way to tell them apart. 'Spent This Month' still isn't reduced by refunds (that's unchanged - a deliberate choice, not an oversight, since redefining that number needs its own decision), but the AI chat can now correctly answer questions about how much came back to you as refunds vs. real new income."
 }

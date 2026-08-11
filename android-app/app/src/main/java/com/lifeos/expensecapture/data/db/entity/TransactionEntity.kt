@@ -44,5 +44,13 @@ data class TransactionEntity(
      * format with no extractable reference. Used as a secondary duplicate check alongside
      * `sourceHash` - see TransactionDao.countByReferenceId's kdoc for why the exact-text hash
      * alone isn't enough. */
-    val referenceId: String? = null
+    val referenceId: String? = null,
+    /** True for a CREDIT that reverses an earlier purchase (matched "refund"/"reversed" in the
+     * SMS - see GenericTransactionExtractor.REFUND_KEYWORDS), as opposed to unrelated income
+     * (salary, a friend paying you back). Real user observation, 2026-08-12: without this, both
+     * look like the same generic CREDIT, and there's no way to answer "how much came back to me
+     * as refunds" - or, later, to decide deliberately whether refunds should net against "Spent
+     * This Month" instead of always leaving it untouched. Always false for manual entries and
+     * DEBIT transactions. */
+    val isRefund: Boolean = false
 )

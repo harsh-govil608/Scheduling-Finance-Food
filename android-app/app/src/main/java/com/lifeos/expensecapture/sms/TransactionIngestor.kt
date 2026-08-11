@@ -52,7 +52,8 @@ object TransactionIngestor {
                 source = TransactionSource.SMS_AUTO,
                 confidenceScore = result.confidence,
                 sourceHash = "$sender::$body",
-                referenceId = result.referenceId
+                referenceId = result.referenceId,
+                isRefund = result.isRefund
             )
             val insertedId = db.transactionDao().insert(entity)
             return if (insertedId > 0) entity.copy(id = insertedId) else null // 0 means the unique-index IGNORE rejected a duplicate

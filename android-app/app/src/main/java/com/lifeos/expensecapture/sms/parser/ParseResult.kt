@@ -14,7 +14,14 @@ sealed class ParseResult {
          * TransactionIngestor's dedup logic - because two different SMS (e.g. the bank's and a
          * UPI app's) can describe the exact same real transaction with different wording but the
          * same reference number. */
-        val referenceId: String? = null
+        val referenceId: String? = null,
+        /** True only when the specific matched credit keyword was "refund"/"reversed" (see
+         * GenericTransactionExtractor.REFUND_KEYWORDS) - distinguishes a credit that reverses an
+         * earlier purchase from unrelated income (salary, a friend paying you back), which today
+         * are otherwise indistinguishable once both become a generic CREDIT transaction. Always
+         * false for DEBIT and for the verified per-bank templates (ICICI/SBI), which don't parse
+         * refund SMS at all yet - see BankTemplate.kt. */
+        val isRefund: Boolean = false
     ) : ParseResult()
 
     /**
