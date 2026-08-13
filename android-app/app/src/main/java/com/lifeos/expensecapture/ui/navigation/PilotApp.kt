@@ -44,6 +44,7 @@ import com.lifeos.expensecapture.ui.categories.CategoriesScreen
 import com.lifeos.expensecapture.ui.calculator.CalculatorScreen
 import com.lifeos.expensecapture.ui.goals.GoalsScreen
 import com.lifeos.expensecapture.ui.habits.HabitsScreen
+import com.lifeos.expensecapture.ui.home.DashboardCustomizeScreen
 import com.lifeos.expensecapture.ui.home.HomeScreen
 import com.lifeos.expensecapture.data.db.entity.NoteType
 import com.lifeos.expensecapture.importer.ImportStatementScreen
@@ -166,8 +167,12 @@ fun PilotApp(app: App) {
                 onOpenNightSummary = { navController.navigate("night_summary") },
                 onOpenProfile = { navController.navigate("profile") },
                 onOpenPermissionsReview = { navController.navigate("permissions") },
+                onOpenDashboardCustomize = { navController.navigate("dashboard_customize") },
                 onSelectPillar = { pillar -> selectPillar(pillar) }
             )
+        }
+        composable("dashboard_customize") {
+            DashboardCustomizeScreen(onBack = { navController.popBackStack() })
         }
         composable("productivity_home") {
             ProductivityHomeScreen(

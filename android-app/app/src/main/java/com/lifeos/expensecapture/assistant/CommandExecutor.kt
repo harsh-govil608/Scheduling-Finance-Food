@@ -208,7 +208,7 @@ class CommandExecutor(private val db: AppDatabase, private val context: Context)
             val quotaAvailable = Prefs.isPremium(context) ||
                 Prefs.aiQuestionsUsedThisMonth(context) < Prefs.FREE_AI_QUESTIONS_PER_MONTH
             if (quotaAvailable) {
-                FinanceQaEngine.answer(rawText, db)?.let { answer ->
+                FinanceQaEngine.answer(rawText, db, Prefs.getAiLanguage(context))?.let { answer ->
                     if (!Prefs.isPremium(context)) Prefs.recordAiQuestionUsed(context)
                     return answer
                 }

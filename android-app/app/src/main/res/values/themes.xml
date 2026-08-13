@@ -1,3 +1,8 @@
 <resources>
     <style name="Theme.ExpenseCapture" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Voice quick-capture (2026-08) - makes VoiceCaptureActivity feel like a floating
+         quick-action rather than "the app" opening, since it's launched from a Quick Settings
+         tile and meant to be on screen for only a couple seconds. -->
+    <style name="Theme.VoiceCapture" parent="android:Theme.Translucent.NoTitleBar" />
 </resources>

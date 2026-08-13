@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.VolumeUp
@@ -83,6 +84,7 @@ import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
 import com.lifeos.expensecapture.ui.theme.Warning
 import com.lifeos.expensecapture.ui.theme.WarningStrong
 import com.lifeos.expensecapture.update.UpdateViewModel
+import com.lifeos.expensecapture.util.Prefs
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import kotlinx.coroutines.launch
@@ -117,6 +119,7 @@ fun HomeScreen(
     onOpenNightSummary: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenPermissionsReview: () -> Unit,
+    onOpenDashboardCustomize: () -> Unit,
     onSelectPillar: (Pillar) -> Unit
 ) {
     val context = LocalContext.current
@@ -205,6 +208,9 @@ fun HomeScreen(
                     // Search icon removed from here (real user request, 2026-08) - decluttering
                     // the top bar. Search itself is unaffected - still reachable from the "Search"
                     // Quick Action button below (see onOpenSearch's other call site).
+                    IconButton(onClick = onOpenDashboardCustomize) {
+                        Icon(Icons.Filled.Tune, contentDescription = "Customize Dashboard")
+                    }
                     IconButton(onClick = onOpenNotifications) {
                         BadgedBox(badge = {
                             if (uiState.unreadNotifications > 0) Badge { Text("${uiState.unreadNotifications}") }
@@ -328,241 +334,50 @@ fun HomeScreen(
                 }
             }
 
-            item {
-                HeroMoneyCard(
-                    label = "Spent this month",
-                    amount = uiState.spentThisMonth,
-                    caption = if (!uiState.hasAnyData) {
-                        "Nothing captured yet - grant SMS access or add a transaction manually to get started."
-                    } else {
-                        "Last 7 days"
-                    },
-                    trend = uiState.last7DaysSpend,
-                    secondaryLabel = if (uiState.hasAnyData) "Today" else null,
-                    secondaryAmount = if (uiState.hasAnyData) uiState.spentToday else null,
-                    trendThreshold = uiState.dailySpendThreshold
-                )
-            }
-
-            // Stat-tile grid (reference mockups' Income/Expenses/Savings/Investments 2x2 grid,
-            // see `ui/` folder) - real numbers from HomeViewModel, not placeholders. Only shown
-            // once there's at least one transaction, same gate HeroMoneyCard's caption already
-            // uses, so a fresh install doesn't show four ₹0.00 tiles before there's anything to
-            // show at all.
-            if (uiState.hasAnyData) {
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                            StatTile(
-                                icon = Icons.Filled.TrendingUp,
-                                iconTint = MaterialTheme.colorScheme.primary,
-                                iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                label = "Income",
-                                value = "₹${"%.2f".format(uiState.incomeThisMonth)}",
-                                deltaText = uiState.incomeDeltaPercent?.let { "${if (it >= 0) "▲" else "▼"} ${"%.1f".format(kotlin.math.abs(it))}%" },
-                                deltaPositive = (uiState.incomeDeltaPercent ?: 0f) >= 0f,
-                                modifier = Modifier.weight(1f)
-                            )
-                            StatTile(
-                                icon = Icons.Filled.TrendingDown,
-                                iconTint = MaterialTheme.colorScheme.error,
-                                iconContainerColor = MaterialTheme.colorScheme.errorContainer,
-                                label = "Expenses",
-                                value = "₹${"%.2f".format(uiState.spentThisMonth)}",
-                                // Rising spend is the "bad" direction here, opposite of income's polarity.
-                                deltaText = uiState.expensesDeltaPercent?.let { "${if (it >= 0) "▲" else "▼"} ${"%.1f".format(kotlin.math.abs(it))}%" },
-                                deltaPositive = (uiState.expensesDeltaPercent ?: 0f) < 0f,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                            StatTile(
-                                icon = Icons.Filled.Savings,
-                                iconTint = MaterialTheme.colorScheme.tertiary,
-                                iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                label = "Savings",
-                                value = "₹${"%.2f".format(uiState.savingsThisMonth)}",
-                                modifier = Modifier.weight(1f)
-                            )
-                            StatTile(
-                                icon = Icons.Filled.AccountBalanceWallet,
-                                iconTint = MaterialTheme.colorScheme.secondary,
-                                iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                label = "Investments",
-                                value = "₹${"%.2f".format(uiState.investmentsTotal)}",
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-
-            uiState.spendingInsight?.let { insight ->
-                item {
-                    // AI-polished phrasing (2026-08, real user request) - the deterministic
-                    // sentence is still the only source of truth (spendingInsightText), this just
-                    // asks AiClient to warm up the phrasing. Shows the plain sentence immediately,
-                    // swapped in-place if/when the polished version arrives; falls back to the
-                    // plain sentence unchanged on any failure - see AiTextPolisher's kdoc.
-                    val factual = remember(insight) { spendingInsightText(insight) }
-                    val polished by produceState(initialValue = factual, factual) {
-                        value = AiTextPolisher.polish(factual)
-                    }
-                    AiInsightCard(
-                        title = "What changed",
-                        body = polished
-                    )
-                }
-            }
-
-            uiState.attentionItem?.let { attention ->
-                item {
-                    AccentInfoCard(
-                        icon = Icons.Filled.PriorityHigh,
-                        accentColor = Warning,
-                        title = "Needs attention",
-                        body = attentionItemText(attention)
-                    )
-                }
-            }
-
-            item { SectionLabel("Quick Actions") }
-            item {
-                // 2x4 grid, not a scroll row (real user feedback, 2026-08: a horizontally
-                // scrolling row hid the extra four actions instead of making them easier to
-                // reach) - all eight visible at once, two rows of four.
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        QuickActionButton(
-                            icon = Icons.Filled.Add,
-                            label = "Add Expense",
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            iconTint = MaterialTheme.colorScheme.primary,
-                            onClick = { manualEntryDirection = TransactionDirection.DEBIT }
-                        )
-                        QuickActionButton(
-                            icon = Icons.Filled.ArrowDownward,
-                            label = "Add Income",
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            iconTint = MaterialTheme.colorScheme.secondary,
-                            onClick = { manualEntryDirection = TransactionDirection.CREDIT }
-                        )
-                        QuickActionButton(
-                            icon = Icons.Filled.Groups,
-                            label = "Split Expenses",
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            iconTint = MaterialTheme.colorScheme.tertiary,
-                            onClick = onOpenSplitExpenses
-                        )
-                        QuickActionButton(
-                            icon = Icons.Filled.Search,
-                            label = "Search",
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            onClick = onOpenSearch
-                        )
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        QuickActionButton(
-                            icon = Icons.Filled.UploadFile,
-                            label = "Import Statement",
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            iconTint = MaterialTheme.colorScheme.primary,
-                            onClick = onOpenImportStatement
-                        )
-                        QuickActionButton(
-                            icon = Icons.Filled.AccountBalanceWallet,
-                            label = "Pay Cycle",
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            iconTint = MaterialTheme.colorScheme.tertiary,
-                            onClick = onOpenPayCycle
-                        )
-                        QuickActionButton(
-                            icon = Icons.Filled.Today,
-                            label = "Your Day",
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            iconTint = MaterialTheme.colorScheme.tertiary,
-                            onClick = onOpenNightSummary
-                        )
-                        QuickActionButton(
-                            icon = Icons.Filled.TrendingUp,
-                            label = "Investments",
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            iconTint = MaterialTheme.colorScheme.secondary,
-                            onClick = onOpenInvestments
-                        )
-                    }
-                }
-            }
-
-            // Recent Transactions preview (reference mockups' "Recent Active Flow"/"Recent
-            // Transactions") - the newest few real rows, same TransactionRow Ledger uses (moved
-            // to ui/common so both share one implementation). "View All" opens the full Ledger
-            // rather than duplicating its filtering/search here.
-            if (uiState.recentTransactions.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SectionLabel("Recent Transactions")
-                        TextButton(onClick = onOpenLedger) { Text("View All") }
-                    }
-                }
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
-                    ) {
-                        Column {
-                            uiState.recentTransactions.forEachIndexed { index, transaction ->
-                                TransactionRow(
-                                    transaction = transaction,
-                                    categoryName = uiState.categories.firstOrNull { it.id == transaction.categoryId }?.name
-                                        ?: "Uncategorized",
-                                    onClick = onOpenLedger
+            // Customizable Dashboard (2026-08, real user request) - the 6 genuinely optional
+            // sections render in whatever order/visibility Prefs.getHomeSectionOrder returns
+            // (defaults to this exact original order/visibility). "Needs attention" travels
+            // together with Stats rather than being its own togglable entry - it's a system-
+            // arbitrated slot (see HomeViewModel's kdoc on precedence), not user content, so it
+            // stays wherever Stats ends up instead of being independently reorderable.
+            Prefs.getHomeSectionOrder(context).forEach { section ->
+                when (section) {
+                    HomeSection.HERO -> item { HeroSection(uiState) }
+                    HomeSection.STATS -> {
+                        if (uiState.hasAnyData) item { StatsSection(uiState) }
+                        uiState.attentionItem?.let { attention ->
+                            item {
+                                AccentInfoCard(
+                                    icon = Icons.Filled.PriorityHigh,
+                                    accentColor = Warning,
+                                    title = "Needs attention",
+                                    body = attentionItemText(attention)
                                 )
-                                if (index != uiState.recentTransactions.lastIndex) {
-                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                                }
                             }
                         }
                     }
+                    HomeSection.INSIGHT -> uiState.spendingInsight?.let { insight ->
+                        item { InsightSection(insight) }
+                    }
+                    HomeSection.QUICK_ACTIONS -> item {
+                        QuickActionsSection(
+                            onAddExpense = { manualEntryDirection = TransactionDirection.DEBIT },
+                            onAddIncome = { manualEntryDirection = TransactionDirection.CREDIT },
+                            onOpenSplitExpenses = onOpenSplitExpenses,
+                            onOpenSearch = onOpenSearch,
+                            onOpenImportStatement = onOpenImportStatement,
+                            onOpenPayCycle = onOpenPayCycle,
+                            onOpenNightSummary = onOpenNightSummary,
+                            onOpenInvestments = onOpenInvestments
+                        )
+                    }
+                    HomeSection.RECENT -> if (uiState.recentTransactions.isNotEmpty()) {
+                        item { RecentTransactionsSection(uiState, onOpenLedger) }
+                    }
+                    HomeSection.EXPLORE -> item {
+                        ExploreSection(onOpenLedger, onOpenBudgets, onOpenSubscriptions, onOpenBills, onOpenNeedsReview)
+                    }
                 }
-            }
-
-            item { SectionLabel("Explore") }
-            item {
-                EntryRow(
-                    Icons.Filled.ReceiptLong, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
-                    "Ledger", "All captured and manual transactions", onOpenLedger
-                )
-            }
-            item {
-                EntryRow(
-                    Icons.Filled.PieChart, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
-                    "Budgets", "Set limits and see where you stand, with a month-end projection", onOpenBudgets
-                )
-            }
-            item {
-                EntryRow(
-                    Icons.Filled.Autorenew, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
-                    "Subscriptions", "Recurring charges detected from your transaction history", onOpenSubscriptions
-                )
-            }
-            item {
-                EntryRow(
-                    Icons.Filled.Payments, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
-                    "Bills", "Variable-amount recurring payments and due dates", onOpenBills
-                )
-            }
-            item {
-                EntryRow(
-                    Icons.Filled.Inbox, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
-                    "Needs Review", "Messages the parser couldn't confidently read", onOpenNeedsReview
-                )
             }
         }
     }
@@ -584,6 +399,239 @@ fun HomeScreen(
                 manualEntryDirection = null
             },
             onDismiss = { manualEntryDirection = null }
+        )
+    }
+}
+
+@Composable
+private fun HeroSection(uiState: HomeUiState) {
+    HeroMoneyCard(
+        label = "Spent this month",
+        amount = uiState.spentThisMonth,
+        caption = if (!uiState.hasAnyData) {
+            "Nothing captured yet - grant SMS access or add a transaction manually to get started."
+        } else {
+            "Last 7 days"
+        },
+        trend = uiState.last7DaysSpend,
+        secondaryLabel = if (uiState.hasAnyData) "Today" else null,
+        secondaryAmount = if (uiState.hasAnyData) uiState.spentToday else null,
+        trendThreshold = uiState.dailySpendThreshold
+    )
+}
+
+// Stat-tile grid (reference mockups' Income/Expenses/Savings/Investments 2x2 grid, see `ui/`
+// folder) - real numbers from HomeViewModel, not placeholders. Caller gates this on
+// uiState.hasAnyData, same gate HeroMoneyCard's caption already uses, so a fresh install doesn't
+// show four ₹0.00 tiles before there's anything to show at all.
+@Composable
+private fun StatsSection(uiState: HomeUiState) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            StatTile(
+                icon = Icons.Filled.TrendingUp,
+                iconTint = MaterialTheme.colorScheme.primary,
+                iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                label = "Income",
+                value = "₹${"%.2f".format(uiState.incomeThisMonth)}",
+                deltaText = uiState.incomeDeltaPercent?.let { "${if (it >= 0) "▲" else "▼"} ${"%.1f".format(kotlin.math.abs(it))}%" },
+                deltaPositive = (uiState.incomeDeltaPercent ?: 0f) >= 0f,
+                modifier = Modifier.weight(1f)
+            )
+            StatTile(
+                icon = Icons.Filled.TrendingDown,
+                iconTint = MaterialTheme.colorScheme.error,
+                iconContainerColor = MaterialTheme.colorScheme.errorContainer,
+                label = "Expenses",
+                value = "₹${"%.2f".format(uiState.spentThisMonth)}",
+                // Rising spend is the "bad" direction here, opposite of income's polarity.
+                deltaText = uiState.expensesDeltaPercent?.let { "${if (it >= 0) "▲" else "▼"} ${"%.1f".format(kotlin.math.abs(it))}%" },
+                deltaPositive = (uiState.expensesDeltaPercent ?: 0f) < 0f,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            StatTile(
+                icon = Icons.Filled.Savings,
+                iconTint = MaterialTheme.colorScheme.tertiary,
+                iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                label = "Savings",
+                value = "₹${"%.2f".format(uiState.savingsThisMonth)}",
+                modifier = Modifier.weight(1f)
+            )
+            StatTile(
+                icon = Icons.Filled.AccountBalanceWallet,
+                iconTint = MaterialTheme.colorScheme.secondary,
+                iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                label = "Investments",
+                value = "₹${"%.2f".format(uiState.investmentsTotal)}",
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun InsightSection(insight: com.lifeos.expensecapture.finance.SpendingInsightEngine.SpendingInsight) {
+    // AI-polished phrasing (2026-08, real user request) - the deterministic sentence is still the
+    // only source of truth (spendingInsightText), this just asks AiClient to warm up the
+    // phrasing. Shows the plain sentence immediately, swapped in-place if/when the polished
+    // version arrives; falls back to the plain sentence unchanged on any failure - see
+    // AiTextPolisher's kdoc.
+    val factual = remember(insight) { spendingInsightText(insight) }
+    val polished by produceState(initialValue = factual, factual) {
+        value = AiTextPolisher.polish(factual)
+    }
+    AiInsightCard(title = "What changed", body = polished)
+}
+
+@Composable
+private fun QuickActionsSection(
+    onAddExpense: () -> Unit,
+    onAddIncome: () -> Unit,
+    onOpenSplitExpenses: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenImportStatement: () -> Unit,
+    onOpenPayCycle: () -> Unit,
+    onOpenNightSummary: () -> Unit,
+    onOpenInvestments: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionLabel("Quick Actions")
+        // 2x4 grid, not a scroll row (real user feedback, 2026-08: a horizontally scrolling row
+        // hid the extra four actions instead of making them easier to reach) - all eight visible
+        // at once, two rows of four.
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                QuickActionButton(
+                    icon = Icons.Filled.Add,
+                    label = "Add Expense",
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    onClick = onAddExpense
+                )
+                QuickActionButton(
+                    icon = Icons.Filled.ArrowDownward,
+                    label = "Add Income",
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    onClick = onAddIncome
+                )
+                QuickActionButton(
+                    icon = Icons.Filled.Groups,
+                    label = "Split Expenses",
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    onClick = onOpenSplitExpenses
+                )
+                QuickActionButton(
+                    icon = Icons.Filled.Search,
+                    label = "Search",
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onOpenSearch
+                )
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                QuickActionButton(
+                    icon = Icons.Filled.UploadFile,
+                    label = "Import Statement",
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    onClick = onOpenImportStatement
+                )
+                QuickActionButton(
+                    icon = Icons.Filled.AccountBalanceWallet,
+                    label = "Pay Cycle",
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    onClick = onOpenPayCycle
+                )
+                QuickActionButton(
+                    icon = Icons.Filled.Today,
+                    label = "Your Day",
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    onClick = onOpenNightSummary
+                )
+                QuickActionButton(
+                    icon = Icons.Filled.TrendingUp,
+                    label = "Investments",
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    onClick = onOpenInvestments
+                )
+            }
+        }
+    }
+}
+
+// Recent Transactions preview (reference mockups' "Recent Active Flow"/"Recent Transactions") -
+// the newest few real rows, same TransactionRow Ledger uses (moved to ui/common so both share one
+// implementation). "View All" opens the full Ledger rather than duplicating its filtering/search
+// here. Caller gates this on uiState.recentTransactions being non-empty.
+@Composable
+private fun RecentTransactionsSection(uiState: HomeUiState, onOpenLedger: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionLabel("Recent Transactions")
+            TextButton(onClick = onOpenLedger) { Text("View All") }
+        }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+        ) {
+            Column {
+                uiState.recentTransactions.forEachIndexed { index, transaction ->
+                    TransactionRow(
+                        transaction = transaction,
+                        categoryName = uiState.categories.firstOrNull { it.id == transaction.categoryId }?.name
+                            ?: "Uncategorized",
+                        onClick = onOpenLedger
+                    )
+                    if (index != uiState.recentTransactions.lastIndex) {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExploreSection(
+    onOpenLedger: () -> Unit,
+    onOpenBudgets: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
+    onOpenBills: () -> Unit,
+    onOpenNeedsReview: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionLabel("Explore")
+        EntryRow(
+            Icons.Filled.ReceiptLong, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
+            "Ledger", "All captured and manual transactions", onOpenLedger
+        )
+        EntryRow(
+            Icons.Filled.PieChart, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
+            "Budgets", "Set limits and see where you stand, with a month-end projection", onOpenBudgets
+        )
+        EntryRow(
+            Icons.Filled.Autorenew, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
+            "Subscriptions", "Recurring charges detected from your transaction history", onOpenSubscriptions
+        )
+        EntryRow(
+            Icons.Filled.Payments, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
+            "Bills", "Variable-amount recurring payments and due dates", onOpenBills
+        )
+        EntryRow(
+            Icons.Filled.Inbox, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
+            "Needs Review", "Messages the parser couldn't confidently read", onOpenNeedsReview
         )
     }
 }

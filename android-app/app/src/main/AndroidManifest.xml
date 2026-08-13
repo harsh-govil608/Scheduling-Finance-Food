@@ -45,6 +45,29 @@
             </intent-filter>
         </activity>
 
+        <!-- Voice quick-capture (2026-08, real user request: "AI voice assistant outside app
+             for quick records and summaries") - see VoiceCaptureActivity's kdoc. exported=false:
+             only this app's own VoiceCaptureTileService ever launches it. -->
+        <activity
+            android:name=".voice.VoiceCaptureActivity"
+            android:exported="false"
+            android:theme="@style/Theme.VoiceCapture"
+            android:excludeFromRecents="true" />
+
+        <!-- android:permission is required for a TileService - without it the system refuses to
+             bind it (any app could otherwise inject a fake tile). exported=true is likewise
+             required so the system's Quick Settings host (a different process) can bind it. -->
+        <service
+            android:name=".widget.VoiceCaptureTileService"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="Log by voice"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".sms.SmsReceiver"
             android:exported="true"

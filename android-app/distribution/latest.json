@@ -1,6 +1,6 @@
 {
-  "versionCode": 76,
-  "versionName": "0.55.1-pilot",
+  "versionCode": 77,
+  "versionName": "0.56.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixed: a transaction you'd categorized as Bills & Utilities in the ledger could still fail to show up in the Bills section, because it also had to separately look like a repeating pattern first. Now any transaction categorized as Bills & Utilities shows up in Bills directly, no pattern required."
+  "notes": "Four new things: (1) Customize Dashboard - tap the tune icon on Home to show/hide and reorder sections. (2) The AI assistant now factors your Investments into net-worth-style answers (still manual, not live-synced). (3) AI Chat Language setting in Profile - Auto/English/Hindi/Hinglish. (4) A new \"Log by voice\" Quick Settings tile - swipe down, tap it, and speak an expense/task/habit without opening the app."
 }

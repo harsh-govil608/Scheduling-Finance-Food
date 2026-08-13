@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -44,6 +45,8 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -87,6 +90,7 @@ import com.lifeos.expensecapture.ui.common.SectionLabel
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
 import com.lifeos.expensecapture.ui.navigation.PillarBottomBar
+import com.lifeos.expensecapture.util.Prefs
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -124,6 +128,8 @@ fun ProfileScreen(
     var showPersonalInfo by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showPaymentSettings by remember { mutableStateOf(false) }
+    var showLanguageSettings by remember { mutableStateOf(false) }
+    var aiLanguage by remember { mutableStateOf(Prefs.getAiLanguage(context)) }
 
     // Export Statement (2026-08, real user request: "move share button to profile and name it
     // export statement") - moved here verbatim from Finance Home's top bar, same CSV export/share
@@ -252,6 +258,13 @@ fun ProfileScreen(
                         onClick = { showPaymentSettings = true }
                     )
                     SettingsRowDivider()
+                    SettingsRow(
+                        icon = Icons.Filled.Language,
+                        title = "AI Chat Language",
+                        subtitle = languageLabel(aiLanguage),
+                        onClick = { showLanguageSettings = true }
+                    )
+                    SettingsRowDivider()
                     SettingsToggleRow(
                         icon = Icons.Filled.MonitorHeart,
                         title = "Pause automatic capture",
@@ -338,6 +351,17 @@ fun ProfileScreen(
 
     if (showPaymentSettings) {
         PaymentSettingsDialog(onDismiss = { showPaymentSettings = false })
+    }
+
+    if (showLanguageSettings) {
+        LanguageSettingsDialog(
+            current = aiLanguage,
+            onSelect = { language ->
+                aiLanguage = language
+                Prefs.setAiLanguage(context, language)
+            },
+            onDismiss = { showLanguageSettings = false }
+        )
     }
 
     if (showAbout) {
@@ -663,5 +687,53 @@ private fun PaymentSettingsDialog(onDismiss: () -> Unit) {
             ) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+private val AI_LANGUAGE_OPTIONS = listOf(
+    "auto" to "Auto (match my question)",
+    "English" to "English",
+    "Hindi" to "Hindi",
+    "Hinglish" to "Hinglish"
+)
+
+private fun languageLabel(value: String): String =
+    AI_LANGUAGE_OPTIONS.firstOrNull { it.first == value }?.second ?: value
+
+/** Local language support in AI chat (2026-08, real user request) - which language
+ * FinanceQaEngine replies in, see Prefs.getAiLanguage's kdoc. Selecting an option applies
+ * immediately (same pattern as SettingsToggleRow elsewhere in this screen), no separate Save
+ * step - "Done" just closes the dialog. */
+@Composable
+private fun LanguageSettingsDialog(current: String, onSelect: (String) -> Unit, onDismiss: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("AI Chat Language") },
+        text = {
+            Column {
+                Text(
+                    "Which language should the AI assistant reply in when you ask it a question?",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                Box {
+                    TextButton(onClick = { expanded = true }) {
+                        Text(languageLabel(current))
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        AI_LANGUAGE_OPTIONS.forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = { onSelect(value); expanded = false }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
     )
 }

@@ -2,6 +2,7 @@ package com.lifeos.expensecapture.finance
 
 import com.lifeos.expensecapture.data.db.entity.BillEntity
 import com.lifeos.expensecapture.data.db.entity.BillStatus
+import com.lifeos.expensecapture.data.db.entity.InvestmentEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionStatus
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
@@ -44,6 +45,11 @@ object ForecastEngine {
         /** Average of every other debit (not a transfer, not part of a recurring group above) -
          * day-to-day discretionary spending, the least predictable figure in this whole result. */
         val discretionaryMonthlyAverage: Double,
+        /** A point-in-time balance (2026-08, real user request: fold investments into the AI's
+         * picture), deliberately NOT part of conservativeNetMonthly/fullNetMonthly - those are
+         * monthly cash-flow rates, a lump-sum balance answers a different question (net worth,
+         * not monthly flow) and blending them would misrepresent both. */
+        val totalInvestmentsValue: Double,
         val historyDays: Int,
         /** False when there's under a month of usable history - ForecastEngine still returns its
          * best-effort numbers (all likely 0 or near it at that point anyway), but callers must
@@ -67,7 +73,11 @@ object ForecastEngine {
     fun compute(
         transactions: List<TransactionEntity>,
         subscriptions: List<SubscriptionEntity>,
-        bills: List<BillEntity>
+        bills: List<BillEntity>,
+        // Defaults to empty so ForecastAccuracyTracker's call site doesn't need to change - month-
+        // to-month accuracy tracking is about cash-flow forecasting, not net worth, so investments
+        // correctly play no part in that comparison either.
+        investments: List<InvestmentEntity> = emptyList()
     ): MonthlyForecast {
         val historyDays = historyWindowDays(transactions)
 
@@ -120,6 +130,7 @@ object ForecastEngine {
             confirmedMonthlyExpenses = confirmedSubsMonthly + confirmedBillsMonthly,
             estimatedMonthlyExpenses = estimatedSubsMonthly + estimatedBillsMonthly,
             discretionaryMonthlyAverage = discretionaryMonthly,
+            totalInvestmentsValue = investments.sumOf { it.currentValue },
             historyDays = historyDays,
             hasEnoughHistoryToForecast = historyDays >= MIN_HISTORY_DAYS_TO_FORECAST
         )

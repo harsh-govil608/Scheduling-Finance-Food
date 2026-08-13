@@ -32,7 +32,12 @@ import java.time.temporal.ChronoUnit
  */
 object FinanceQaEngine {
 
-    suspend fun answer(question: String, db: AppDatabase): String? {
+    /** `languagePreference` (2026-08, real user request: local language support) - "auto"
+     * (default) mirrors whatever language the question was written in; any other value forces
+     * that language regardless. Kept as a plain String param rather than threading an Android
+     * Context in here - callers (CommandExecutor, which already holds a Context) resolve
+     * Prefs.getAiLanguage themselves, keeping this engine free of any Android dependency. */
+    suspend fun answer(question: String, db: AppDatabase, languagePreference: String = "auto"): String? {
         val snapshot = try {
             buildSnapshot(db)
         } catch (e: Exception) {
@@ -40,11 +45,27 @@ object FinanceQaEngine {
             return null
         }
         return try {
-            AiClient.generateText(prompt = "$snapshot\n\nQuestion: $question", systemInstruction = SYSTEM_PROMPT)
+            AiClient.generateText(
+                prompt = "$snapshot\n\nQuestion: $question",
+                systemInstruction = SYSTEM_PROMPT + "\n\n" + languageInstruction(languagePreference)
+            )
         } catch (e: Exception) {
             AppLogger.e("FinanceQaEngine", "answer failed", e)
             null
         }
+    }
+
+    private fun languageInstruction(languagePreference: String): String = if (languagePreference == "auto") {
+        """
+        Language: detect the language/script the user's question below is written in, and reply
+        in that same language. If it's a mix (e.g. Hinglish - Hindi words in Latin script), reply
+        the same way rather than switching to pure English or pure Hindi.
+        """.trimIndent()
+    } else {
+        """
+        Language: always reply in $languagePreference, regardless of what language the question
+        below is written in.
+        """.trimIndent()
     }
 
     private suspend fun buildSnapshot(db: AppDatabase): String {
@@ -82,12 +103,16 @@ object FinanceQaEngine {
         val bills = db.billDao().observeAll().first()
         val goals = db.goalDao().observeAll().first().filter { !it.completed }
 
+        // Investment AI integration (2026-08, real user request) - a manually-entered, non-synced
+        // balance (see InvestmentEntity's kdoc), kept separate from the cash-flow forecast below.
+        val investments = db.investmentDao().observeAll().first()
+
         // Pattern Engine design, 2026-08-12: replaces the old single "net cash flow pace"
         // extrapolation (this month's raw credits-minus-debits, stretched to 30 days) with
         // ForecastEngine's confidence-tagged breakdown - real code separating confirmed-recurring
         // income from estimated from variable/one-off, instead of asking the AI to correctly
         // apply that distinction to one undifferentiated number every single time.
-        val forecast = ForecastEngine.compute(transactions, subscriptions, bills)
+        val forecast = ForecastEngine.compute(transactions, subscriptions, bills, investments)
 
         // Pattern Engine design, 2026-08-12 - the cross-domain piece: Habits sitting right next
         // to Finance is what no competitor's "AI insights" can do. See HabitSpendCorrelator's
@@ -186,6 +211,14 @@ object FinanceQaEngine {
                         "as the safe answer."
                 )
             }
+            if (investments.isNotEmpty()) {
+                appendLine()
+                appendLine(
+                    "Investment holdings (manually entered by the user, NOT live-synced - these values " +
+                        "may be stale, say so if asked how current they are): Rs.${"%.2f".format(investments.sumOf { it.currentValue })} " +
+                        "total across ${investments.size} holding${if (investments.size == 1) "" else "s"}."
+                )
+            }
             if (accuracyHistory.isNotEmpty()) {
                 appendLine()
                 appendLine(
@@ -265,5 +298,12 @@ object FinanceQaEngine {
         (still lead with the conservative figure, still say so plainly when there isn't enough
         history) - it only adjusts tone/confidence in how the numbers are framed, never which
         numbers get shown.
+
+        If an "Investment holdings" line is present, it's a manually-entered, unverified,
+        NOT-live-synced snapshot balance - useful for a net-worth-style question ("what am I
+        worth"), but never substitute it for or blend it into the conservative/full net-monthly
+        cash-flow figures above (a lump-sum balance and a monthly flow rate answer different
+        questions). If asked how current the investment figure is, say plainly that it's whatever
+        the user last typed in, not a live price.
     """
 }

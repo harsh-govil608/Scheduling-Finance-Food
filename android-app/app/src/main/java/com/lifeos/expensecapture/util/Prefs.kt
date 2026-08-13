@@ -1,6 +1,7 @@
 package com.lifeos.expensecapture.util
 
 import android.content.Context
+import com.lifeos.expensecapture.ui.home.HomeSection
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -17,6 +18,8 @@ object Prefs {
     private const val KEY_IS_PREMIUM = "is_premium"
     private const val KEY_AI_QUOTA_MONTH = "ai_quota_month"
     private const val KEY_AI_QUOTA_COUNT = "ai_quota_count"
+    private const val KEY_AI_LANGUAGE = "ai_language"
+    private const val KEY_HOME_SECTION_ORDER = "home_section_order"
 
     /** Free tier's monthly cap on FinanceQaEngine questions (the "ask AI about my finances" chat
      * feature specifically) - see FinanceQaEngine.answer's own kdoc for exactly what this does
@@ -70,5 +73,29 @@ object Prefs {
         val currentMonth = LocalDate.now().format(monthFormatter)
         val newCount = aiQuestionsUsedThisMonth(context) + 1
         p.edit().putString(KEY_AI_QUOTA_MONTH, currentMonth).putInt(KEY_AI_QUOTA_COUNT, newCount).apply()
+    }
+
+    /** Local language support in AI chat (2026-08, real user request). "auto" (default) means
+     * FinanceQaEngine detects and mirrors whatever language the question itself was written in -
+     * see its SYSTEM_PROMPT for the exact instruction. Any other value forces every answer into
+     * that language regardless of the question's language. */
+    fun getAiLanguage(context: Context): String = prefs(context).getString(KEY_AI_LANGUAGE, "auto") ?: "auto"
+
+    fun setAiLanguage(context: Context, language: String) {
+        prefs(context).edit().putString(KEY_AI_LANGUAGE, language).apply()
+    }
+
+    /** Customizable Dashboard (2026-08, real user request). Order AND visibility are one
+     * setting - a section not present in the stored list is hidden, not just unordered. Defaults
+     * to every section in HomeScreen's original fixed order. Stored as a comma-joined string of
+     * enum names; an unrecognized name (e.g. from a future version removing an enum entry) is
+     * silently dropped rather than crashing. */
+    fun getHomeSectionOrder(context: Context): List<HomeSection> {
+        val stored = prefs(context).getString(KEY_HOME_SECTION_ORDER, null) ?: return HomeSection.entries.toList()
+        return stored.split(",").mapNotNull { name -> HomeSection.entries.firstOrNull { it.name == name } }
+    }
+
+    fun setHomeSectionOrder(context: Context, order: List<HomeSection>) {
+        prefs(context).edit().putString(KEY_HOME_SECTION_ORDER, order.joinToString(",") { it.name }).apply()
     }
 }
