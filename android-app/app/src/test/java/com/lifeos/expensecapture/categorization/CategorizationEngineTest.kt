@@ -4,6 +4,7 @@ import com.lifeos.expensecapture.data.db.dao.CategoryDao
 import com.lifeos.expensecapture.data.db.dao.MerchantRuleDao
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.db.entity.MerchantRuleEntity
+import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -29,22 +30,32 @@ class CategorizationEngineTest {
             error("not used by CategorizationEngine")
     }
 
-    private class FakeCategoryDao(private val uncategorized: CategoryEntity?) : CategoryDao {
+    private class FakeCategoryDao(
+        private val uncategorized: CategoryEntity?,
+        private val byName: Map<String, CategoryEntity> = emptyMap()
+    ) : CategoryDao {
         override suspend fun insertAll(categories: List<CategoryEntity>) = error("not used by CategorizationEngine")
         override suspend fun insert(category: CategoryEntity): Long = error("not used by CategorizationEngine")
         override fun observeAll(): Flow<List<CategoryEntity>> = flowOf(emptyList())
         override suspend fun count(): Int = error("not used by CategorizationEngine")
         override suspend fun getUncategorized(): CategoryEntity? = uncategorized
         override suspend fun delete(category: CategoryEntity) = error("not used by CategorizationEngine")
+        override suspend fun findByName(name: String): CategoryEntity? = byName[name]
     }
 
     private val uncategorized = CategoryEntity(id = 1, name = "Uncategorized")
     private val foodCategory = CategoryEntity(id = 2, name = "Food")
+    private val groceriesCategory = CategoryEntity(id = 3, name = "Groceries")
+    private val shoppingCategory = CategoryEntity(id = 4, name = "Shopping")
+
+    // Existing tests below use CREDIT so they stay decoupled from the amount-based DEBIT-only
+    // fallback (added 2026-08, see CategorizationEngine's kdoc) - they're testing merchant-rule
+    // matching and the Uncategorized fallback specifically, not the new fallback.
 
     @Test
     fun `falls back to Uncategorized when no rule matches`() = runBlocking {
         val engine = CategorizationEngine(FakeMerchantRuleDao(emptyList()), FakeCategoryDao(uncategorized))
-        assertEquals(uncategorized.id, engine.categorize("Some Random Merchant"))
+        assertEquals(uncategorized.id, engine.categorize("Some Random Merchant", 100.0, TransactionDirection.CREDIT))
     }
 
     @Test
@@ -52,7 +63,7 @@ class CategorizationEngineTest {
         val rule = MerchantRuleEntity(merchantPattern = "swiggy", categoryId = foodCategory.id)
         val engine = CategorizationEngine(FakeMerchantRuleDao(listOf(rule)), FakeCategoryDao(uncategorized))
 
-        runBlocking { assertEquals(foodCategory.id, engine.categorize("SWIGGY*Order123")) }
+        runBlocking { assertEquals(foodCategory.id, engine.categorize("SWIGGY*Order123", 250.0, TransactionDirection.DEBIT)) }
     }
 
     @Test
@@ -60,7 +71,7 @@ class CategorizationEngineTest {
         val rule = MerchantRuleEntity(merchantPattern = "ZOMATO", categoryId = foodCategory.id)
         val engine = CategorizationEngine(FakeMerchantRuleDao(listOf(rule)), FakeCategoryDao(uncategorized))
 
-        runBlocking { assertEquals(foodCategory.id, engine.categorize("zomato online order")) }
+        runBlocking { assertEquals(foodCategory.id, engine.categorize("zomato online order", 250.0, TransactionDirection.DEBIT)) }
     }
 
     @Test
@@ -68,7 +79,7 @@ class CategorizationEngineTest {
         val rule = MerchantRuleEntity(merchantPattern = "swiggy", categoryId = foodCategory.id, isPaused = true)
         val engine = CategorizationEngine(FakeMerchantRuleDao(listOf(rule)), FakeCategoryDao(uncategorized))
 
-        runBlocking { assertEquals(uncategorized.id, engine.categorize("Swiggy Order")) }
+        runBlocking { assertEquals(uncategorized.id, engine.categorize("Swiggy Order", 250.0, TransactionDirection.CREDIT)) }
     }
 
     @Test
@@ -79,14 +90,53 @@ class CategorizationEngineTest {
         )
         val engine = CategorizationEngine(FakeMerchantRuleDao(rules), FakeCategoryDao(uncategorized))
 
-        runBlocking { assertEquals(foodCategory.id, engine.categorize("Swiggy Order")) }
+        runBlocking { assertEquals(foodCategory.id, engine.categorize("Swiggy Order", 250.0, TransactionDirection.DEBIT)) }
     }
 
     @Test
     fun `throws a clear error when Uncategorized seeding is missing, rather than silently miscategorizing`() {
         val engine = CategorizationEngine(FakeMerchantRuleDao(emptyList()), FakeCategoryDao(null))
         assertThrows(IllegalStateException::class.java) {
-            runBlocking { engine.categorize("Anything") }
+            runBlocking { engine.categorize("Anything", 100.0, TransactionDirection.CREDIT) }
         }
+    }
+
+    // Amount-based default categorization (2026-08, real user request: "lower spending, less
+    // than 500 goes to groceries and more than 500 goes to the shopping category") - a fallback
+    // that only applies once merchant-rule matching above has already missed.
+
+    @Test
+    fun `falls back to Groceries for a small DEBIT amount when no rule matches`() = runBlocking {
+        val categoryDao = FakeCategoryDao(uncategorized, mapOf("Groceries" to groceriesCategory, "Shopping" to shoppingCategory))
+        val engine = CategorizationEngine(FakeMerchantRuleDao(emptyList()), categoryDao)
+        assertEquals(groceriesCategory.id, engine.categorize("Some Random Merchant", 499.99, TransactionDirection.DEBIT))
+    }
+
+    @Test
+    fun `falls back to Shopping for a large DEBIT amount when no rule matches`() = runBlocking {
+        val categoryDao = FakeCategoryDao(uncategorized, mapOf("Groceries" to groceriesCategory, "Shopping" to shoppingCategory))
+        val engine = CategorizationEngine(FakeMerchantRuleDao(emptyList()), categoryDao)
+        assertEquals(shoppingCategory.id, engine.categorize("Some Random Merchant", 500.0, TransactionDirection.DEBIT))
+    }
+
+    @Test
+    fun `does not apply the amount fallback to a CREDIT transaction`() = runBlocking {
+        val categoryDao = FakeCategoryDao(uncategorized, mapOf("Groceries" to groceriesCategory, "Shopping" to shoppingCategory))
+        val engine = CategorizationEngine(FakeMerchantRuleDao(emptyList()), categoryDao)
+        assertEquals(uncategorized.id, engine.categorize("Salary Credit", 100.0, TransactionDirection.CREDIT))
+    }
+
+    @Test
+    fun `a matching merchant rule wins over the amount fallback`() = runBlocking {
+        val rule = MerchantRuleEntity(merchantPattern = "swiggy", categoryId = foodCategory.id)
+        val categoryDao = FakeCategoryDao(uncategorized, mapOf("Groceries" to groceriesCategory, "Shopping" to shoppingCategory))
+        val engine = CategorizationEngine(FakeMerchantRuleDao(listOf(rule)), categoryDao)
+        assertEquals(foodCategory.id, engine.categorize("Swiggy Order", 100.0, TransactionDirection.DEBIT))
+    }
+
+    @Test
+    fun `falls back to Uncategorized when Groceries and Shopping are not seeded`() = runBlocking {
+        val engine = CategorizationEngine(FakeMerchantRuleDao(emptyList()), FakeCategoryDao(uncategorized))
+        assertEquals(uncategorized.id, engine.categorize("Some Random Merchant", 100.0, TransactionDirection.DEBIT))
     }
 }
