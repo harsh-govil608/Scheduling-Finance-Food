@@ -135,7 +135,7 @@ class ImportStatementViewModel(
                 val amount = parsed.amount ?: continue
                 if (amount <= 0.0 || parsed.merchant.isBlank()) continue
 
-                val categoryId = categorizationEngine.categorize(parsed.merchant)
+                val categoryId = categorizationEngine.categorize(parsed.merchant, amount, parsed.direction)
                 val entity = TransactionEntity(
                     amount = amount,
                     direction = parsed.direction,

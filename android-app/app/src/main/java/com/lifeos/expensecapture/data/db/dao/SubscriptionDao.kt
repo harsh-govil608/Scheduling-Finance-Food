@@ -1,6 +1,7 @@
 package com.lifeos.expensecapture.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -16,6 +17,12 @@ interface SubscriptionDao {
 
     @Update
     suspend fun update(subscription: SubscriptionEntity)
+
+    /** Real removal (mirrors BillDao.delete's kdoc/reasoning) - dismissSubscription only ever
+     * marks a subscription CANCELLED, which kept it sitting in the list forever with no way to
+     * actually clear it out. */
+    @Delete
+    suspend fun delete(subscription: SubscriptionEntity)
 
     @Query("SELECT * FROM subscriptions ORDER BY status ASC, lastTransactionDate DESC")
     fun observeAll(): Flow<List<SubscriptionEntity>>

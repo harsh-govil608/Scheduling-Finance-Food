@@ -7,8 +7,10 @@ import com.lifeos.expensecapture.data.db.entity.TransactionEntity
  * (Phase 3 Docs 19 and 22). Those PRDs' own stated distinction between the two features is
  * whether the amount is fixed or variable across occurrences - this detector finds recurring
  * merchant groups once; callers then classify each group as subscription-like (low amount
- * variance) or bill-like (higher variance) instead of duplicating grouping/interval logic in
- * two places.
+ * variance) or not, instead of duplicating grouping/interval logic in two places. A group that
+ * isn't subscription-like is NOT automatically a bill (2026-08) - FinanceInsightsRepository.
+ * upsertBill additionally gates new bill guesses on the group's transactions actually being
+ * categorized as Bills & Utilities, so amount variance alone no longer decides it.
  *
  * Deliberately a simple rule-based heuristic, not a learned model - consistent with this
  * pilot's "rules first, prove the need before reaching for ML" approach already used for SMS

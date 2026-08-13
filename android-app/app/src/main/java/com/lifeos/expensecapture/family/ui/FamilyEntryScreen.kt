@@ -29,6 +29,7 @@ fun FamilyEntryScreen(
     onOpenInvite: (String) -> Unit,
     onOpenSos: (String) -> Unit,
     onOpenNotifications: (String) -> Unit,
+    onBackToFinance: () -> Unit,
     onSelectPillar: (FamilyPillar, String) -> Unit
 ) {
     val viewModel = remember { FamilyAppViewModel() }
@@ -53,6 +54,7 @@ fun FamilyEntryScreen(
                 onOpenInvite = { onOpenInvite(family.id) },
                 onOpenSos = { onOpenSos(family.id) },
                 onOpenNotifications = { onOpenNotifications(family.id) },
+                onBackToFinance = onBackToFinance,
                 onSelectPillar = { pillar -> onSelectPillar(pillar, family.id) }
             )
         }

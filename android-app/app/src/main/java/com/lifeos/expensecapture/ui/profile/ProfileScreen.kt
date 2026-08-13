@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Rule
@@ -58,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,6 +78,11 @@ import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.export.CsvExporter
+import com.lifeos.expensecapture.family.data.FamilyAuthRepository
+import com.lifeos.expensecapture.splitpay.data.SplitPayRepository
+import com.lifeos.expensecapture.splitpay.data.SplitPayResult
+import com.lifeos.expensecapture.splitpay.model.UserPayProfile
+import com.lifeos.expensecapture.splitpay.ui.UpiPay
 import com.lifeos.expensecapture.ui.common.SectionLabel
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import com.lifeos.expensecapture.ui.navigation.Pillar
@@ -115,6 +123,7 @@ fun ProfileScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showPersonalInfo by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var showPaymentSettings by remember { mutableStateOf(false) }
 
     // Export Statement (2026-08, real user request: "move share button to profile and name it
     // export statement") - moved here verbatim from Finance Home's top bar, same CSV export/share
@@ -236,6 +245,13 @@ fun ProfileScreen(
                         onClick = { showPersonalInfo = true }
                     )
                     SettingsRowDivider()
+                    SettingsRow(
+                        icon = Icons.Filled.AccountBalanceWallet,
+                        title = "Payment Settings",
+                        subtitle = "Your UPI ID for Smart Split",
+                        onClick = { showPaymentSettings = true }
+                    )
+                    SettingsRowDivider()
                     SettingsToggleRow(
                         icon = Icons.Filled.MonitorHeart,
                         title = "Pause automatic capture",
@@ -318,6 +334,10 @@ fun ProfileScreen(
             onRemovePhoto = viewModel::removeProfilePhoto,
             onDismiss = { showPersonalInfo = false }
         )
+    }
+
+    if (showPaymentSettings) {
+        PaymentSettingsDialog(onDismiss = { showPaymentSettings = false })
     }
 
     if (showAbout) {
@@ -556,5 +576,92 @@ private fun PersonalInfoDialog(
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
+    )
+}
+
+/** Editable UPI ID (2026-08, real user request) - previously the only way to set it was a
+ * one-time blocking gate inside SmartSplitCreateScreen, with no way to change it afterward.
+ * Reads/writes the same Firestore users/{uid} doc Smart Split already uses, so a change here is
+ * picked up there automatically, live - no separate sync needed. Smart Split's identity is
+ * anonymous Firebase Auth (see SmartSplitsScreen's kdoc), so this dialog can't assume a user is
+ * already signed in just because they came from Profile rather than Smart Split - it signs in
+ * anonymously first if needed, mirroring SmartSplitsScreen.kt's own sign-in-on-open pattern. */
+@Composable
+private fun PaymentSettingsDialog(onDismiss: () -> Unit) {
+    val authRepository = remember { FamilyAuthRepository() }
+    val payRepository = remember { SplitPayRepository() }
+    val coroutineScope = rememberCoroutineScope()
+
+    var uid by remember { mutableStateOf(authRepository.currentUser?.uid ?: "") }
+    var signingIn by remember { mutableStateOf(authRepository.currentUser == null) }
+
+    LaunchedEffect(Unit) {
+        if (authRepository.currentUser == null) {
+            authRepository.signInAnonymously()
+            uid = authRepository.currentUser?.uid ?: ""
+        }
+        signingIn = false
+    }
+
+    val payProfile by remember(uid) { payRepository.observePayProfile(uid) }.collectAsState(initial = null)
+    var upiIdInput by remember(payProfile) { mutableStateOf(payProfile?.upiId ?: "") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Payment Settings") },
+        text = {
+            Column {
+                Text(
+                    "Your UPI ID is what gets shared with people you split expenses with, so " +
+                        "they can pay you back via Smart Split.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                if (signingIn) {
+                    Text("Setting up…", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    OutlinedTextField(
+                        value = upiIdInput,
+                        onValueChange = { upiIdInput = it; error = null },
+                        label = { Text("UPI ID (e.g. yourname@okhdfcbank)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !signingIn && !saving,
+                onClick = {
+                    if (!UpiPay.looksLikeValidVpa(upiIdInput)) {
+                        error = "That doesn't look like a valid UPI ID"
+                        return@TextButton
+                    }
+                    saving = true
+                    coroutineScope.launch {
+                        val result = payRepository.upsertPayProfile(
+                            UserPayProfile(
+                                uid = uid,
+                                displayName = payProfile?.displayName ?: "",
+                                phoneNumber = payProfile?.phoneNumber,
+                                upiId = upiIdInput.trim()
+                            )
+                        )
+                        saving = false
+                        when (result) {
+                            is SplitPayResult.Success -> onDismiss()
+                            is SplitPayResult.Failure -> error = result.message
+                        }
+                    }
+                }
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }

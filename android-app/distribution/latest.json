@@ -1,6 +1,6 @@
 {
-  "versionCode": 73,
-  "versionName": "0.53.1-pilot",
+  "versionCode": 74,
+  "versionName": "0.54.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Smart Split fix: \"I've already paid\" no longer shows immediately when you open a split - it only appears after you've actually tapped Settle Up via UPI at least once. Previously it sat right next to the real payment button from the start, with zero friction, which made it too easy to mark yourself paid without actually paying. As a side effect this is also more honest: tapping Settle Up via UPI no longer auto-marks you as paid the instant the UPI app opens (it couldn't reliably tell if you actually completed the payment) - now it requires that explicit follow-up confirmation instead of assuming."
+  "notes": "Smart Split now auto-notifies people you split with (if they use the app) instead of relying only on the manual payment link, and your UPI ID can be changed anytime from Profile > Payment Settings instead of being locked in after the first setup. Family Sharing has a back button to Finance. Uncategorized UPI spends now get a sensible default category (under Rs.500 -> Groceries, Rs.500+ -> Shopping) instead of piling up as Uncategorized. Subscriptions can now be deleted, not just cancelled. Bills only auto-tracks charges actually categorized as Bills & Utilities, instead of guessing from any repeated merchant."
 }

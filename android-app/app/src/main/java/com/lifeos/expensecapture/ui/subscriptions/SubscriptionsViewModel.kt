@@ -24,6 +24,10 @@ class SubscriptionsViewModel(
         viewModelScope.launch { insightsRepository.dismissSubscription(item.subscription) }
     }
 
+    fun delete(item: FinanceInsightsRepository.SubscriptionWithComputedStatus) {
+        viewModelScope.launch { insightsRepository.deleteSubscription(item.subscription) }
+    }
+
     fun addManual(merchantDisplay: String, amount: Double, cadenceDays: Int) {
         viewModelScope.launch { insightsRepository.addManualSubscription(merchantDisplay, amount, cadenceDays) }
     }

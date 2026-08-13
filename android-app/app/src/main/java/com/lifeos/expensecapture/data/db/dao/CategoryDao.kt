@@ -36,4 +36,11 @@ interface CategoryDao {
 
     @Query("SELECT * FROM categories WHERE name = 'Uncategorized' LIMIT 1")
     suspend fun getUncategorized(): CategoryEntity?
+
+    /** Lookup by exact category name - used by CategorizationEngine's amount-based fallback and
+     * FinanceInsightsRepository's Bills-category-driven detection gate. Categories have no stable
+     * public ID (autoGenerate), so a caller that needs "the Groceries category" or "the Bills &
+     * Utilities category" specifically has to resolve it by its known seeded name at call time. */
+    @Query("SELECT * FROM categories WHERE name = :name LIMIT 1")
+    suspend fun findByName(name: String): CategoryEntity?
 }

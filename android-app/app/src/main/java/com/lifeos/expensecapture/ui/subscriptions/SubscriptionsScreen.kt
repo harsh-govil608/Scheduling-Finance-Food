@@ -115,6 +115,15 @@ fun SubscriptionsScreen(app: App, onBack: () -> Unit) {
                     it.displayStatus == SubscriptionDisplayStatus.POSSIBLY_LAPSED
             }
             val monthlyTotal = activeSubs.sumOf { it.subscription.amount * (30.0 / it.subscription.cadenceDays) }
+            // Bug fix (mirrors Bills' visibleBills - see BillsScreen.kt's kdoc for the same
+            // reasoning): a detected (non-manual) cancelled subscription is hidden entirely once
+            // cancelled - dismissSubscription's CANCELLED status is what stops it being
+            // re-detected, so hard-deleting it would just let it come back on the next
+            // refreshRecurringDetection. A manually-added subscription has no such risk, so it
+            // stays visible CANCELLED with a real Delete option.
+            val visibleSubscriptions = subscriptions.filter {
+                it.displayStatus != SubscriptionDisplayStatus.CANCELLED || it.subscription.isManuallyAdded
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
@@ -128,11 +137,12 @@ fun SubscriptionsScreen(app: App, onBack: () -> Unit) {
                         caption = "${activeSubs.size} active subscription${if (activeSubs.size == 1) "" else "s"}"
                     )
                 }
-                items(subscriptions, key = { it.subscription.id }) { item ->
+                items(visibleSubscriptions, key = { it.subscription.id }) { item ->
                     SubscriptionCard(
                         item = item,
                         onConfirm = { viewModel.confirm(item) },
-                        onDismiss = { viewModel.dismiss(item) }
+                        onDismiss = { viewModel.dismiss(item) },
+                        onDelete = { viewModel.delete(item) }
                     )
                 }
             }
@@ -205,7 +215,8 @@ private fun AddSubscriptionDialog(
 private fun SubscriptionCard(
     item: SubscriptionWithComputedStatus,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd MMM", Locale.getDefault()) }
     val sub = item.subscription
@@ -279,9 +290,21 @@ private fun SubscriptionCard(
                         TextButton(onClick = onDismiss) { Text("Not a subscription") }
                     }
                 }
-                SubscriptionDisplayStatus.CANCELLED -> { /* no actions - already dismissed */ }
+                // Real removal (mirrors BillCard - see BillDao.delete's kdoc): a cancelled
+                // subscription previously had no action at all, so it just sat in the list
+                // forever with no way to actually clear it out.
+                SubscriptionDisplayStatus.CANCELLED -> {
+                    TextButton(onClick = onDelete) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                }
                 else -> {
-                    TextButton(onClick = onDismiss) { Text("Stop tracking") }
+                    Row {
+                        TextButton(onClick = onDismiss) { Text("Stop tracking") }
+                        TextButton(onClick = onDelete) {
+                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 }
             }
         }

@@ -46,7 +46,16 @@ enum class NotificationType {
      * see PeriodicReminderWorker's kdoc. Unlike every other type above, this is genuinely
      * periodic, not conditional on any real data state, so it has no cooldown check of its own
      * (the 5-hour WorkManager interval itself is the cadence). */
-    PERIODIC_CHECK_IN
+    PERIODIC_CHECK_IN,
+    /** A Smart Split someone added you to (2026-08, real user request) - the one cross-device,
+     * Firestore-sourced type in this enum; every other type above is derived from local Room
+     * data. Notified "once, ever" via NotificationDao.existsBySourceKey rather than the ~20h
+     * cooldown every periodic type above uses, since this fires the instant a live Firestore
+     * listener first sees the participant row, not a re-checked condition. Only ever fires for a
+     * matched app-user (Track A) participant - an external (Track B) participant has no app
+     * account to notify, and keeps getting the existing manual payment-link share flow instead.
+     * See SmartSplitNotificationWatcher. */
+    SMART_SPLIT_ADDED
 }
 
 @Entity(tableName = "app_notifications")

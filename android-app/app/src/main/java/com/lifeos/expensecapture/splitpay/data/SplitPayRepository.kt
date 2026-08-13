@@ -109,6 +109,17 @@ class SplitPayRepository(
         }
     }
 
+    /** One-shot read (not a listener) - used only to build a notification's title/body right
+     * after a new participant row is first seen (see SmartSplitNotificationWatcher); opening a
+     * full snapshot listener via [observeSplit] would be wasteful for that single read. */
+    suspend fun getSplitOnce(splitId: String): SmartSplit? {
+        return try {
+            splitsCollection().document(splitId).get().await().toObject(SmartSplit::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun observeSplit(splitId: String): Flow<SmartSplit?> = callbackFlow {
         val registration = splitsCollection().document(splitId).addSnapshotListener { snapshot, error ->
             if (error != null) {

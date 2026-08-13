@@ -43,4 +43,10 @@ interface NotificationDao {
             "AND createdAt >= :sinceEpochMillis"
     )
     suspend fun countRecent(type: NotificationType, sourceKey: String, sinceEpochMillis: Long): Int
+
+    /** True if a notification with this sourceKey has EVER been recorded - unlike countRecent's
+     * ~20h cooldown window (for periodically-rechecked conditions), a Smart Split you were just
+     * added to should only ever notify once, permanently. See SmartSplitNotificationWatcher. */
+    @Query("SELECT EXISTS(SELECT 1 FROM app_notifications WHERE sourceKey = :sourceKey)")
+    suspend fun existsBySourceKey(sourceKey: String): Boolean
 }

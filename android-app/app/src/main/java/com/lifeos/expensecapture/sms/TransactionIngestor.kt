@@ -41,7 +41,7 @@ object TransactionIngestor {
                 return null
             }
 
-            val categoryId = categorizationEngine.categorize(result.merchantRaw)
+            val categoryId = categorizationEngine.categorize(result.merchantRaw, result.amount, result.direction)
             val entity = TransactionEntity(
                 amount = result.amount,
                 direction = result.direction,

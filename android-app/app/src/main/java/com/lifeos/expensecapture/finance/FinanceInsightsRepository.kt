@@ -31,6 +31,10 @@ private const val MIN_CHARGES_FOR_DRIFT_CHECK = 3
  * algorithm detail, tunable once real usage shows it's wrong. */
 private const val PRICE_DRIFT_THRESHOLD_PERCENT = 20.0
 
+/** The exact category name seeded in DefaultCategories.kt - see upsertBill's kdoc for why new
+ * guessed bills are gated on it. */
+private const val BILLS_UTILITIES_CATEGORY_NAME = "Bills & Utilities"
+
 /**
  * Backs Finance Tracker (Home), Budget Planner, Subscription Manager, Bills, and Spend
  * Prediction (Phase 3 Docs 17, 19, 20, 21, 22) - all "insights derived from the transaction
@@ -134,12 +138,13 @@ class FinanceInsightsRepository(
     suspend fun refreshRecurringDetection() {
         val allTransactions = transactionDao.getSince(0L)
         val groups = RecurringPatternDetector.detect(allTransactions)
+        val billsCategoryId = categoryDao.findByName(BILLS_UTILITIES_CATEGORY_NAME)?.id
 
         for (group in groups) {
             if (RecurringPatternDetector.isSubscriptionLike(group)) {
                 upsertSubscription(group)
             } else {
-                upsertBill(group)
+                upsertBill(group, billsCategoryId)
             }
         }
     }
@@ -168,10 +173,19 @@ class FinanceInsightsRepository(
         }
     }
 
-    private suspend fun upsertBill(group: RecurringPatternDetector.RecurringGroup) {
+    private suspend fun upsertBill(group: RecurringPatternDetector.RecurringGroup, billsCategoryId: Long?) {
         val existing = billDao.findByPayee(group.merchantNormalized)
         val dueDayOfMonth = dayOfMonthOf(group.occurrences.last().date)
         if (existing == null) {
+            // Category-driven detection (2026-08, real user request: Bills was "just guessing any
+            // repeated merchant" - the old unconditional else-branch of refreshRecurringDetection).
+            // A brand-new guessed bill is only ever created when a majority of the group's
+            // transactions are actually categorized as Bills & Utilities - not ALL (one
+            // transaction re-tagged by a merchant-rule correction shouldn't kill an otherwise-real
+            // bill) and not ANY (a single stray same-merchant charge in the wrong category
+            // shouldn't be enough to start a new guess). This gate only applies to inserting a NEW
+            // row - see the branch below.
+            if (billsCategoryId == null || !isMajorityCategorized(group, billsCategoryId)) return
             billDao.insert(
                 BillEntity(
                     payeeNormalized = group.merchantNormalized,
@@ -183,6 +197,9 @@ class FinanceInsightsRepository(
                 )
             )
         } else if (existing.status != BillStatus.CANCELLED) {
+            // A bill the user already confirmed or manually added keeps refreshing its
+            // typicalAmount/dueDayOfMonth regardless of category - the category gate above is
+            // about not fabricating new guesses, not about un-tracking a bill someone vouched for.
             billDao.update(
                 existing.copy(
                     typicalAmount = group.averageAmount,
@@ -191,6 +208,11 @@ class FinanceInsightsRepository(
                 )
             )
         }
+    }
+
+    private fun isMajorityCategorized(group: RecurringPatternDetector.RecurringGroup, categoryId: Long): Boolean {
+        val matching = group.occurrences.count { it.categoryId == categoryId }
+        return matching * 2 > group.occurrences.size
     }
 
     // ---------------------------------------------------------------------
@@ -251,6 +273,10 @@ class FinanceInsightsRepository(
 
     suspend fun dismissSubscription(subscription: SubscriptionEntity) {
         subscriptionDao.update(subscription.copy(status = SubscriptionStatus.CANCELLED))
+    }
+
+    suspend fun deleteSubscription(subscription: SubscriptionEntity) {
+        subscriptionDao.delete(subscription)
     }
 
     /** Subscription Manager PRD, Doc 19: "as a user, I want to manually add a subscription the

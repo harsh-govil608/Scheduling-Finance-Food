@@ -30,6 +30,7 @@ import com.lifeos.expensecapture.family.ui.modules.HealthModuleScreen
 import com.lifeos.expensecapture.family.ui.modules.TasksModuleScreen
 import com.lifeos.expensecapture.family.ui.sos.SosScreen
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
+import com.lifeos.expensecapture.splitpay.ui.SmartSplitNotificationWatcher
 import com.lifeos.expensecapture.splitpay.ui.SmartSplitCreateScreen
 import com.lifeos.expensecapture.splitpay.ui.SmartSplitDetailScreen
 import com.lifeos.expensecapture.splitpay.ui.SmartSplitsScreen
@@ -133,6 +134,10 @@ fun PilotApp(app: App) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    // App-level (not per-screen) so a Smart Split notification fires no matter what screen the
+    // user is on - see SmartSplitNotificationWatcher's kdoc for what triggers it and its limits.
+    SmartSplitNotificationWatcher(app)
 
     NavHost(navController = navController, startDestination = "permission") {
         composable("permission") {
@@ -380,6 +385,12 @@ fun PilotApp(app: App) {
                 onOpenInvite = { familyId -> navController.navigate("family_invite/$familyId") },
                 onOpenSos = { familyId -> navController.navigate("family_sos/$familyId") },
                 onOpenNotifications = { familyId -> navController.navigate("family_notifications/$familyId") },
+                onBackToFinance = {
+                    navController.navigate("home") {
+                        popUpTo("family") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onSelectPillar = { pillar, familyId -> selectFamilyPillar(pillar, familyId) }
             )
         }

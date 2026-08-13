@@ -118,7 +118,8 @@ fun BillsScreen(app: App, onBack: () -> Unit) {
             ) {
                 Text(
                     "No recurring bills detected yet. Variable-amount recurring payments " +
-                        "(utilities, statements, rent) show up here once a pattern repeats."
+                        "(utilities, statements, rent) show up here once a pattern repeats and " +
+                        "those charges are categorized as Bills & Utilities."
                 )
             }
         } else {

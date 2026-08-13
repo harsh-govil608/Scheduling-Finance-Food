@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Checklist
@@ -89,6 +90,7 @@ fun FamilyDashboardScreen(
     onOpenInvite: () -> Unit,
     onOpenSos: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onBackToFinance: () -> Unit,
     onSelectPillar: (FamilyPillar) -> Unit
 ) {
     val viewModel = remember(familyId) { FamilyDashboardViewModel(familyId, currentUserId) }
@@ -98,6 +100,11 @@ fun FamilyDashboardScreen(
         topBar = {
             TopAppBar(
                 title = { Text(uiState.family?.name ?: "Family") },
+                navigationIcon = {
+                    IconButton(onClick = onBackToFinance) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Finance")
+                    }
+                },
                 actions = {
                     IconButton(onClick = onOpenInvite) {
                         Icon(Icons.Filled.PersonAdd, contentDescription = "Invite members")
