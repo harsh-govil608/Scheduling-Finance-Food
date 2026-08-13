@@ -101,6 +101,7 @@
     <li>Shared expense/split records you're part of (description, amount, who owes what)</li>
     <li>Your UPI ID, if you choose to add one for receiving split payments</li>
     <li>Shared Family module content (tasks, calendar, documents, etc.) you or other members add</li>
+    <li>Documents you upload to Family Sharing (e.g. shared files/photos) - stored in Google Cloud Storage, visible only to your Family's members</li>
   </ul>
   <p>
     This data is visible only to members of the same Family or the same Smart Split, enforced by
@@ -120,8 +121,9 @@
 
   <h2>2. Third-party services we use</h2>
   <ul>
-    <li><strong>Google Firebase</strong> (Authentication, Firestore database, Crashlytics) - powers Family Sharing, Smart Split, and crash reporting. Google's own privacy policy applies to how they process this on our behalf.</li>
+    <li><strong>Google Firebase</strong> (Authentication, Firestore database, Cloud Storage, Crashlytics) - powers Family Sharing, Smart Split, and crash reporting. Google's own privacy policy applies to how they process this on our behalf.</li>
     <li><strong>OpenRouter</strong> - processes AI Assistant questions and AI-assisted parsing (Section 1.1). Only the specific data needed to answer your question or read one message is sent - never your full transaction history or SMS inbox in bulk, and never your raw SMS text.</li>
+    <li><strong>GitHub</strong> - the app checks a small public file on GitHub for available updates and, if you choose to install one, downloads the update file from there. No personal or financial data is included in this check.</li>
   </ul>
 
   <h2>3. What we don't do</h2>
@@ -137,6 +139,8 @@
     <li><code>READ_SMS</code> / <code>RECEIVE_SMS</code> - to detect and log bank/UPI transaction messages automatically, as described in Section 1.1. You can decline this and still use the app with manual expense entry.</li>
     <li><code>POST_NOTIFICATIONS</code> - to remind you about upcoming bills, budget limits, and subscription renewals you're already tracking in the app.</li>
     <li>Photo/media access - only when you choose to set a profile photo.</li>
+    <li><code>ACCESS_FINE_LOCATION</code> / <code>ACCESS_COARSE_LOCATION</code> - only requested if you use Family Sharing's SOS alert or choose to share your location with your Family; never requested at app launch.</li>
+    <li><code>READ_CONTACTS</code> - only requested if you choose to pick a contact when inviting someone to a Family or adding a Smart Split participant, instead of typing their number by hand.</li>
   </ul>
 
   <h2>5. Your data, your control</h2>

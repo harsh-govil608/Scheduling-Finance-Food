@@ -22,6 +22,7 @@ class CategorizationEngineTest {
 
     private class FakeMerchantRuleDao(private val rules: List<MerchantRuleEntity>) : MerchantRuleDao {
         override suspend fun upsert(rule: MerchantRuleEntity) = error("not used by CategorizationEngine")
+        override suspend fun insertAllIgnoreConflicts(rules: List<MerchantRuleEntity>) = error("not used by CategorizationEngine")
         override suspend fun update(rule: MerchantRuleEntity) = error("not used by CategorizationEngine")
         override suspend fun delete(rule: MerchantRuleEntity) = error("not used by CategorizationEngine")
         override suspend fun getAll(): List<MerchantRuleEntity> = rules
@@ -138,5 +139,32 @@ class CategorizationEngineTest {
     fun `falls back to Uncategorized when Groceries and Shopping are not seeded`() = runBlocking {
         val engine = CategorizationEngine(FakeMerchantRuleDao(emptyList()), FakeCategoryDao(uncategorized))
         assertEquals(uncategorized.id, engine.categorize("Some Random Merchant", 100.0, TransactionDirection.DEBIT))
+    }
+
+    // Predefined categorization rules (2026-08, real user request) - a real bug found while
+    // scoping this: the lookup had no priority ordering, so a seeded default could silently
+    // shadow a real user correction whenever both patterns matched the same merchant text.
+
+    @Test
+    fun `a real user correction wins over a seeded default for the same merchant text`() = runBlocking {
+        val seeded = MerchantRuleEntity(merchantPattern = "swiggy", categoryId = foodCategory.id, isSeededDefault = true)
+        val userCorrection = MerchantRuleEntity(
+            merchantPattern = "swiggy",
+            categoryId = groceriesCategory.id,
+            createdFromUserCorrection = true
+        )
+        // Deliberately inserted seeded-first, mirroring real startup order (seeding runs once at
+        // launch, before any correction could exist) - if match order alone decided this, the
+        // seeded rule (earlier in the list) would win, which is exactly the bug being tested for.
+        val engine = CategorizationEngine(FakeMerchantRuleDao(listOf(seeded, userCorrection)), FakeCategoryDao(uncategorized))
+        assertEquals(groceriesCategory.id, engine.categorize("Swiggy Order", 100.0, TransactionDirection.DEBIT))
+    }
+
+    @Test
+    fun `a longer seeded pattern wins over a shorter seeded pattern for the same merchant text`() = runBlocking {
+        val generic = MerchantRuleEntity(merchantPattern = "amazon", categoryId = shoppingCategory.id, isSeededDefault = true)
+        val specific = MerchantRuleEntity(merchantPattern = "amazon prime", categoryId = foodCategory.id, isSeededDefault = true)
+        val engine = CategorizationEngine(FakeMerchantRuleDao(listOf(generic, specific)), FakeCategoryDao(uncategorized))
+        assertEquals(foodCategory.id, engine.categorize("AMAZON PRIME MEMBERSHIP", 100.0, TransactionDirection.DEBIT))
     }
 }

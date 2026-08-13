@@ -103,16 +103,23 @@ class AnalyticsViewModel(
         val rangeSpent = rangeDebits.sumOf { it.amount }
         val rangeIncome = rangeCredits.sumOf { it.amount }
 
-        // Top 6 categories by spend in the selected range, real amounts - no "Other" bucket
-        // invented from categories that don't exist; a 7th+ category's spend is genuinely just
-        // not broken out in the chart, same tradeoff every "top N" list in this app makes.
-        val categoryBreakdown = rangeDebits
+        // Top 6 categories by spend in the selected range, real amounts, plus an "Other" slice
+        // summing every category beyond that (2026-08 fix - a 7th+ category's spend was
+        // previously just silently missing from the donut/legend, with no indication the total
+        // wasn't the full picture). Only added when a 7th+ category genuinely exists.
+        val allCategoryTotals = rangeDebits
             .groupBy { categoryNameById[it.categoryId] ?: "Uncategorized" }
             .mapValues { (_, txns) -> txns.sumOf { it.amount } }
             .entries
             .sortedByDescending { it.value }
+        val categoryBreakdown = allCategoryTotals
             .take(6)
-            .map { CategorySlice(it.key, it.value) }
+            .map { CategorySlice(it.key, it.value) } +
+            listOfNotNull(
+                allCategoryTotals.drop(6).sumOf { it.value }
+                    .takeIf { it > 0.0 }
+                    ?.let { CategorySlice("Other", it) }
+            )
 
         val topMerchants = rangeDebits
             .groupBy { it.merchantRaw }

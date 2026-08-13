@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -233,8 +234,12 @@ private fun ExpensesTransactionsTab(familyId: String) {
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
                     ) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 16.dp)) {
                                 Text(expense.description, style = MaterialTheme.typography.bodyLarge)
                                 Text(
                                     "Paid by ${members.firstOrNull { it.userId == expense.paidByUserId }?.displayName ?: "someone"}",
@@ -242,7 +247,20 @@ private fun ExpensesTransactionsTab(familyId: String) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text("₹${"%.2f".format(expense.amount)}", style = MaterialTheme.typography.bodyLarge)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("₹${"%.2f".format(expense.amount)}", style = MaterialTheme.typography.bodyLarge)
+                                // Wires up SharedExpenseRepository.delete (2026-08, real user
+                                // request: "small improvements" - the repository method already
+                                // existed, fully implemented, but nothing in this screen ever
+                                // called it).
+                                IconButton(onClick = { coroutineScope.launch { repository.delete(expense.id) } }) {
+                                    Icon(
+                                        Icons.Filled.Delete,
+                                        contentDescription = "Delete expense",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                         }
                     }
                 }

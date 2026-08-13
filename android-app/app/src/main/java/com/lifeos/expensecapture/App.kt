@@ -4,7 +4,9 @@ import android.app.Application
 import com.lifeos.expensecapture.billing.BillingRepository
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.CategoryEntity
+import com.lifeos.expensecapture.data.db.entity.MerchantRuleEntity
 import com.lifeos.expensecapture.data.seed.DefaultCategories
+import com.lifeos.expensecapture.data.seed.DefaultMerchantRules
 import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.logging.CrashHandler
 import com.lifeos.expensecapture.notifications.NotificationChannels
@@ -69,6 +71,7 @@ class App : Application() {
                 } else {
                     backfillNewDefaultCategoriesOnce()
                 }
+                seedDefaultMerchantRulesOnce()
                 cleanUpExistingReviewNoiseOnce()
                 cleanUpOtpMessagesFromReviewOnce()
             } catch (e: Exception) {
@@ -96,6 +99,32 @@ class App : Application() {
             database.categoryDao().insertAll(missing.map { CategoryEntity(name = it, isSystemDefault = true) })
         }
         prefs.edit().putBoolean("travel_emi_categories_v1_done", true).apply()
+    }
+
+    /**
+     * Predefined categorization rules (2026-08, real user request - "Predefined Categorization
+     * rules Coming soon"): seeds a curated starter set of common Indian merchant->category rules
+     * (data/seed/DefaultMerchantRules.kt) so a fresh or existing install has reasonable default
+     * categorization from day one instead of starting from zero rules. Runs for existing installs
+     * too, not just fresh ones (unlike the categories seed above, which only ever reaches a
+     * brand-new install) - guarded by its own one-time flag, same pattern as
+     * backfillNewDefaultCategoriesOnce. Uses insertAllIgnoreConflicts (not upsert's REPLACE), so
+     * this can never overwrite a rule that's already there for any reason.
+     */
+    private suspend fun seedDefaultMerchantRulesOnce() {
+        val prefs = getSharedPreferences("app_migrations", MODE_PRIVATE)
+        if (prefs.getBoolean("default_merchant_rules_v1_done", false)) return
+
+        val categoryIdByName = database.categoryDao().observeAll().first().associate { it.name to it.id }
+        val rules = DefaultMerchantRules.patternsByCategory.mapNotNull { (pattern, categoryName) ->
+            categoryIdByName[categoryName]?.let { categoryId ->
+                MerchantRuleEntity(merchantPattern = pattern, categoryId = categoryId, isSeededDefault = true)
+            }
+        }
+        if (rules.isNotEmpty()) {
+            database.merchantRuleDao().insertAllIgnoreConflicts(rules)
+        }
+        prefs.edit().putBoolean("default_merchant_rules_v1_done", true).apply()
     }
 
     /**

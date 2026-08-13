@@ -42,6 +42,7 @@ import com.lifeos.expensecapture.data.db.entity.GoalEntity
 import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
 import com.lifeos.expensecapture.data.db.entity.InvestmentEntity
+import com.lifeos.expensecapture.data.db.entity.InvestmentType
 import com.lifeos.expensecapture.data.db.entity.MerchantRuleEntity
 import com.lifeos.expensecapture.data.db.entity.NoteEntity
 import com.lifeos.expensecapture.data.db.entity.NoteType
@@ -103,6 +104,12 @@ class Converters {
 
     @TypeConverter
     fun toNoteType(value: String): NoteType = NoteType.valueOf(value)
+
+    @TypeConverter
+    fun fromInvestmentType(value: InvestmentType): String = value.name
+
+    @TypeConverter
+    fun toInvestmentType(value: String): InvestmentType = InvestmentType.valueOf(value)
 }
 
 /**
@@ -314,6 +321,27 @@ val MIGRATION_18_19 = object : Migration(18, 19) {
     }
 }
 
+/** Predefined categorization rules (2026-08, real user request - see MerchantRuleEntity.
+ * isSeededDefault's kdoc): defaults every existing rule to false (a real user rule), which is
+ * correct - nothing already in this table was seeded by this feature. */
+val MIGRATION_19_20 = object : Migration(19, 20) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE merchant_rules ADD COLUMN isSeededDefault INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/** Mutual-fund NAV sync (2026-08, real user request - see InvestmentEntity's kdoc). Every
+ * existing row defaults to type='MANUAL' with the three new columns null, which is exactly
+ * correct: nothing already in this table was ever a synced mutual-fund holding. */
+val MIGRATION_20_21 = object : Migration(20, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE investments ADD COLUMN type TEXT NOT NULL DEFAULT 'MANUAL'")
+        db.execSQL("ALTER TABLE investments ADD COLUMN schemeCode TEXT")
+        db.execSQL("ALTER TABLE investments ADD COLUMN units REAL")
+        db.execSQL("ALTER TABLE investments ADD COLUMN lastNavUpdatedAt INTEGER")
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -339,7 +367,7 @@ val MIGRATION_18_19 = object : Migration(18, 19) {
         SplitParticipantEntity::class,
         ForecastAccuracyEntity::class
     ],
-    version = 19,
+    version = 21,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -407,7 +435,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

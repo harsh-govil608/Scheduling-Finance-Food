@@ -15,6 +15,12 @@ interface MerchantRuleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(rule: MerchantRuleEntity)
 
+    /** Predefined categorization rules (2026-08, real user request) - deliberately IGNORE, not
+     * REPLACE like upsert() above: seeding must never overwrite a rule that's already there,
+     * whether it's a real user correction or a previously-seeded default from an earlier version. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAllIgnoreConflicts(rules: List<MerchantRuleEntity>)
+
     @Update
     suspend fun update(rule: MerchantRuleEntity)
 

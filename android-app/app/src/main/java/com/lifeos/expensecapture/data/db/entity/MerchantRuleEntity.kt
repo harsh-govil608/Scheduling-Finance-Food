@@ -33,5 +33,12 @@ data class MerchantRuleEntity(
     val categoryId: Long,
     val createdFromUserCorrection: Boolean = false,
     val isManuallyAuthored: Boolean = false,
-    val isPaused: Boolean = false
+    val isPaused: Boolean = false,
+    /** Predefined categorization rules (2026-08, real user request: "Predefined Categorization
+     * rules Coming soon") - a third, distinct origin from the two above: seeded once from
+     * data/seed/DefaultMerchantRules.kt (see App.seedDefaultMerchantRulesOnce), not created by
+     * this specific user at all. CategorizationEngine.categorize() gives real user rules
+     * (createdFromUserCorrection or isManuallyAuthored) priority over these when both match the
+     * same transaction - a seeded default must never silently shadow a real user correction. */
+    val isSeededDefault: Boolean = false
 )

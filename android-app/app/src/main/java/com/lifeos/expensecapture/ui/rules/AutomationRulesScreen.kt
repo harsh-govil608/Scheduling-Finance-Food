@@ -113,7 +113,15 @@ private fun RuleCard(
     onDelete: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val origin = if (row.rule.isManuallyAuthored) "You created this" else "Learned from a correction"
+    // Third origin (2026-08, real user request: predefined categorization rules) - a seeded
+    // default is neither "created by you" nor "learned from a correction you made", so it needs
+    // its own label rather than falling into the "Learned from a correction" branch, which would
+    // otherwise mislabel it.
+    val origin = when {
+        row.rule.isManuallyAuthored -> "You created this"
+        row.rule.isSeededDefault -> "Built-in default"
+        else -> "Learned from a correction"
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
