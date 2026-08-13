@@ -14,6 +14,7 @@ import com.lifeos.expensecapture.data.db.dao.CategoryDao
 import com.lifeos.expensecapture.data.db.dao.ConsentDao
 import com.lifeos.expensecapture.data.db.dao.CorrectionDao
 import com.lifeos.expensecapture.data.db.dao.CrashLogDao
+import com.lifeos.expensecapture.data.db.dao.ForecastAccuracyDao
 import com.lifeos.expensecapture.data.db.dao.GoalDao
 import com.lifeos.expensecapture.data.db.dao.HabitCompletionDao
 import com.lifeos.expensecapture.data.db.dao.HabitDao
@@ -36,6 +37,7 @@ import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.db.entity.ConsentEntity
 import com.lifeos.expensecapture.data.db.entity.CorrectionEntity
 import com.lifeos.expensecapture.data.db.entity.CrashLogEntity
+import com.lifeos.expensecapture.data.db.entity.ForecastAccuracyEntity
 import com.lifeos.expensecapture.data.db.entity.GoalEntity
 import com.lifeos.expensecapture.data.db.entity.HabitCompletionEntity
 import com.lifeos.expensecapture.data.db.entity.HabitEntity
@@ -290,6 +292,28 @@ val MIGRATION_17_18 = object : Migration(17, 18) {
     }
 }
 
+/** "Learn and Adapt" (2026-08, real user feedback - see ForecastAccuracyEntity's kdoc): a new
+ * table only, no changes to any existing one. */
+val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `forecast_accuracy` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `monthKey` TEXT NOT NULL,
+                `predictedConservativeNet` REAL NOT NULL,
+                `predictedFullNet` REAL NOT NULL,
+                `actualNet` REAL NOT NULL,
+                `recordedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_forecast_accuracy_monthKey` ON `forecast_accuracy` (`monthKey`)"
+        )
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -312,9 +336,10 @@ val MIGRATION_17_18 = object : Migration(17, 18) {
         ShoppingItemEntity::class,
         CrashLogEntity::class,
         SplitExpenseEntity::class,
-        SplitParticipantEntity::class
+        SplitParticipantEntity::class,
+        ForecastAccuracyEntity::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -341,6 +366,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun crashLogDao(): CrashLogDao
     abstract fun splitExpenseDao(): SplitExpenseDao
     abstract fun splitParticipantDao(): SplitParticipantDao
+    abstract fun forecastAccuracyDao(): ForecastAccuracyDao
 
     /** Backup & Restore (built via a real user request, 2026-07): Room runs in WAL mode, so the
      * most recent writes can sit in the `.db-wal` sidecar file rather than the main `.db` file
@@ -381,7 +407,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // own kdoc). Destructive fallback stays as a safety net for any gap that
                     // isn't covered - there shouldn't be one, but see MIGRATION_7_8's kdoc for
                     // why a wipe is still preferable to a crash-on-open as a last resort.
-                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
+                    .addMigrations(MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         override fun onDestructiveMigration(db: androidx.sqlite.db.SupportSQLiteDatabase) {

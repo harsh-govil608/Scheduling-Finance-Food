@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.dao.CategoryDao
 import com.lifeos.expensecapture.data.db.dao.ConsentDao
 import com.lifeos.expensecapture.data.db.dao.GoalDao
@@ -17,6 +18,7 @@ import com.lifeos.expensecapture.data.db.entity.CategoryEntity
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.finance.ForecastAccuracyTracker
 import com.lifeos.expensecapture.finance.SpendingInsightEngine
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
 import com.lifeos.expensecapture.notifications.PeriodicReminderWorker
@@ -125,6 +127,10 @@ class HomeViewModel(
 
     init {
         viewModelScope.launch { insightsRepository.refreshRecurringDetection() }
+        // "Learn and Adapt" (2026-08, real user feedback) - see ForecastAccuracyTracker's kdoc.
+        // Reuses the AppDatabase.getInstance(context) singleton accessor rather than adding a new
+        // constructor param here, the same pattern NotificationSender/NotificationCheckWorker use.
+        viewModelScope.launch { ForecastAccuracyTracker.recordCompletedMonths(AppDatabase.getInstance(context)) }
         // Also runs the notification check on every Home open, not just the 6-hour schedule,
         // so testers see fresh results without waiting.
         NotificationCheckWorker.runOnce(context)

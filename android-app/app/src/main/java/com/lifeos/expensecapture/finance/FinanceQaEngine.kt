@@ -97,6 +97,11 @@ object FinanceQaEngine {
         val habitCompletions = db.habitCompletionDao().observeAll().first()
         val habitCorrelations = HabitSpendCorrelator.correlate(habits, habitCompletions, categories, transactions)
 
+        // "Learn and Adapt" (2026-08, real user feedback: "it predicts based on history, but if
+        // AI learns then it can give more accurate predictions") - see ForecastAccuracyTracker's
+        // kdoc. Real recorded track record, not a claim the AI invents about its own past.
+        val accuracyHistory = db.forecastAccuracyDao().getRecent(6)
+
         return buildString {
             appendLine("Today's date: ${today} (day $daysElapsedThisMonth of this month so far)")
             appendLine()
@@ -181,6 +186,21 @@ object FinanceQaEngine {
                         "as the safe answer."
                 )
             }
+            if (accuracyHistory.isNotEmpty()) {
+                appendLine()
+                appendLine(
+                    "Forecast track record (what was predicted before each month started, using " +
+                        "only data available at that time, vs what actually happened - conservative " +
+                        "is deliberately pessimistic by design, so actual often exceeds it; fuller is " +
+                        "the more directly comparable figure):"
+                )
+                accuracyHistory.forEach { r ->
+                    appendLine(
+                        "- ${r.monthKey}: predicted conservative Rs.${"%.2f".format(r.predictedConservativeNet)}, " +
+                            "fuller Rs.${"%.2f".format(r.predictedFullNet)} - actual net was Rs.${"%.2f".format(r.actualNet)}"
+                    )
+                }
+            }
             if (habitCorrelations.isNotEmpty()) {
                 appendLine()
                 appendLine(
@@ -237,5 +257,13 @@ object FinanceQaEngine {
         producing a confident-sounding number anyway - do not work around that by falling back to
         the raw category/budget numbers elsewhere in the data to manufacture a forecast the
         Monthly forecast section itself declined to make.
+
+        If a "Forecast track record" section is present, use it to calibrate how confidently you
+        frame THIS month's forecast - if past fuller-net predictions have tracked close to actual,
+        you can state the current estimate with a bit more confidence; if they've swung widely,
+        say so and add extra caution. Never let a good track record override the golden rule above
+        (still lead with the conservative figure, still say so plainly when there isn't enough
+        history) - it only adjusts tone/confidence in how the numbers are framed, never which
+        numbers get shown.
     """
 }

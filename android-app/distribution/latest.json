@@ -1,6 +1,6 @@
 {
-  "versionCode": 74,
-  "versionName": "0.54.0-pilot",
+  "versionCode": 75,
+  "versionName": "0.55.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Smart Split now auto-notifies people you split with (if they use the app) instead of relying only on the manual payment link, and your UPI ID can be changed anytime from Profile > Payment Settings instead of being locked in after the first setup. Family Sharing has a back button to Finance. Uncategorized UPI spends now get a sensible default category (under Rs.500 -> Groceries, Rs.500+ -> Shopping) instead of piling up as Uncategorized. Subscriptions can now be deleted, not just cancelled. Bills only auto-tracks charges actually categorized as Bills & Utilities, instead of guessing from any repeated merchant."
+  "notes": "The AI forecast now keeps score: every completed month, it checks what it predicted for your income/spending against what actually happened, and uses that track record to be more (or less) confident when answering affordability questions going forward - instead of guessing fresh every time with no memory of how accurate it's been."
 }

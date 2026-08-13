@@ -13,6 +13,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.finance.FinanceInsightsRepository
+import com.lifeos.expensecapture.finance.ForecastAccuracyTracker
 import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
 import kotlinx.coroutines.sync.Mutex
@@ -119,6 +120,7 @@ class NotificationCheckWorker(
             billDao = db.billDao()
         )
         runCheck("refreshRecurringDetection") { insights.refreshRecurringDetection() }
+        runCheck("recordForecastAccuracy") { ForecastAccuracyTracker.recordCompletedMonths(db) }
 
         runCheck("checkBills") { FinanceNotificationChecks.checkBills(applicationContext, db, insights) }
         runCheck("checkSubscriptions") { FinanceNotificationChecks.checkSubscriptions(applicationContext, db, insights) }
