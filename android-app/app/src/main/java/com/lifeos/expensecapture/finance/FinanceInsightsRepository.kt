@@ -11,6 +11,7 @@ import com.lifeos.expensecapture.data.db.entity.BudgetEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionEntity
 import com.lifeos.expensecapture.data.db.entity.SubscriptionStatus
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
+import com.lifeos.expensecapture.data.db.entity.TransactionEntity
 import com.lifeos.expensecapture.util.tickerFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -137,14 +138,33 @@ class FinanceInsightsRepository(
 
     suspend fun refreshRecurringDetection() {
         val allTransactions = transactionDao.getSince(0L)
-        val groups = RecurringPatternDetector.detect(allTransactions)
         val billsCategoryId = categoryDao.findByName(BILLS_UTILITIES_CATEGORY_NAME)?.id
 
+        // Bills: purely category-driven (2026-08 revision, real user report - a transaction
+        // categorized as Bills & Utilities still wasn't showing up in Bills, because it also had
+        // to independently pass RecurringPatternDetector's occurrence(>=2)/interval(20-40 day)/
+        // variance heuristics FIRST, before the category check even ran - a single or irregular
+        // Bills & Utilities charge, or one that happened to look subscription-like by amount
+        // variance (and got silently routed into Subscriptions instead), never reached the
+        // category gate at all. Now: any Bills & Utilities-categorized DEBIT, non-transfer
+        // transaction(s) - even just one - are tracked as a bill. The category itself is the
+        // signal; no separate recurring pattern has to be detected first.
+        if (billsCategoryId != null) {
+            allTransactions
+                .filter { it.direction == TransactionDirection.DEBIT && !it.isTransfer && it.categoryId == billsCategoryId }
+                .groupBy { it.merchantNormalized }
+                .forEach { (_, txns) -> upsertBillFromCategorizedTransactions(txns) }
+        }
+
+        // Subscriptions: unchanged pattern-based detection, EXCEPT a group majority-categorized
+        // as Bills & Utilities is skipped here - an explicit Bills categorization must never be
+        // silently re-classified as a Subscription just because its amount happens to be
+        // fairly consistent charge-to-charge.
+        val groups = RecurringPatternDetector.detect(allTransactions)
         for (group in groups) {
+            if (billsCategoryId != null && isMajorityCategorized(group, billsCategoryId)) continue
             if (RecurringPatternDetector.isSubscriptionLike(group)) {
                 upsertSubscription(group)
-            } else {
-                upsertBill(group, billsCategoryId)
             }
         }
     }
@@ -173,43 +193,50 @@ class FinanceInsightsRepository(
         }
     }
 
-    private suspend fun upsertBill(group: RecurringPatternDetector.RecurringGroup, billsCategoryId: Long?) {
-        val existing = billDao.findByPayee(group.merchantNormalized)
-        val dueDayOfMonth = dayOfMonthOf(group.occurrences.last().date)
+    private suspend fun upsertBillFromCategorizedTransactions(txns: List<TransactionEntity>) {
+        if (txns.isEmpty()) return
+        val merchantNormalized = txns.first().merchantNormalized
+        val latest = txns.maxBy { it.date }
+        val typicalAmount = txns.sumOf { it.amount } / txns.size
+        val dueDayOfMonth = dayOfMonthOf(latest.date)
+        val existing = billDao.findByPayee(merchantNormalized)
+
         if (existing == null) {
-            // Category-driven detection (2026-08, real user request: Bills was "just guessing any
-            // repeated merchant" - the old unconditional else-branch of refreshRecurringDetection).
-            // A brand-new guessed bill is only ever created when a majority of the group's
-            // transactions are actually categorized as Bills & Utilities - not ALL (one
-            // transaction re-tagged by a merchant-rule correction shouldn't kill an otherwise-real
-            // bill) and not ANY (a single stray same-merchant charge in the wrong category
-            // shouldn't be enough to start a new guess). This gate only applies to inserting a NEW
-            // row - see the branch below.
-            if (billsCategoryId == null || !isMajorityCategorized(group, billsCategoryId)) return
             billDao.insert(
                 BillEntity(
-                    payeeNormalized = group.merchantNormalized,
-                    payeeDisplay = group.merchantDisplay,
-                    typicalAmount = group.averageAmount,
+                    payeeNormalized = merchantNormalized,
+                    payeeDisplay = latest.merchantRaw,
+                    typicalAmount = typicalAmount,
                     dueDayOfMonth = dueDayOfMonth,
-                    lastPaidDate = group.occurrences.last().date,
+                    lastPaidDate = latest.date,
                     status = BillStatus.DETECTED_UNCONFIRMED
                 )
             )
-        } else if (existing.status != BillStatus.CANCELLED) {
-            // A bill the user already confirmed or manually added keeps refreshing its
-            // typicalAmount/dueDayOfMonth regardless of category - the category gate above is
-            // about not fabricating new guesses, not about un-tracking a bill someone vouched for.
+        } else {
+            // Explicitly categorizing a transaction as Bills & Utilities is a deliberate, more
+            // recent signal than any prior dismiss - un-cancels a previously "Not a bill"-
+            // dismissed row instead of leaving it stuck forever. The CANCELLED guard elsewhere
+            // exists to stop the OLD repeated-merchant guessing from resurrecting a dismissed
+            // row - that guess-based path no longer creates Bills at all (see
+            // refreshRecurringDetection), so this different, explicit trigger is allowed to bring
+            // it back for re-confirmation.
+            val nextStatus = if (existing.status == BillStatus.CANCELLED) BillStatus.DETECTED_UNCONFIRMED else existing.status
             billDao.update(
                 existing.copy(
-                    typicalAmount = group.averageAmount,
+                    typicalAmount = typicalAmount,
                     dueDayOfMonth = dueDayOfMonth,
-                    lastPaidDate = group.occurrences.last().date
+                    lastPaidDate = latest.date,
+                    status = nextStatus
                 )
             )
         }
     }
 
+    /** Used to keep Subscriptions and Bills from double-classifying the same merchant: majority
+     * (>50%), not ALL or ANY - one transaction re-tagged by a merchant-rule correction shouldn't
+     * flip a real Bills&Utilities merchant out of being skipped here, but a single stray
+     * same-merchant charge in the wrong category shouldn't be enough to make an otherwise-real
+     * subscription get skipped either. */
     private fun isMajorityCategorized(group: RecurringPatternDetector.RecurringGroup, categoryId: Long): Boolean {
         val matching = group.occurrences.count { it.categoryId == categoryId }
         return matching * 2 > group.occurrences.size

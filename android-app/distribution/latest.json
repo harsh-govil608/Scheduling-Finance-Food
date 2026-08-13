@@ -1,6 +1,6 @@
 {
-  "versionCode": 75,
-  "versionName": "0.55.0-pilot",
+  "versionCode": 76,
+  "versionName": "0.55.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "The AI forecast now keeps score: every completed month, it checks what it predicted for your income/spending against what actually happened, and uses that track record to be more (or less) confident when answering affordability questions going forward - instead of guessing fresh every time with no memory of how accurate it's been."
+  "notes": "Fixed: a transaction you'd categorized as Bills & Utilities in the ledger could still fail to show up in the Bills section, because it also had to separately look like a repeating pattern first. Now any transaction categorized as Bills & Utilities shows up in Bills directly, no pattern required."
 }
