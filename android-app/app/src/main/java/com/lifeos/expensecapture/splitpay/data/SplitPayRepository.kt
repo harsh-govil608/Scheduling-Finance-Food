@@ -47,12 +47,21 @@ class SplitPayRepository(
     /** Called on every sign-in (see FamilyAppViewModel) now that Firebase Auth itself is phone-
      * based - keeps this collection's phoneNumber/displayName in step with the auth account
      * without a separate manual "set your phone" step, and without ever touching upiId (merge,
-     * not overwrite - a user's already-set UPI ID must survive every sign-in). */
+     * not overwrite - a user's already-set UPI ID must survive every sign-in).
+     *
+     * Real user report, 2026-08-15: `displayName` used to be written unconditionally, including
+     * blank - Firebase Auth's own `displayName` is blank for a while after linking an anonymous
+     * Smart Split account to a phone credential (FamilySignInScreen's own name-entry step hasn't
+     * run yet at that point), which was silently overwriting the real name someone had already
+     * set via SmartSplitProfileSetupScreen with an empty string on every sign-in until they
+     * happened to also complete that separate step. Now guarded the same way phoneNumber already
+     * was - a blank incoming value just leaves whatever's already stored alone. */
     suspend fun syncPhoneAndName(uid: String, phoneNumber: String?, displayName: String): SplitPayResult<Unit> {
         if (uid.isBlank()) return SplitPayResult.Failure("Not signed in")
         return try {
-            val fields = mutableMapOf<String, Any?>("uid" to uid, "displayName" to displayName)
+            val fields = mutableMapOf<String, Any?>("uid" to uid)
             if (!phoneNumber.isNullOrBlank()) fields["phoneNumber"] = phoneNumber
+            if (displayName.isNotBlank()) fields["displayName"] = displayName
             usersCollection().document(uid).set(fields, com.google.firebase.firestore.SetOptions.merge()).await()
             SplitPayResult.Success(Unit)
         } catch (e: Exception) {

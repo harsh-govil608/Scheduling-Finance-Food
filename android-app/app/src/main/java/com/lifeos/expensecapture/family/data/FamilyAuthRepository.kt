@@ -92,7 +92,31 @@ class FamilyAuthRepository(
         }
     }
 
+    /** Real user report, 2026-08-15: someone who'd already used Smart Split (anonymous auth,
+     * see [signInAnonymously]'s kdoc) and later signed into Family via phone+OTP ended up with
+     * TWO separate identities - a plain [FirebaseAuth.signInWithCredential] always starts a new
+     * session for the phone number, abandoning the anonymous one rather than upgrading it. That
+     * orphaned their original Smart Split profile (UPI ID, display name, and the phone number
+     * other people's "does this person have the app" lookup matches against) under a uid the app
+     * stopped using, which is exactly why Smart Split's in-app auto-notify silently failed for
+     * them and their UPI ID appeared to reset. [FirebaseUser.linkWithCredential] instead upgrades
+     * the existing anonymous account in place - same uid, same Firestore docs, just now also
+     * phone-verified - so this only needs to branch on whether an anonymous session already
+     * exists. Falls back to a plain sign-in if linking fails for an unrelated reason (e.g. this
+     * phone number is already linked to a different, non-anonymous account - the more common
+     * real-world case for someone who deliberately reinstalled and is signing back in). */
     suspend fun signInWithCredential(credential: PhoneAuthCredential): AuthResult {
+        val anonymousUser = auth.currentUser?.takeIf { it.isAnonymous }
+        if (anonymousUser != null) {
+            try {
+                anonymousUser.linkWithCredential(credential).await()
+                return AuthResult(success = true)
+            } catch (e: Exception) {
+                // Falls through to a plain sign-in below - most commonly because this phone
+                // number already belongs to a different account (e.g. a reinstall), which isn't
+                // an error a user should see, just the expected non-linkable case.
+            }
+        }
         return try {
             auth.signInWithCredential(credential).await()
             AuthResult(success = true)

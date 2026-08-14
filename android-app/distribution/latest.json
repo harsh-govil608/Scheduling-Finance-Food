@@ -1,6 +1,6 @@
 {
-  "versionCode": 80,
-  "versionName": "0.58.1-pilot",
+  "versionCode": 81,
+  "versionName": "0.58.2-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes a bug from the last update where Family member name/photo sync could silently fail to save for non-owner members, plus profile photo uploads not being permitted yet. Family sign-in now also starts your name pre-filled from your Profile instead of blank."
+  "notes": "Fixes the root cause of Smart Split's in-app notifications and UPI ID sometimes not working: signing into Family after already using Smart Split used to create a second, separate account instead of upgrading the existing one, splitting your profile across two identities. Now signing into Family links to your existing Smart Split account instead of replacing it, and your saved name can no longer get silently reset to blank."
 }
