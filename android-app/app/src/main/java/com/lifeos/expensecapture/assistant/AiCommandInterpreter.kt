@@ -144,6 +144,20 @@ class AiCommandInterpreter(
             CompleteTask/CompleteHabit, "not a bill"/"stop tracking" for DismissBill, "cancel"/
             "stop" for DismissSubscription. If the sentence isn't about logging or acting on one
             of these, use Unrecognized. Reply with the JSON object only.
+
+            Critical: AddTransaction is ONLY for money that has ALREADY been spent or received -
+            a completed, past-tense fact ("spent 200 on lunch", "got 500 from Sohom"). A sentence
+            that asks for advice, discusses a hypothetical, or describes something the user is
+            considering or planning - even if it names a specific amount and item - is NOT a
+            transaction to log. Watch for "how can I", "should I", "can I afford", "what if",
+            "I want to" / "I'm planning to" (without "did"/"bought"/"paid" alongside it), or any
+            question mark - these mean the user wants analysis or an opinion, which is
+            Unrecognized (it gets answered from their real data separately), never AddTransaction.
+            Example: "I want to buy a robot worth 10000, how can I by seeing my financial
+            situation" is a question asking whether/how to afford a ₹10000 purchase - it must be
+            Unrecognized, not a transaction, even though it mentions "10000" and describes an
+            item. Getting this wrong doesn't just answer badly - it writes a fake transaction into
+            the user's real financial records, which is worse than not answering at all.
         """.trimIndent()
     }
 }

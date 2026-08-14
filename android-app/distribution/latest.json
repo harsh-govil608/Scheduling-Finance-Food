@@ -1,6 +1,6 @@
 {
-  "versionCode": 84,
-  "versionName": "0.58.5-pilot",
+  "versionCode": 85,
+  "versionName": "0.58.6-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes the actual cause of Settle Up via UPI being declined with \"exceeded bank limit\" even for ₹1-2 - the payment amount could get sent with a comma instead of a period (e.g. 1,00 instead of 1.00) depending on the phone's language/region settings, which GPay/PhonePe can't parse as a valid amount. Now always sends it the same way regardless of phone settings."
+  "notes": "Fixes the AI Assistant sometimes logging a fake transaction when you ask a hypothetical or advice question that happens to mention an amount (e.g. \"how can I afford a 10000 robot\") instead of answering it. If this happened to you before this update, check Finance for a transaction you never actually made and delete it."
 }
