@@ -1,0 +1,15 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Profile photos (2026-08, ProfileViewModel.setProfilePhoto's Family sync) - readable by
+    // any signed-in user (Family members need to see each other's photos, same "readable by
+    // anyone signed in" reasoning as smartSplits in firestore.rules), writable only by the
+    // owning uid. No rules existed here before this - Storage denies everything by default
+    // until a project has an explicit ruleset, so the upload this enables would otherwise fail
+    // with a permission error on every attempt.
+    match /profilePhotos/{uid}.jpg {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

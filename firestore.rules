@@ -99,7 +99,13 @@ service cloud.firestore {
         // strictly tighter than today's "any signed-in user, any field, anywhere" rule either
         // way. Closing it fully needs a Cloud Function, out of scope for this pass.
         allow create: if isSignedIn() && request.auth.uid == userId;
-        allow update: if canManageFamily(familyId);
+        // A member updating their own displayName/photoUrl (real user report, 2026-08 - see
+        // FamilyRepository.syncMemberProfile's kdoc) doesn't need management rights, just to be
+        // the member themselves, and only those two fields - anything else (role, permissions)
+        // still requires canManageFamily.
+        allow update: if canManageFamily(familyId) ||
+          (isSignedIn() && request.auth.uid == userId &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoUrl']));
         allow delete: if isFamilyOwner(familyId);
       }
 

@@ -48,6 +48,7 @@ import com.lifeos.expensecapture.family.data.FamilyAuthRepository
 import com.lifeos.expensecapture.family.data.OtpSendResult
 import com.lifeos.expensecapture.splitpay.ui.normalizePhoneNumber
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
+import com.lifeos.expensecapture.util.Prefs
 import kotlinx.coroutines.launch
 
 private enum class SignInStep { PHONE, OTP, NAME }
@@ -68,7 +69,11 @@ fun FamilySignInScreen(viewModel: FamilyAppViewModel) {
     var step by remember { mutableStateOf(SignInStep.PHONE) }
     var phone by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
+    // Real user report, 2026-08: Family should show whatever name was already set in the app's
+    // own Profile screen, not a separately-typed one - pre-filling here means a user who's
+    // already set a Profile name just taps Continue instead of retyping (and risking a mismatch).
+    // Still editable for the rare case someone wants a different name for Family specifically.
+    var name by remember { mutableStateOf(Prefs.getDisplayName(context)) }
     var verificationId by remember { mutableStateOf<String?>(null) }
     var sending by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }

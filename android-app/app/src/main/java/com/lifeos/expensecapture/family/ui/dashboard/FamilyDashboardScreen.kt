@@ -341,6 +341,7 @@ private fun MemberStatusColumn(member: FamilyMember, presence: MemberPresence?, 
                     AsyncImage(
                         model = member.photoUrl,
                         contentDescription = member.displayName,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         modifier = Modifier.size(56.dp).clip(CircleShape)
                     )
                 } else {

@@ -125,6 +125,7 @@ fun FamilyMembersScreen(familyId: String, onBack: () -> Unit) {
                                 AsyncImage(
                                     model = member.photoUrl,
                                     contentDescription = member.displayName,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                                     modifier = Modifier.size(40.dp).clip(CircleShape)
                                 )
                             } else {
