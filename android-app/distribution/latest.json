@@ -1,6 +1,6 @@
 {
-  "versionCode": 85,
-  "versionName": "0.58.6-pilot",
+  "versionCode": 86,
+  "versionName": "0.58.7-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes the AI Assistant sometimes logging a fake transaction when you ask a hypothetical or advice question that happens to mention an amount (e.g. \"how can I afford a 10000 robot\") instead of answering it. If this happened to you before this update, check Finance for a transaction you never actually made and delete it."
+  "notes": "Adds a real Privacy Policy (reachable from Profile) as prep for Play Store, and fixes the SMS permission screen's claim that message text never leaves the device - it can, for AI-assisted extraction on banks not yet recognized. No behavior change to what's actually captured, just accurate disclosure of it."
 }

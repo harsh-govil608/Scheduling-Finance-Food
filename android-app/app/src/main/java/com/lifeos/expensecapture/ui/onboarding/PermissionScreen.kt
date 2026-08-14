@@ -221,9 +221,12 @@ fun PermissionScreen(onGranted: () -> Unit) {
                 Spacer(Modifier.height(16.dp))
                 Text(
                     "This app reads bank and UPI transaction SMS on your phone to log expenses " +
-                        "automatically. Only the amount, merchant, and date are ever stored or sent " +
-                        "anywhere - the original message text never leaves your device. Other SMS " +
-                        "(personal messages, OTPs) are ignored and never stored.",
+                        "automatically. Personal messages, OTPs, and anything not from a bank or " +
+                        "payment provider are ignored and never stored or looked at. For a bank " +
+                        "message this app doesn't already recognize, the message text may be sent " +
+                        "to an AI service solely to pull out the amount and merchant - never stored " +
+                        "by that service, and never for anything other than genuine bank/UPI " +
+                        "messages.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(24.dp))

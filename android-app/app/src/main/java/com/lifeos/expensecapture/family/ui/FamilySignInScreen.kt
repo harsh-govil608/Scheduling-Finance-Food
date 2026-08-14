@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.family.data.FamilyAuthRepository
 import com.lifeos.expensecapture.family.data.OtpSendResult
@@ -176,11 +177,33 @@ fun FamilySignInScreen(viewModel: FamilyAppViewModel) {
                 ) {
                     if (sending) CircularProgressIndicator(modifier = Modifier.size(20.dp)) else Text("Send OTP")
                 }
-                Text(
-                    "By continuing, you agree to our Terms & Conditions and Privacy Policy",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp)
+                // Real gap fixed 2026-08-15: this used to be plain unlinked text - Play Console
+                // requires an actual reachable Privacy Policy for any app requesting sensitive
+                // permissions (SMS here), and there was no document behind this claim at all
+                // before docs/privacy/index.html. Terms & Conditions isn't a hard requirement the
+                // same way and no such document exists yet, so that part stays plain text rather
+                // than link to something that doesn't exist.
+                val privacyPolicyUrl = "https://harsh-govil608.github.io/Scheduling-Finance-Food/privacy/"
+                val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+                val agreementText = androidx.compose.ui.text.buildAnnotatedString {
+                    append("By continuing, you agree to our Terms & Conditions and ")
+                    pushStringAnnotation(tag = "privacy", annotation = privacyPolicyUrl)
+                    withStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                        append("Privacy Policy")
+                    }
+                    pop()
+                }
+                androidx.compose.foundation.text.ClickableText(
+                    text = agreementText,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp),
+                    onClick = { offset ->
+                        agreementText.getStringAnnotations(tag = "privacy", start = offset, end = offset)
+                            .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                    }
                 )
                 Spacer(Modifier.height(24.dp))
                 WhyFamiliesLoveItCard()

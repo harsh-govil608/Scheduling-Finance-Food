@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -313,8 +314,18 @@ fun ProfileScreen(
 
             item { SectionLabel("Support") }
             item {
+                val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
                 SettingsGroupCard {
                     SettingsRow(Icons.Filled.Info, "About App", onClick = { showAbout = true })
+                    SettingsRowDivider()
+                    // Real gap fixed 2026-08-15: no privacy policy was reachable from anywhere in
+                    // the app itself before docs/privacy/index.html existed - only an unlinked
+                    // mention during Family sign-in, which most users never see at all.
+                    SettingsRow(
+                        Icons.Filled.PrivacyTip,
+                        "Privacy Policy",
+                        onClick = { uriHandler.openUri("https://harsh-govil608.github.io/Scheduling-Finance-Food/privacy/") }
+                    )
                 }
             }
 
@@ -368,7 +379,15 @@ fun ProfileScreen(
         AlertDialog(
             onDismissRequest = { showAbout = false },
             title = { Text("About") },
-            text = { Text("Expense Capture\nVersion ${uiState.appVersionName}\n\nA local-only finance and productivity tracker - no accounts, no servers, everything stays on this device.") },
+            text = {
+                Text(
+                    "Expense Capture\nVersion ${uiState.appVersionName}\n\nYour Finance and Home " +
+                        "tracking data stays local to this device - no account needed. Family " +
+                        "Sharing and Smart Split are optional features that use a cloud account " +
+                        "only for the data you explicitly choose to share with your family or a " +
+                        "split's participants - see Privacy Policy for details."
+                )
+            },
             confirmButton = { TextButton(onClick = { showAbout = false }) { Text("Close") } }
         )
     }

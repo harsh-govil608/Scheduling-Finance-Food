@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Privacy Policy - Expense Capture Pilot</title>
 <!--
-  DRAFT - written 2026-08-12 directly from the actual app source (see the Android app under
-  android-app/app/src/main/java/com/lifeos/expensecapture) so every claim below matches real
-  behavior, not aspirational copy. Three things need your input before this is submission-ready:
-  1. CONTACT_EMAIL below - currently your git commit email (harshgovil460@gmail.com), a
-     reasonable default since it's already public in this repo's history, but confirm or change it.
-  2. EFFECTIVE_DATE - set to the date you actually publish this.
-  3. This is a competent draft grounded in the real codebase, not a substitute for a lawyer's
-     review - read it yourself at minimum before it's linked from a Play Store listing.
-  Served by GitHub Pages from this /docs folder (already enabled) - live at
+  Originally drafted 2026-08-12 directly from the actual app source, then corrected 2026-08-15:
+  the SMS section previously said raw message text is "never uploaded, transmitted, or sent...
+  under any circumstance," then two paragraphs later described the AI-assisted parsing fallback
+  sending message content to OpenRouter - a real contradiction, not just soft wording, since
+  AiSmsParser.tryParse sends the SMS body verbatim as the AI prompt, not a "summary derived from"
+  it. Fixed to state this consistently and accurately in both places. CONTACT_EMAIL uses the
+  suggested default from the original draft (the git commit email already public in this repo's
+  history) - confirm or change before relying on this for real user contact.
+  Served by GitHub Pages from this /docs folder - live at
   https://harsh-govil608.github.io/Scheduling-Finance-Food/privacy/ once pushed.
 -->
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="wrap">
   <h1>Privacy Policy</h1>
-  <div class="updated">Expense Capture Pilot &middot; Last updated: <strong>[EFFECTIVE_DATE - fill in before publishing]</strong></div>
+  <div class="updated">Expense Capture Pilot &middot; Last updated: <strong>15 August 2026</strong></div>
 
   <p>
     Expense Capture Pilot ("the app," "we," "us") is a personal finance tracker that reads bank
@@ -54,33 +54,31 @@
   </p>
 
   <div class="callout">
-    <strong>The short version:</strong> your bank/UPI SMS messages are read and processed
-    entirely on your device and are never transmitted anywhere. Only if you choose to use Family
-    Sharing or Smart Split - both optional, off by default - does any of your data leave your
-    device, and even then it's limited to what those specific features need.
+    <strong>The short version:</strong> your bank/UPI SMS messages are processed on your device
+    first, and only ever leave it for a specific bank message the app's on-device parser can't
+    already read (see 1.1). Only if you choose to use Family Sharing or Smart Split - both
+    optional, off by default - does any of your other data leave your device, and even then it's
+    limited to what those specific features need.
   </div>
 
   <h2>1. Data we collect and how it's used</h2>
 
-  <h3>1.1 SMS messages (on-device only)</h3>
+  <h3>1.1 SMS messages</h3>
   <p>
     With your permission, the app reads SMS messages on your device to detect bank and UPI
-    transaction alerts. This happens entirely on your device using local pattern matching - the
-    raw text of your SMS messages is never uploaded, transmitted, or sent to us or anyone else,
-    under any circumstance. Only the information extracted from a genuine transaction message
-    (amount, merchant/payee name, category, date, and direction) is saved, and it's saved in a
-    local database on your device.
+    transaction alerts. Every message is first checked on-device: does the sender match the
+    regulated sender-ID format banks/payment providers are required to use in India, and does it
+    contain a bank/payment-related term? A message from a personal contact's phone number cannot
+    pass this check and is discarded immediately - never stored, in any form, by this app.
   </p>
   <p>
-    Non-financial messages (personal texts, OTPs, promotional messages) are recognized and
-    ignored - they are never stored, in any form, by this app.
-  </p>
-  <p>
-    If the app's on-device parser can't confidently read a message from a recognized bank/payment
-    sender, and you have an AI-assisted parsing feature enabled, a summary derived from that
-    single message may be sent to our AI provider (see Section 2) to attempt to extract the
-    transaction - never the full SMS inbox, never anything beyond that one message, and only when
-    the on-device parser has already failed.
+    For a message that passes this check, the app tries to extract the amount, merchant/payee,
+    date, and direction using on-device pattern matching, and saves only those fields to a local
+    database on your device. If the on-device parser can't confidently read the message, the
+    <strong>full text of that one message</strong> may be sent to our AI provider (see Section 2)
+    to attempt the same extraction - this only ever happens for a message that already passed the
+    bank-sender check above, never for a personal message, OTP, or anything else, and never your
+    SMS inbox in bulk.
   </p>
 
   <h3>1.2 Data you enter directly</h3>
@@ -117,12 +115,16 @@
   </p>
 
   <h3>1.5 Profile photo</h3>
-  <p>If you add a profile photo, it's copied into the app's private storage on your device only - it is never uploaded.</p>
+  <p>
+    If you add a profile photo, it's copied into the app's private storage on your device. If
+    you're also signed into Family Sharing, that photo is additionally uploaded to Google Cloud
+    Storage so your family members can see it - otherwise it stays on-device only.
+  </p>
 
   <h2>2. Third-party services we use</h2>
   <ul>
     <li><strong>Google Firebase</strong> (Authentication, Firestore database, Cloud Storage, Crashlytics) - powers Family Sharing, Smart Split, and crash reporting. Google's own privacy policy applies to how they process this on our behalf.</li>
-    <li><strong>OpenRouter</strong> - processes AI Assistant questions and AI-assisted parsing (Section 1.1). Only the specific data needed to answer your question or read one message is sent - never your full transaction history or SMS inbox in bulk, and never your raw SMS text.</li>
+    <li><strong>OpenRouter</strong> - processes AI Assistant questions and AI-assisted SMS parsing (Section 1.1). Only the specific message or question needed is sent - never your full transaction history or SMS inbox in bulk.</li>
     <li><strong>GitHub</strong> - the app checks a small public file on GitHub for available updates and, if you choose to install one, downloads the update file from there. No personal or financial data is included in this check.</li>
   </ul>
 
@@ -131,7 +133,7 @@
     <li>We do not sell your data, to anyone, ever.</li>
     <li>We do not show ads or use your data for advertising.</li>
     <li>We do not share your data with data brokers.</li>
-    <li>We do not transmit your raw SMS text off your device, under any circumstance.</li>
+    <li>We do not read, store, or transmit personal (non-financial) SMS content, ever.</li>
   </ul>
 
   <h2>4. Permissions the app requests</h2>
@@ -141,6 +143,7 @@
     <li>Photo/media access - only when you choose to set a profile photo.</li>
     <li><code>ACCESS_FINE_LOCATION</code> / <code>ACCESS_COARSE_LOCATION</code> - only requested if you use Family Sharing's SOS alert or choose to share your location with your Family; never requested at app launch.</li>
     <li><code>READ_CONTACTS</code> - only requested if you choose to pick a contact when inviting someone to a Family or adding a Smart Split participant, instead of typing their number by hand.</li>
+    <li>Install unknown apps - used only by this app's own in-app updater to install a newer version of itself, never any other app.</li>
   </ul>
 
   <h2>5. Your data, your control</h2>
@@ -173,7 +176,7 @@
 
   <h2>9. Contact</h2>
   <p>
-    Questions about this policy or your data: <a href="mailto:[CONTACT_EMAIL]">[CONTACT_EMAIL]</a>
+    Questions about this policy or your data: <a href="mailto:harshgovil460@gmail.com">harshgovil460@gmail.com</a>
   </p>
 
   <div class="footer">
