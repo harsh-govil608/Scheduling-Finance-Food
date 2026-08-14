@@ -1,6 +1,6 @@
 {
-  "versionCode": 82,
-  "versionName": "0.58.3-pilot",
+  "versionCode": 83,
+  "versionName": "0.58.4-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes Settle Up via UPI not opening GPay/PhonePe at all (a missing Android permission declaration). The \"You owe\" list on the Smart Split screen now shows who you owe and what for, instead of just a bare amount."
+  "notes": "Fixes a UPI payment link encoding bug that could cause Settle Up via UPI to fail or get declined by the bank, even though paying the same person manually through GPay worked fine."
 }

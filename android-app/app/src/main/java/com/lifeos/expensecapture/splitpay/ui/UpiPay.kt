@@ -15,13 +15,19 @@ import java.net.URLEncoder
  */
 object UpiPay {
     /** `am` is formatted to exactly 2 decimals - some UPI apps reject an amount with more or
-     * fewer digits after the decimal point. `tn` (transaction note) is URL-encoded since it's
-     * free text (an expense description) that can contain spaces/punctuation. */
+     * fewer digits after the decimal point. `pn`/`tn` are free text (a person's name, an expense
+     * description) that can contain spaces/punctuation, so they need percent-encoding - but
+     * `URLEncoder` encodes a space as `+` (application/x-www-form-urlencoded, meant for POST
+     * bodies), not `%20` (the actual URI-component standard); some UPI apps' parsers only
+     * understand `%20` and either drop everything after a `+` or reject the link outright. `pa`
+     * (the payee VPA) is trimmed but deliberately NOT encoded - a real VPA never contains
+     * characters that need it, and encoding could turn a subtly malformed one into something that
+     * *looks* well-formed instead of failing fast. */
     fun buildPayUri(payeeVpa: String, payeeName: String, amount: Double, note: String): Uri {
-        val encodedNote = URLEncoder.encode(note, "UTF-8")
-        val encodedName = URLEncoder.encode(payeeName, "UTF-8")
+        val encodedNote = URLEncoder.encode(note, "UTF-8").replace("+", "%20")
+        val encodedName = URLEncoder.encode(payeeName, "UTF-8").replace("+", "%20")
         return Uri.parse(
-            "upi://pay?pa=$payeeVpa&pn=$encodedName&am=${"%.2f".format(amount)}&cu=INR&tn=$encodedNote"
+            "upi://pay?pa=${payeeVpa.trim()}&pn=$encodedName&am=${"%.2f".format(amount)}&cu=INR&tn=$encodedNote"
         )
     }
 
