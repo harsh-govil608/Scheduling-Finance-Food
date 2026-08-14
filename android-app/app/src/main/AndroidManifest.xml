@@ -27,6 +27,18 @@
          ContactPicker.kt. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
+    <!-- Smart Split's UPI payment intent (2026-08, real user report: "not able to pay the amount
+         using GPay"). Since Android 11 (API 30), an app can't see/resolve another installed app
+         for an implicit intent at all unless it's declared here - without this, UpiPay.payIntent's
+         upi://pay Intent silently fails to find GPay/PhonePe/any UPI app, target SDK 30+ or not,
+         no error shown, exactly this symptom. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="false"

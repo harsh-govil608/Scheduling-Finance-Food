@@ -1,6 +1,6 @@
 {
-  "versionCode": 81,
-  "versionName": "0.58.2-pilot",
+  "versionCode": 82,
+  "versionName": "0.58.3-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes the root cause of Smart Split's in-app notifications and UPI ID sometimes not working: signing into Family after already using Smart Split used to create a second, separate account instead of upgrading the existing one, splitting your profile across two identities. Now signing into Family links to your existing Smart Split account instead of replacing it, and your saved name can no longer get silently reset to blank."
+  "notes": "Fixes Settle Up via UPI not opening GPay/PhonePe at all (a missing Android permission declaration). The \"You owe\" list on the Smart Split screen now shows who you owe and what for, instead of just a bare amount."
 }

@@ -42,7 +42,13 @@ data class SmartSplitParticipant(
     val shareAmount: Double = 0.0,
     val status: ParticipantStatus = ParticipantStatus.PENDING,
     val paidAt: Long? = null,
-    val confirmedAt: Long? = null
+    val confirmedAt: Long? = null,
+    /** Denormalized from the parent SmartSplit at creation time (real user report, 2026-08: the
+     * "You owe" list showed only an amount, no indication who it was owed to or what for) - lets
+     * SmartSplitsScreen's observeSplitsIOwe-backed list render both without a separate lookup per
+     * row. Blank on any participant doc written before this field existed. */
+    val payerName: String = "",
+    val description: String = ""
 )
 
 data class SmartSplit(

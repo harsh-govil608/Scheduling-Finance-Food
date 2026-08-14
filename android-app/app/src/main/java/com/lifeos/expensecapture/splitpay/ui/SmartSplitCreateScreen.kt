@@ -298,7 +298,9 @@ fun SmartSplitCreateScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
                                     participantUserId = entry.matchedUserId,
                                     isExternal = entry.matchedUserId == null,
                                     shareAmount = share,
-                                    status = ParticipantStatus.PENDING
+                                    status = ParticipantStatus.PENDING,
+                                    payerName = split.payerName,
+                                    description = split.description
                                 )
                             }
                             when (val result = repository.createSplit(split, participantModels)) {
