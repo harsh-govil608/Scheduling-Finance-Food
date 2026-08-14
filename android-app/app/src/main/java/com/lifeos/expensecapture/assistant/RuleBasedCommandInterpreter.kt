@@ -55,7 +55,7 @@ object RuleBasedCommandInterpreter : CommandInterpreter {
     private val dismissSubscriptionPattern = Regex("(?:dismiss|cancel)\\s+subscription\\s*:?\\s*(.+)", RegexOption.IGNORE_CASE)
     private val recategorizePattern = Regex("(?:recategorize|categorize)\\s+(.+?)\\s+as\\s+(.+)", RegexOption.IGNORE_CASE)
 
-    override suspend fun interpret(text: String): CommandIntent {
+    override suspend fun interpret(text: String, history: List<ConversationTurn>): CommandIntent {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return CommandIntent.Unrecognized(text)
 

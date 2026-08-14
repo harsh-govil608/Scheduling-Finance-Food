@@ -29,14 +29,18 @@ class AiCommandInterpreter(
 
     private val gson = Gson()
 
-    override suspend fun interpret(text: String): CommandIntent {
+    override suspend fun interpret(text: String, history: List<ConversationTurn>): CommandIntent {
         return try {
-            val content = AiClient.generateText(prompt = text, systemInstruction = SYSTEM_PROMPT, jsonMode = true)
-                ?: return fallback.interpret(text)
-            parseIntent(content) ?: fallback.interpret(text)
+            val content = AiClient.generateText(
+                prompt = text,
+                systemInstruction = SYSTEM_PROMPT,
+                jsonMode = true,
+                history = history.toChatMessages()
+            ) ?: return fallback.interpret(text, history)
+            parseIntent(content) ?: fallback.interpret(text, history)
         } catch (e: Exception) {
             AppLogger.e("AiCommandInterpreter", "AI interpret failed for: $text - falling back to rules", e)
-            fallback.interpret(text)
+            fallback.interpret(text, history)
         }
     }
 

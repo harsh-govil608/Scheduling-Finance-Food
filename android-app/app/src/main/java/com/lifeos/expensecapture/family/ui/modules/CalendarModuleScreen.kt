@@ -55,7 +55,7 @@ private val dateFormat = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefaul
  * DatePickerDialog+TimePickerDialog pair, to keep this pass's six modules uniform in effort. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarModuleScreen(familyId: String, onBack: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
+fun CalendarModuleScreen(familyId: String, onBackToFinance: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
     val authRepository = remember { FamilyAuthRepository() }
     val repository = remember(familyId) { SharedCalendarRepository(familyId = familyId) }
     val currentUserId = authRepository.currentUser?.uid ?: ""
@@ -69,7 +69,7 @@ fun CalendarModuleScreen(familyId: String, onBack: () -> Unit, onSelectPillar: (
         topBar = {
             TopAppBar(
                 title = { Text("Calendar") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
+                navigationIcon = { IconButton(onClick = onBackToFinance) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Finance") } }
             )
         },
         floatingActionButton = {

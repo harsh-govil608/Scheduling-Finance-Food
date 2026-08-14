@@ -61,7 +61,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TasksModuleScreen(familyId: String, onBack: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
+fun TasksModuleScreen(familyId: String, onBackToFinance: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
     val authRepository = remember { FamilyAuthRepository() }
     val familyRepository = remember { FamilyRepository() }
     val taskRepository = remember(familyId) { SharedTaskRepository(familyId = familyId) }
@@ -78,7 +78,7 @@ fun TasksModuleScreen(familyId: String, onBack: () -> Unit, onSelectPillar: (Fam
             TopAppBar(
                 title = { Text("Tasks") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBackToFinance) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Finance") }
                 }
             )
         },

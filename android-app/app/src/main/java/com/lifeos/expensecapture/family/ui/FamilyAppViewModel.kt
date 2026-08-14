@@ -52,6 +52,17 @@ class FamilyAppViewModel(
                     phoneNumber = user.phoneNumber?.let { normalizePhoneNumber(it) },
                     displayName = user.displayName ?: ""
                 )
+                // Self-heals every FamilyMember doc this user belongs to against the Firebase
+                // Auth profile on every sign-in (real user report, 2026-08: member name/photo
+                // should reflect whatever's actually set, not a stale one-time snapshot from
+                // whenever they first created/joined - see syncMemberProfile's kdoc). Covers the
+                // case where the name/photo changed on a different device since this one last
+                // synced, same reasoning as syncPhoneAndName above.
+                familyRepository.syncMemberProfile(
+                    userId = user.uid,
+                    displayName = user.displayName ?: "",
+                    photoUrl = user.photoUrl?.toString()
+                )
             }
         }
     }

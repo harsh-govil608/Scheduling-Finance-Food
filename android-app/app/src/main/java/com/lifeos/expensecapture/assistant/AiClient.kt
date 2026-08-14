@@ -51,14 +51,17 @@ object AiClient {
         prompt: String,
         systemInstruction: String? = null,
         jsonMode: Boolean = false,
-        apiKey: String = BuildConfig.OPENROUTER_API_KEY
+        apiKey: String = BuildConfig.OPENROUTER_API_KEY,
+        /** Prior turns (oldest first) to include ahead of this call's [prompt] - see
+         * ConversationTurn's kdoc for why this exists. Empty by default so every non-chat caller
+         * (AiTextPolisher, AiCategorySuggester, etc) is unaffected. */
+        history: List<ChatMessage> = emptyList()
     ): String? {
         if (apiKey.isBlank()) return null
         return try {
             val messages = listOfNotNull(
-                systemInstruction?.let { ChatMessage(role = "system", content = it) },
-                ChatMessage(role = "user", content = prompt)
-            )
+                systemInstruction?.let { ChatMessage(role = "system", content = it) }
+            ) + history + listOf(ChatMessage(role = "user", content = prompt))
             val response = api.chatCompletions(
                 authorization = "Bearer $apiKey",
                 request = ChatCompletionRequest(

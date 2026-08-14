@@ -123,7 +123,7 @@ private fun VoiceCaptureContent(onFinished: () -> Unit) {
         status = CaptureStatus.PROCESSING
         coroutineScope.launch {
             val executor = CommandExecutor(app.database, activity.applicationContext)
-            val intent = RuleBasedCommandInterpreter.interpret(heard)
+            val intent = RuleBasedCommandInterpreter.interpret(heard, emptyList())
             val response = executor.execute(intent)
             speakThenFinish(response)
         }

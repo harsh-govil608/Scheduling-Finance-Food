@@ -406,7 +406,12 @@ fun PilotApp(app: App) {
             val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
             TasksModuleScreen(
                 familyId = familyId,
-                onBack = { navController.popBackStack() },
+                onBackToFinance = {
+                    navController.navigate("home") {
+                        popUpTo("family") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onSelectPillar = { pillar -> selectFamilyPillar(pillar, familyId) }
             )
         }
@@ -417,7 +422,12 @@ fun PilotApp(app: App) {
             val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
             CalendarModuleScreen(
                 familyId = familyId,
-                onBack = { navController.popBackStack() },
+                onBackToFinance = {
+                    navController.navigate("home") {
+                        popUpTo("family") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onSelectPillar = { pillar -> selectFamilyPillar(pillar, familyId) }
             )
         }
@@ -428,7 +438,12 @@ fun PilotApp(app: App) {
             val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
             ExpensesModuleScreen(
                 familyId = familyId,
-                onBack = { navController.popBackStack() },
+                onBackToFinance = {
+                    navController.navigate("home") {
+                        popUpTo("family") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onSelectPillar = { pillar -> selectFamilyPillar(pillar, familyId) }
             )
         }
@@ -438,7 +453,12 @@ fun PilotApp(app: App) {
         ) { backStackEntry ->
             val familyId = backStackEntry.arguments?.getString("familyId") ?: ""
             FamilyMoreScreen(
-                onBack = { navController.popBackStack() },
+                onBackToFinance = {
+                    navController.navigate("home") {
+                        popUpTo("family") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onOpenSos = { navController.navigate("family_sos/$familyId") },
                 onOpenMembers = { navController.navigate("family_members/$familyId") },
                 onOpenInvite = { navController.navigate("family_invite/$familyId") },

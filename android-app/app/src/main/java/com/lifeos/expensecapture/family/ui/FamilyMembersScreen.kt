@@ -1,15 +1,20 @@
 package com.lifeos.expensecapture.family.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,8 +41,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.lifeos.expensecapture.family.data.FamilyAuthRepository
 import com.lifeos.expensecapture.family.data.FamilyRepository
 import com.lifeos.expensecapture.family.model.FamilyMember
@@ -108,6 +116,22 @@ fun FamilyMembersScreen(familyId: String, onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                     ) {
+                        Box(
+                            modifier = Modifier.size(40.dp).clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (member.photoUrl != null) {
+                                AsyncImage(
+                                    model = member.photoUrl,
+                                    contentDescription = member.displayName,
+                                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                                )
+                            } else {
+                                Text(member.displayName.firstOrNull()?.uppercase() ?: "?", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(member.displayName.ifBlank { "Member" }, style = MaterialTheme.typography.bodyLarge)
                             Text(

@@ -74,14 +74,14 @@ private enum class ExpensesTab { OVERVIEW, TRANSACTIONS }
  * ledger rather than the same data as Overview's auto-synced spend. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpensesModuleScreen(familyId: String, onBack: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
+fun ExpensesModuleScreen(familyId: String, onBackToFinance: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Expenses") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
+                navigationIcon = { IconButton(onClick = onBackToFinance) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Finance") } }
             )
         },
         bottomBar = { FamilyPillarBottomBar(current = FamilyPillar.EXPENSES, onSelect = onSelectPillar) }

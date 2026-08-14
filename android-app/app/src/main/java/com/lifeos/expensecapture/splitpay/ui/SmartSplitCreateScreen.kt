@@ -265,6 +265,23 @@ fun SmartSplitCreateScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
                             return@Button
                         }
                         coroutineScope.launch {
+                            // Auto-resolve any participant the payer didn't manually tap "Check"
+                            // for - the manual button was the only way matchedUserId ever got
+                            // set, so anyone skipped was permanently routed to link-only even if
+                            // they actually have the app. Real user report, 2026-08: in-app
+                            // auto-notify "still not working" - this is the other half of that
+                            // fix alongside deploying the missing Firestore index (see
+                            // SplitPayRepository.observeSplitsIOwe's kdoc).
+                            valid.forEach { (entry, _) ->
+                                if (!entry.checked) {
+                                    val normalized = normalizePhoneNumber(entry.phone)
+                                    if (normalized.isNotBlank()) {
+                                        val match = repository.findUserByPhone(normalized)
+                                        entry.matchedUserId = match?.uid
+                                        entry.checked = true
+                                    }
+                                }
+                            }
                             val split = SmartSplit(
                                 description = description.trim(),
                                 totalAmount = total,

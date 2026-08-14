@@ -14,9 +14,13 @@ import com.lifeos.expensecapture.data.seed.DefaultCategories
 import com.lifeos.expensecapture.finance.FinancialHealthScore
 import com.lifeos.expensecapture.logging.AppLogger
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
+import com.lifeos.expensecapture.family.data.FamilyRepository
 import com.lifeos.expensecapture.util.Prefs
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -122,14 +126,41 @@ class ProfileViewModel(private val context: Context, private val database: AppDa
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileUiState())
 
+    /** Family member names/photos (2026-08, real user report) used to be a one-time snapshot
+     * taken when a family was first created/joined, which went stale the moment this Profile
+     * screen changed the name/photo afterward - see FamilyRepository.syncMemberProfile's kdoc.
+     * A no-op if the user has never signed into the Family module at all (currentUser == null),
+     * exactly like every other Family touchpoint elsewhere in this app. */
+    private suspend fun syncFamilyProfile(displayName: String? = null, photoUrl: String? = null) {
+        val user = FirebaseAuth.getInstance().currentUser ?: return
+        try {
+            if (displayName != null || photoUrl != null) {
+                val builder = UserProfileChangeRequest.Builder()
+                if (displayName != null) builder.setDisplayName(displayName)
+                if (photoUrl != null) builder.setPhotoUri(Uri.parse(photoUrl))
+                user.updateProfile(builder.build()).await()
+            }
+            FamilyRepository().syncMemberProfile(
+                user.uid,
+                displayName ?: user.displayName.orEmpty(),
+                photoUrl ?: user.photoUrl?.toString()
+            )
+        } catch (e: Exception) {
+            AppLogger.e("ProfileViewModel", "Family profile sync failed", e)
+        }
+    }
+
     fun setDisplayName(name: String) {
         Prefs.setDisplayName(context, name)
         _displayName.value = name
+        viewModelScope.launch(Dispatchers.IO) { syncFamilyProfile(displayName = name) }
     }
 
     /** Copies the picker's selected image into app-internal storage rather than keeping its
      * content:// Uri directly - the system photo picker's read grant isn't guaranteed to survive
-     * process death/reboot, so the Uri alone isn't a durable reference. */
+     * process death/reboot, so the Uri alone isn't a durable reference. Also uploaded to Firebase
+     * Storage and synced into every family this user belongs to (real user report, 2026-08) -
+     * `firebase-storage-ktx` was already a build dependency for this, just unused until now. */
     fun setProfilePhoto(uri: Uri) {
         viewModelScope.launch {
             val path = withContext(Dispatchers.IO) {
@@ -141,6 +172,19 @@ class ProfileViewModel(private val context: Context, private val database: AppDa
             }
             Prefs.setProfilePhotoPath(context, path)
             _profilePhotoPath.value = path
+            withContext(Dispatchers.IO) {
+                val user = FirebaseAuth.getInstance().currentUser
+                if (user != null) {
+                    try {
+                        val storageRef = FirebaseStorage.getInstance().reference.child("profilePhotos/${user.uid}.jpg")
+                        storageRef.putFile(Uri.fromFile(File(path))).await()
+                        val downloadUrl = storageRef.downloadUrl.await().toString()
+                        syncFamilyProfile(photoUrl = downloadUrl)
+                    } catch (e: Exception) {
+                        AppLogger.e("ProfileViewModel", "Profile photo upload to Family failed", e)
+                    }
+                }
+            }
         }
     }
 

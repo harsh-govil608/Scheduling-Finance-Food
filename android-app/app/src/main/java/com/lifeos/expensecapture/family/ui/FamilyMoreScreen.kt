@@ -55,7 +55,7 @@ import com.lifeos.expensecapture.ui.theme.WarningStrong
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FamilyMoreScreen(
-    onBack: () -> Unit,
+    onBackToFinance: () -> Unit,
     onOpenSos: () -> Unit,
     onOpenMembers: () -> Unit,
     onOpenInvite: () -> Unit,
@@ -69,7 +69,7 @@ fun FamilyMoreScreen(
         topBar = {
             TopAppBar(
                 title = { Text("More") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }
+                navigationIcon = { IconButton(onClick = onBackToFinance) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Finance") } }
             )
         },
         bottomBar = { FamilyPillarBottomBar(current = FamilyPillar.MORE, onSelect = onSelectPillar) }

@@ -1,6 +1,8 @@
 package com.lifeos.expensecapture.finance
 
 import com.lifeos.expensecapture.assistant.AiClient
+import com.lifeos.expensecapture.assistant.ConversationTurn
+import com.lifeos.expensecapture.assistant.toChatMessages
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.logging.AppLogger
@@ -37,7 +39,12 @@ object FinanceQaEngine {
      * that language regardless. Kept as a plain String param rather than threading an Android
      * Context in here - callers (CommandExecutor, which already holds a Context) resolve
      * Prefs.getAiLanguage themselves, keeping this engine free of any Android dependency. */
-    suspend fun answer(question: String, db: AppDatabase, languagePreference: String = "auto"): String? {
+    suspend fun answer(
+        question: String,
+        db: AppDatabase,
+        languagePreference: String = "auto",
+        history: List<ConversationTurn> = emptyList()
+    ): String? {
         val snapshot = try {
             buildSnapshot(db)
         } catch (e: Exception) {
@@ -47,7 +54,8 @@ object FinanceQaEngine {
         return try {
             AiClient.generateText(
                 prompt = "$snapshot\n\nQuestion: $question",
-                systemInstruction = SYSTEM_PROMPT + "\n\n" + languageInstruction(languagePreference)
+                systemInstruction = SYSTEM_PROMPT + "\n\n" + languageInstruction(languagePreference),
+                history = history.toChatMessages()
             )
         } catch (e: Exception) {
             AppLogger.e("FinanceQaEngine", "answer failed", e)

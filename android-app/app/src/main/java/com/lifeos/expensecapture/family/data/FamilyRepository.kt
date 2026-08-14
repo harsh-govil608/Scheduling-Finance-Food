@@ -91,6 +91,34 @@ class FamilyRepository(
         }
     }
 
+    /** Keeps every family this user belongs to showing their current name/photo, rather than the
+     * one-time snapshot taken at [createFamily]/[joinFamilyByCode] time (real user report,
+     * 2026-08: Family member names/photos should reflect whatever's set in the app's own Profile
+     * screen, not go stale the moment it's changed afterward). Called from ProfileViewModel
+     * whenever the local profile changes, and from the Family sign-in flow on every sign-in -
+     * same "re-sync on every touchpoint rather than trust a one-time write" shape as
+     * SplitPayRepository.syncPhoneAndName. A user with no families yet is a no-op, not a failure. */
+    suspend fun syncMemberProfile(userId: String, displayName: String, photoUrl: String?): FamilyResult<Unit> {
+        if (userId.isBlank()) return FamilyResult.Failure("Not signed in")
+        return try {
+            val families = firestore.collection("families")
+                .whereArrayContains("memberIds", userId)
+                .get().await()
+            if (!families.isEmpty) {
+                val batch = firestore.batch()
+                families.documents.forEach { doc ->
+                    val fields = mutableMapOf<String, Any?>("displayName" to displayName)
+                    if (photoUrl != null) fields["photoUrl"] = photoUrl
+                    batch.set(membersCollection(doc.id).document(userId), fields, com.google.firebase.firestore.SetOptions.merge())
+                }
+                batch.commit().await()
+            }
+            FamilyResult.Success(Unit)
+        } catch (e: Exception) {
+            FamilyResult.Failure(e.message ?: "Couldn't sync your profile to Family")
+        }
+    }
+
     fun observeFamily(familyId: String): Flow<FamilyEntity?> = callbackFlow {
         val registration = familyDoc(familyId).addSnapshotListener { snapshot, error ->
             if (error != null) {

@@ -1,6 +1,6 @@
 {
-  "versionCode": 78,
-  "versionName": "0.57.0-pilot",
+  "versionCode": 79,
+  "versionName": "0.58.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Uncategorized spends from common merchants (Swiggy, Amazon, Netflix, Uber, etc.) now get categorized automatically from day one. Analytics shows an \"Other\" slice instead of silently dropping smaller categories. Family Sharing's Transactions tab now lets you delete a shared expense. Investments can now be added as a real mutual fund (search + auto-synced NAV), not just a manual number - stocks/FDs still manual. Privacy policy updated to disclose everything it was missing (location/contacts permissions, document storage, in-app updater)."
+  "notes": "Smart Split now auto-checks whether each person has the app when you tap Create, so in-app payment notifications work without a manual check. Family Sharing now has a back-to-Finance button on every tab, not just Home. Family member names and photos now show whatever you set in your own Profile, and stay in sync if you change them later. The AI Assistant now remembers your last few messages instead of forgetting after every reply. Goals can now be set to any custom date, not just 1 or 3 months."
 }

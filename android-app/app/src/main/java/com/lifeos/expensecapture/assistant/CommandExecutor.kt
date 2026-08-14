@@ -23,7 +23,7 @@ import java.time.ZoneId
  */
 class CommandExecutor(private val db: AppDatabase, private val context: Context) {
 
-    suspend fun execute(intent: CommandIntent): String = when (intent) {
+    suspend fun execute(intent: CommandIntent, history: List<ConversationTurn> = emptyList()): String = when (intent) {
         is CommandIntent.AddTransaction -> addTransaction(intent)
         is CommandIntent.AddTask -> addTask(intent)
         is CommandIntent.AddHabit -> addHabit(intent)
@@ -38,7 +38,7 @@ class CommandExecutor(private val db: AppDatabase, private val context: Context)
         is CommandIntent.ConfirmSubscription -> confirmSubscription(intent)
         is CommandIntent.DismissSubscription -> dismissSubscription(intent)
         is CommandIntent.RecategorizeTransaction -> recategorizeTransaction(intent)
-        is CommandIntent.Unrecognized -> unrecognized(intent)
+        is CommandIntent.Unrecognized -> unrecognized(intent, history)
     }
 
     private suspend fun addTransaction(intent: CommandIntent.AddTransaction): String {
@@ -194,7 +194,7 @@ class CommandExecutor(private val db: AppDatabase, private val context: Context)
      * same help text as before if AI isn't available (blank/invalid key, network failure, offline)
      * - there's no honest deterministic way to answer an open-ended question the way the regex
      * fallback answers a structured action. */
-    private suspend fun unrecognized(intent: CommandIntent.Unrecognized): String {
+    private suspend fun unrecognized(intent: CommandIntent.Unrecognized, history: List<ConversationTurn>): String {
         val rawText = intent.rawText.trim()
         if (rawText.isNotBlank()) {
             // Monetization scaffolding (2026-08-12) - this is the ONE AI touchpoint gated behind
@@ -208,7 +208,7 @@ class CommandExecutor(private val db: AppDatabase, private val context: Context)
             val quotaAvailable = Prefs.isPremium(context) ||
                 Prefs.aiQuestionsUsedThisMonth(context) < Prefs.FREE_AI_QUESTIONS_PER_MONTH
             if (quotaAvailable) {
-                FinanceQaEngine.answer(rawText, db, Prefs.getAiLanguage(context))?.let { answer ->
+                FinanceQaEngine.answer(rawText, db, Prefs.getAiLanguage(context), history)?.let { answer ->
                     if (!Prefs.isPremium(context)) Prefs.recordAiQuestionUsed(context)
                     return answer
                 }

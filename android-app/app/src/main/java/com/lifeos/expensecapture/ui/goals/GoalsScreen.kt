@@ -24,6 +24,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -34,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -193,7 +196,10 @@ private fun AddGoalDialog(
 ) {
     var title by remember { mutableStateOf("") }
     var targetInDays by remember { mutableStateOf<Int?>(null) }
+    var customDateMillis by remember { mutableStateOf<Long?>(null) }
     var amountText by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -215,18 +221,41 @@ private fun AddGoalDialog(
                 )
                 Spacer(Modifier.height(8.dp))
                 Row {
-                    TextButton(onClick = { targetInDays = null }) { Text(if (targetInDays == null) "• No target date" else "No target date") }
-                    TextButton(onClick = { targetInDays = 30 }) { Text(if (targetInDays == 30) "• 1 month" else "1 month") }
-                    TextButton(onClick = { targetInDays = 90 }) { Text(if (targetInDays == 90) "• 3 months" else "3 months") }
+                    TextButton(onClick = { targetInDays = null; customDateMillis = null }) { Text(if (targetInDays == null && customDateMillis == null) "• No target date" else "No target date") }
+                    TextButton(onClick = { targetInDays = 30; customDateMillis = null }) { Text(if (targetInDays == 30) "• 1 month" else "1 month") }
+                    TextButton(onClick = { targetInDays = 90; customDateMillis = null }) { Text(if (targetInDays == 90) "• 3 months" else "3 months") }
+                }
+                TextButton(onClick = { showDatePicker = true }) {
+                    Text(
+                        customDateMillis?.let { "• ${dateFormat.format(Date(it))}" } ?: "Custom date"
+                    )
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                val target = targetInDays?.let { days -> System.currentTimeMillis() + days * 86_400_000L }
+                val target = customDateMillis ?: targetInDays?.let { days -> System.currentTimeMillis() + days * 86_400_000L }
                 onConfirm(title, target, amountText.toDoubleOrNull())
             }) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = customDateMillis ?: System.currentTimeMillis())
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { customDateMillis = it; targetInDays = null }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }

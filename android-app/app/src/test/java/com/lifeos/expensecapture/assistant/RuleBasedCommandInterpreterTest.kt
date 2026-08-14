@@ -13,7 +13,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `spent phrasing produces a debit transaction intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("spent 200 on lunch") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("spent 200 on lunch", emptyList()) }
 
         require(result is CommandIntent.AddTransaction)
         assertEquals(200.0, result.amount, 0.001)
@@ -23,7 +23,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `received phrasing produces a credit transaction intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("received 500 from Sohom") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("received 500 from Sohom", emptyList()) }
 
         require(result is CommandIntent.AddTransaction)
         assertEquals(500.0, result.amount, 0.001)
@@ -33,7 +33,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `add task with tomorrow strips the date word and sets a due date`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add task call mom tomorrow") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add task call mom tomorrow", emptyList()) }
 
         require(result is CommandIntent.AddTask)
         assertEquals("call mom", result.title)
@@ -47,7 +47,7 @@ class RuleBasedCommandInterpreterTest {
         // Regression check: "today" and " today" are different lengths (5 vs 6 chars) - an
         // earlier version of this parser hand-counted dropLast(5) for both cases, which would
         // have silently mangled the title's last character.
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add task water the plants today") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add task water the plants today", emptyList()) }
 
         require(result is CommandIntent.AddTask)
         assertEquals("water the plants", result.title)
@@ -55,7 +55,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `add task without a date phrase has no due date`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add task read a book") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add task read a book", emptyList()) }
 
         require(result is CommandIntent.AddTask)
         assertEquals("read a book", result.title)
@@ -64,7 +64,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `add habit phrasing produces a habit intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add habit meditate") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add habit meditate", emptyList()) }
 
         require(result is CommandIntent.AddHabit)
         assertEquals("meditate", result.name)
@@ -72,7 +72,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `shopping list phrasing produces a shopping intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add milk to shopping list") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("add milk to shopping list", emptyList()) }
 
         require(result is CommandIntent.AddShoppingItem)
         assertEquals("milk", result.name)
@@ -80,7 +80,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `set budget phrasing is not misread as a spend`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("set food budget to 5000") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("set food budget to 5000", emptyList()) }
 
         require(result is CommandIntent.SetBudget)
         assertEquals("food", result.categoryHint)
@@ -89,14 +89,14 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `an unrecognized phrase is reported, not guessed at`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("what's the weather like") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("what's the weather like", emptyList()) }
 
         assertTrue(result is CommandIntent.Unrecognized)
     }
 
     @Test
     fun `complete task phrasing produces a complete-task intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("complete task call mom") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("complete task call mom", emptyList()) }
 
         require(result is CommandIntent.CompleteTask)
         assertEquals("call mom", result.titleMatch)
@@ -104,7 +104,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `mark task done phrasing produces a complete-task intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("mark task call mom done") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("mark task call mom done", emptyList()) }
 
         require(result is CommandIntent.CompleteTask)
         assertEquals("call mom", result.titleMatch)
@@ -112,7 +112,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `mark habit done phrasing produces a complete-habit intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("mark habit meditate done") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("mark habit meditate done", emptyList()) }
 
         require(result is CommandIntent.CompleteHabit)
         assertEquals("meditate", result.nameMatch)
@@ -120,7 +120,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `check off phrasing produces a check-shopping-item intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("check off milk") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("check off milk", emptyList()) }
 
         require(result is CommandIntent.CheckShoppingItem)
         assertEquals("milk", result.nameMatch)
@@ -128,7 +128,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `confirm bill phrasing produces a confirm-bill intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("confirm bill electricity") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("confirm bill electricity", emptyList()) }
 
         require(result is CommandIntent.ConfirmBill)
         assertEquals("electricity", result.payeeMatch)
@@ -136,7 +136,7 @@ class RuleBasedCommandInterpreterTest {
 
     @Test
     fun `recategorize phrasing produces a recategorize-transaction intent`() {
-        val result = runBlocking { RuleBasedCommandInterpreter.interpret("recategorize swiggy as food") }
+        val result = runBlocking { RuleBasedCommandInterpreter.interpret("recategorize swiggy as food", emptyList()) }
 
         require(result is CommandIntent.RecategorizeTransaction)
         assertEquals("swiggy", result.merchantMatch)

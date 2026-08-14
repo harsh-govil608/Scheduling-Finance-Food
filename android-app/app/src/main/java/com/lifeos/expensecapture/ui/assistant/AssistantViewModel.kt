@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.lifeos.expensecapture.assistant.CommandExecutor
 import com.lifeos.expensecapture.assistant.AiCommandInterpreter
 import com.lifeos.expensecapture.assistant.CommandInterpreter
+import com.lifeos.expensecapture.assistant.ConversationTurn
 import com.lifeos.expensecapture.data.db.AppDatabase
 import com.lifeos.expensecapture.logging.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,15 +49,37 @@ class AssistantViewModel(
     private val _isResponding = MutableStateFlow(false)
     val isResponding: StateFlow<Boolean> = _isResponding.asStateFlow()
 
+    /** Last few exchanges (oldest first), windowed rather than the full conversation so the
+     * free-tier model's prompt stays small - see ConversationTurn's kdoc. Pairs up consecutive
+     * user/assistant messages as they actually occurred; the initial static greeting isn't a
+     * user turn, so it's naturally excluded. */
+    private fun recentHistory(): List<ConversationTurn> {
+        val turns = mutableListOf<ConversationTurn>()
+        val messages = _messages.value
+        var i = 0
+        while (i < messages.size - 1) {
+            val user = messages[i]
+            val assistant = messages[i + 1]
+            if (user.isUser && !assistant.isUser) {
+                turns += ConversationTurn(user.text, assistant.text)
+                i += 2
+            } else {
+                i += 1
+            }
+        }
+        return turns.takeLast(MAX_HISTORY_TURNS)
+    }
+
     fun send(text: String) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
+        val history = recentHistory()
         _messages.value = _messages.value + AssistantMessage(trimmed, isUser = true)
 
         viewModelScope.launch {
             _isResponding.value = true
             val response = try {
-                executor.execute(interpreter.interpret(trimmed))
+                executor.execute(interpreter.interpret(trimmed, history), history)
             } catch (e: Exception) {
                 AppLogger.e("AssistantViewModel", "command execution failed for: $trimmed", e)
                 "Something went wrong doing that, so nothing was changed."
@@ -65,5 +88,9 @@ class AssistantViewModel(
             }
             _messages.value = _messages.value + AssistantMessage(response, isUser = false)
         }
+    }
+
+    private companion object {
+        const val MAX_HISTORY_TURNS = 3
     }
 }

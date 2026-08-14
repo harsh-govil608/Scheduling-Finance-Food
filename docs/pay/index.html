@@ -149,11 +149,15 @@
       <div class="amount">₹${Number(participant.shareAmount).toFixed(2)}</div>
       <div class="desc">for "${escapeHtml(split.description)}"</div>
       <button class="primary" id="payBtn">Pay Now via UPI</button>
-      <button class="secondary" id="paidBtn">I have paid</button>
+      <button class="secondary hidden" id="paidBtn">I have paid</button>
       <div class="status" id="statusMsg"></div>
     `);
 
     document.getElementById("payBtn").addEventListener("click", () => {
+      // Real user report, 2026-08-12: "I have paid" must not appear until a real payment
+      // attempt has actually happened - same gating as the Android app's "I've already paid"
+      // (see hasAttemptedUpi in SmartSplitDetailScreen.kt). Revealed here, not before.
+      document.getElementById("paidBtn").classList.remove("hidden");
       window.location.href = upiUri;
     });
 

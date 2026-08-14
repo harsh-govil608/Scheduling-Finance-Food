@@ -37,8 +37,8 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 78
-        versionName = "0.57.0-pilot"
+        versionCode = 79
+        versionName = "0.58.0-pilot"
         buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY", "")}\"")
     }
 
@@ -121,6 +121,10 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    // Family member photos (2026-08, real user report) - the app's own ProfileAvatarButton only
+    // ever loads a local file path via BitmapFactory; Coil is the lightweight standard for
+    // loading a remote Firebase Storage download URL (member.photoUrl) inside Compose.
+    implementation("io.coil-kt:coil-compose:2.7.0")
     // Infra hardening (2026-08) - see AppLogger.e's kdoc for how this complements, not replaces,
     // the local Room-backed crash_logs table CrashHandler already writes to.
     implementation("com.google.firebase:firebase-crashlytics-ktx")

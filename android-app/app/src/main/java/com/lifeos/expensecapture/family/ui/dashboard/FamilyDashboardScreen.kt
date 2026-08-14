@@ -42,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import coil.compose.AsyncImage
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -333,7 +334,18 @@ private fun MemberStatusColumn(member: FamilyMember, presence: MemberPresence?, 
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                Text(member.displayName.firstOrNull()?.uppercase() ?: "?", style = MaterialTheme.typography.titleMedium)
+                // Real user report, 2026-08: show whatever photo the member set in their own
+                // Profile screen (see ProfileViewModel.setProfilePhoto's Family sync), falling
+                // back to initials for members who haven't set one.
+                if (member.photoUrl != null) {
+                    AsyncImage(
+                        model = member.photoUrl,
+                        contentDescription = member.displayName,
+                        modifier = Modifier.size(56.dp).clip(CircleShape)
+                    )
+                } else {
+                    Text(member.displayName.firstOrNull()?.uppercase() ?: "?", style = MaterialTheme.typography.titleMedium)
+                }
             }
             Box(
                 modifier = Modifier

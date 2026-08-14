@@ -59,6 +59,18 @@ sealed class CommandIntent {
     data class Unrecognized(val rawText: String) : CommandIntent()
 }
 
+/** One prior exchange in the Assistant conversation - threaded through so the AI-backed
+ * interpreter/Q&A path can actually answer a follow-up ("what about last week" after asking about
+ * this week's spend). Real user report, 2026-08: the assistant "forgets the context after 2
+ * conversations" - it was never a model context-window limit, prior turns were simply never sent
+ * to the LLM at all (see AiClient.generateText's kdoc). */
+data class ConversationTurn(val userText: String, val assistantText: String)
+
+/** Flattens turns into the alternating user/assistant [ChatMessage] list [AiClient.generateText]
+ * expects as its `history` param. */
+fun List<ConversationTurn>.toChatMessages(): List<ChatMessage> =
+    flatMap { listOf(ChatMessage(role = "user", content = it.userText), ChatMessage(role = "assistant", content = it.assistantText)) }
+
 interface CommandInterpreter {
-    suspend fun interpret(text: String): CommandIntent
+    suspend fun interpret(text: String, history: List<ConversationTurn> = emptyList()): CommandIntent
 }
