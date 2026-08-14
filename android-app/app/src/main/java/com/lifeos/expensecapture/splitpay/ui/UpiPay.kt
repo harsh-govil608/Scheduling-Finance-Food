@@ -3,6 +3,7 @@ package com.lifeos.expensecapture.splitpay.ui
 import android.content.Intent
 import android.net.Uri
 import java.net.URLEncoder
+import java.util.Locale
 
 /**
  * Real Android UPI Intent flow (2026-08 Smart Split) - `upi://pay` is a standard scheme every
@@ -15,19 +16,29 @@ import java.net.URLEncoder
  */
 object UpiPay {
     /** `am` is formatted to exactly 2 decimals - some UPI apps reject an amount with more or
-     * fewer digits after the decimal point. `pn`/`tn` are free text (a person's name, an expense
-     * description) that can contain spaces/punctuation, so they need percent-encoding - but
-     * `URLEncoder` encodes a space as `+` (application/x-www-form-urlencoded, meant for POST
-     * bodies), not `%20` (the actual URI-component standard); some UPI apps' parsers only
-     * understand `%20` and either drop everything after a `+` or reject the link outright. `pa`
-     * (the payee VPA) is trimmed but deliberately NOT encoded - a real VPA never contains
-     * characters that need it, and encoding could turn a subtly malformed one into something that
-     * *looks* well-formed instead of failing fast. */
+     * fewer digits after the decimal point. Real bug (2026-08-15, user report: "exceeded bank
+     * limit" even at ₹1-2, but the identical amount paid fine manually in GPay outside this app):
+     * `"%.2f".format(amount)` without an explicit Locale uses the DEVICE's default locale for the
+     * decimal separator - on a locale where that's a comma, this silently produced `am=1,00`
+     * instead of `am=1.00`. A malformed amount is exactly the kind of thing a UPI app falls back
+     * to a generic decline reason for rather than a clear "couldn't read this link" error, and
+     * manual entry in GPay never goes through this code at all, so it was never affected. Locale.US
+     * pins the separator to "." unconditionally, independent of the device's settings.
+     *
+     * `pn`/`tn` are free text (a person's name, an expense description) that can contain
+     * spaces/punctuation, so they need percent-encoding - but `URLEncoder` encodes a space as `+`
+     * (application/x-www-form-urlencoded, meant for POST bodies), not `%20` (the actual
+     * URI-component standard); some UPI apps' parsers only understand `%20` and either drop
+     * everything after a `+` or reject the link outright. `pa` (the payee VPA) is trimmed but
+     * deliberately NOT encoded - a real VPA never contains characters that need it, and encoding
+     * could turn a subtly malformed one into something that *looks* well-formed instead of
+     * failing fast. */
     fun buildPayUri(payeeVpa: String, payeeName: String, amount: Double, note: String): Uri {
         val encodedNote = URLEncoder.encode(note, "UTF-8").replace("+", "%20")
         val encodedName = URLEncoder.encode(payeeName, "UTF-8").replace("+", "%20")
+        val formattedAmount = String.format(Locale.US, "%.2f", amount)
         return Uri.parse(
-            "upi://pay?pa=${payeeVpa.trim()}&pn=$encodedName&am=${"%.2f".format(amount)}&cu=INR&tn=$encodedNote"
+            "upi://pay?pa=${payeeVpa.trim()}&pn=$encodedName&am=$formattedAmount&cu=INR&tn=$encodedNote"
         )
     }
 

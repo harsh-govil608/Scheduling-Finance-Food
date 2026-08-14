@@ -1,6 +1,6 @@
 {
-  "versionCode": 83,
-  "versionName": "0.58.4-pilot",
+  "versionCode": 84,
+  "versionName": "0.58.5-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes a UPI payment link encoding bug that could cause Settle Up via UPI to fail or get declined by the bank, even though paying the same person manually through GPay worked fine."
+  "notes": "Fixes the actual cause of Settle Up via UPI being declined with \"exceeded bank limit\" even for ₹1-2 - the payment amount could get sent with a comma instead of a period (e.g. 1,00 instead of 1.00) depending on the phone's language/region settings, which GPay/PhonePe can't parse as a valid amount. Now always sends it the same way regardless of phone settings."
 }
