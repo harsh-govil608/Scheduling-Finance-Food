@@ -33,17 +33,20 @@ object UpiPay {
      * deliberately NOT encoded - a real VPA never contains characters that need it, and encoding
      * could turn a subtly malformed one into something that *looks* well-formed instead of
      * failing fast. */
-    fun buildPayUri(payeeVpa: String, payeeName: String, amount: Double, note: String): Uri {
+    // Returns a plain String rather than android.net.Uri (2026-08-15) - pure string-building,
+    // no actual Android framework dependency, which lets this be covered by a real plain-JVM
+    // unit test (UpiPayTest) instead of needing Robolectric/instrumentation just to check a URI
+    // string's contents. Uri.parse only happens in payIntent below, the one place that actually
+    // needs a real Uri object for an Intent.
+    fun buildPayUri(payeeVpa: String, payeeName: String, amount: Double, note: String): String {
         val encodedNote = URLEncoder.encode(note, "UTF-8").replace("+", "%20")
         val encodedName = URLEncoder.encode(payeeName, "UTF-8").replace("+", "%20")
         val formattedAmount = String.format(Locale.US, "%.2f", amount)
-        return Uri.parse(
-            "upi://pay?pa=${payeeVpa.trim()}&pn=$encodedName&am=$formattedAmount&cu=INR&tn=$encodedNote"
-        )
+        return "upi://pay?pa=${payeeVpa.trim()}&pn=$encodedName&am=$formattedAmount&cu=INR&tn=$encodedNote"
     }
 
     fun payIntent(payeeVpa: String, payeeName: String, amount: Double, note: String): Intent =
-        Intent(Intent.ACTION_VIEW, buildPayUri(payeeVpa, payeeName, amount, note))
+        Intent(Intent.ACTION_VIEW, Uri.parse(buildPayUri(payeeVpa, payeeName, amount, note)))
 
     /**
      * UPI apps that cooperate with the "collect via intent" convention return a result string

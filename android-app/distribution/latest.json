@@ -1,6 +1,6 @@
 {
-  "versionCode": 87,
-  "versionName": "0.59.0-pilot",
+  "versionCode": 88,
+  "versionName": "0.59.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "First step of Hindi support: choose English or हिन्दी on first open (change anytime from Profile > App Language). The bottom navigation and the entire first-time setup flow now show in your chosen language - more of the app will follow in future updates."
+  "notes": "Internal only - no visible changes. Adds automated regression tests locking in this week's Smart Split payment fixes so they can't silently break again."
 }
