@@ -1,6 +1,6 @@
 {
-  "versionCode": 94,
-  "versionName": "0.60.4-pilot",
+  "versionCode": 95,
+  "versionName": "0.60.5-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes 'Not a bill' not sticking (it was silently un-dismissing itself the next time you opened the app) and the Hindi app-language switch in Profile not actually applying on most phones."
+  "notes": "Hindi now actually translates the Finance and Home dashboards (labels, buttons, section headers), not just the bottom nav. Full app-wide translation is still in progress - most other screens are still English-only for now."
 }

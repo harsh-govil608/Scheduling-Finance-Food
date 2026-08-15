@@ -31,4 +31,102 @@
     <string name="onboarding_not_now">Not now</string>
     <string name="onboarding_all_set">You\'re all set</string>
     <string name="onboarding_go_home">Go to my Finance home</string>
+
+    <!-- Finance Home (Pillar.FINANCE dashboard, HomeScreen.kt) - static labels only. The
+         dynamically-composed narrative sentences (spendingInsightText, attentionItemText - each
+         stitches together 2-4 interpolated numbers/names in English word order) are deliberately
+         NOT covered here yet; a rushed literal conversion of those risks grammatically broken
+         Hindi, which is worse than leaving them in English until they can be done properly. -->
+    <string name="home_customize_dashboard">Customize Dashboard</string>
+    <string name="home_notifications">Notifications</string>
+    <string name="home_update_available">Update available (v%1$s)</string>
+    <string name="home_downloading">Downloading…</string>
+    <string name="home_download_install">Download &amp; install</string>
+    <string name="home_later">Later</string>
+    <string name="home_good_morning_title">Good morning</string>
+    <string name="home_good_morning_greeting">Good morning!</string>
+    <string name="home_nothing_needs_attention">Nothing needs your attention this morning.</string>
+    <string name="home_got_it">Got it</string>
+    <string name="home_read_aloud">Read aloud</string>
+    <string name="home_offline_banner">Offline - everything here still works fully; nothing in this app needs a connection.</string>
+    <string name="home_sms_off_title">SMS access was turned off</string>
+    <string name="home_sms_off_body">Automatic capture is paused. You can still add expenses manually, or re-enable it from Permissions.</string>
+    <string name="home_review_permissions">Review permissions</string>
+    <string name="home_needs_attention">Needs attention</string>
+    <string name="home_what_changed">What changed</string>
+    <string name="home_spent_this_month">Spent this month</string>
+    <string name="home_nothing_captured_yet">Nothing captured yet - grant SMS access or add a transaction manually to get started.</string>
+    <string name="home_last_7_days">Last 7 days</string>
+    <string name="home_today_label">Today</string>
+    <string name="home_stat_income">Income</string>
+    <string name="home_stat_expenses">Expenses</string>
+    <string name="home_stat_savings">Savings</string>
+    <string name="home_stat_investments">Investments</string>
+    <string name="home_quick_actions">Quick Actions</string>
+    <string name="home_qa_add_expense">Add Expense</string>
+    <string name="home_qa_add_income">Add Income</string>
+    <string name="home_qa_split_expenses">Split Expenses</string>
+    <string name="home_qa_search">Search</string>
+    <string name="home_qa_import_statement">Import Statement</string>
+    <string name="home_qa_pay_cycle">Pay Cycle</string>
+    <string name="home_qa_your_day">Your Day</string>
+    <string name="home_recent_transactions">Recent Transactions</string>
+    <string name="home_view_all">View All</string>
+    <string name="home_uncategorized">Uncategorized</string>
+    <string name="home_explore">Explore</string>
+    <string name="home_entry_ledger_title">Ledger</string>
+    <string name="home_entry_ledger_body">All captured and manual transactions</string>
+    <string name="home_entry_budgets_title">Budgets</string>
+    <string name="home_entry_budgets_body">Set limits and see where you stand, with a month-end projection</string>
+    <string name="home_entry_subscriptions_title">Subscriptions</string>
+    <string name="home_entry_subscriptions_body">Recurring charges detected from your transaction history</string>
+    <string name="home_entry_bills_title">Bills</string>
+    <string name="home_entry_bills_body">Variable-amount recurring payments and due dates</string>
+    <string name="home_entry_needs_review_title">Needs Review</string>
+    <string name="home_entry_needs_review_body">Messages the parser couldn\'t confidently read</string>
+
+    <!-- Home pillar / productivity dashboard (Pillar.HOME, ProductivityHomeScreen.kt) - static
+         labels only, same scoping rationale as the Finance Home section above. -->
+    <string name="prod_timeline">Timeline</string>
+    <string name="prod_projects">Projects</string>
+    <string name="prod_journal">Journal</string>
+    <string name="prod_shopping">Shopping</string>
+    <string name="prod_review">Review</string>
+    <string name="prod_quick_actions">Quick actions</string>
+    <string name="prod_create_note">Create Note</string>
+    <string name="prod_add_habit">Add Habit</string>
+    <string name="prod_add_task">Add Task</string>
+    <string name="prod_goal_progress">Goal progress</string>
+    <string name="prod_recent_activity">Recent Activity</string>
+    <string name="prod_family_spent_today">Family spent today</string>
+    <string name="prod_today_score">Today Score</string>
+    <string name="prod_status_on_track">On Track</string>
+    <string name="prod_status_catching_up">Catching Up</string>
+    <string name="prod_status_behind">Behind</string>
+    <string name="prod_score_empty_body">Nothing due or completed yet today - once you\'ve got a task, habit, or two, this fills in.</string>
+    <string name="prod_score_msg_high">Great job! You\'re doing well across your tasks and habits.</string>
+    <string name="prod_score_msg_mid">Making progress - a few more today would help.</string>
+    <string name="prod_score_msg_low">Today\'s tasks and habits could use some attention.</string>
+    <string name="prod_view_insights">View Insights</string>
+    <string name="prod_ai_suggestions">AI Suggestions</string>
+    <string name="prod_live_badge">Live</string>
+    <string name="prod_this_week">This week</string>
+    <string name="prod_completed_count">%1$d completed</string>
+    <string name="prod_tasks_legend">Tasks</string>
+    <string name="prod_habits_legend">Habits</string>
+    <string name="prod_todays_focus">Today\'s Focus</string>
+    <plurals name="prod_tasks_planned">
+        <item quantity="one">%1$d task planned</item>
+        <item quantity="other">%1$d tasks planned</item>
+    </plurals>
+    <string name="prod_nothing_on_list">Nothing on your list.</string>
+    <string name="prod_nothing_due_today">Nothing due today, %1$d open in total</string>
+    <string name="prod_habits_done_count">%1$d/%2$d done</string>
+    <string name="prod_all_habits_done">All habits done for today.</string>
+    <string name="prod_more_suffix">+%1$d more</string>
+    <string name="prod_view_all_tasks">View all tasks</string>
+    <string name="prod_add_task_cd">Add task</string>
+    <string name="prod_priority_low">Low</string>
+    <string name="prod_priority_medium">Medium</string>
+    <string name="prod_priority_high">High</string>
 </resources>

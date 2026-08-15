@@ -58,8 +58,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.R
 import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.data.db.entity.TransactionDirection
 import com.lifeos.expensecapture.data.db.entity.TransactionEntity
@@ -178,6 +180,8 @@ fun HomeScreen(
     val updateViewModel = remember { UpdateViewModel(context) }
     val updateState by updateViewModel.uiState.collectAsState()
     val speak = rememberSpeaker()
+    val goodMorningGreeting = stringResource(R.string.home_good_morning_greeting)
+    val nothingNeedsAttention = stringResource(R.string.home_nothing_needs_attention)
 
     // Proactive audio welcome (found via a real user request, 2026-07 - "at the very beginning
     // audio should come to welcome the guest and summarize as proactive step"): reuses the
@@ -190,8 +194,8 @@ fun HomeScreen(
     LaunchedEffect(morningState.visible) {
         if (morningState.visible && !morningViewModel.alreadySpokenToday()) {
             val lines = listOfNotNull(
-                "Good morning!",
-                morningState.leadItem ?: "Nothing needs your attention this morning.",
+                goodMorningGreeting,
+                morningState.leadItem ?: nothingNeedsAttention,
                 morningState.homeLine,
                 morningState.yesterdaySpendLine
             )
@@ -209,13 +213,13 @@ fun HomeScreen(
                     // the top bar. Search itself is unaffected - still reachable from the "Search"
                     // Quick Action button below (see onOpenSearch's other call site).
                     IconButton(onClick = onOpenDashboardCustomize) {
-                        Icon(Icons.Filled.Tune, contentDescription = "Customize Dashboard")
+                        Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.home_customize_dashboard))
                     }
                     IconButton(onClick = onOpenNotifications) {
                         BadgedBox(badge = {
                             if (uiState.unreadNotifications > 0) Badge { Text("${uiState.unreadNotifications}") }
                         }) {
-                            Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                            Icon(Icons.Default.Notifications, contentDescription = stringResource(R.string.home_notifications))
                         }
                     }
                     ProfileAvatarButton(photoPath = uiState.profilePhotoPath, onClick = onOpenProfile)
@@ -234,7 +238,7 @@ fun HomeScreen(
                     AccentInfoCard(
                         icon = Icons.Filled.Download,
                         accentColor = MaterialTheme.colorScheme.primary,
-                        title = "Update available (v${update.versionName})",
+                        title = stringResource(R.string.home_update_available, update.versionName),
                         body = update.notes.takeIf { it.isNotBlank() }
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -243,7 +247,7 @@ fun HomeScreen(
                                 enabled = !updateState.downloading,
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                             ) {
-                                Text(if (updateState.downloading) "Downloading..." else "Download & install")
+                                Text(stringResource(if (updateState.downloading) R.string.home_downloading else R.string.home_download_install))
                             }
                             if (updateState.downloading) {
                                 Spacer(Modifier.width(8.dp))
@@ -252,7 +256,7 @@ fun HomeScreen(
                             TextButton(
                                 onClick = { updateViewModel.dismiss() },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                            ) { Text("Later") }
+                            ) { Text(stringResource(R.string.home_later)) }
                         }
                     }
                 }
@@ -263,8 +267,8 @@ fun HomeScreen(
                     AccentInfoCard(
                         icon = Icons.Filled.WbSunny,
                         accentColor = MaterialTheme.colorScheme.primary,
-                        title = "Good morning",
-                        body = morningState.leadItem ?: "Nothing needs your attention this morning."
+                        title = stringResource(R.string.home_good_morning_title),
+                        body = morningState.leadItem ?: nothingNeedsAttention
                     ) {
                         morningState.homeLine?.let { line ->
                             Text(line, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -279,7 +283,7 @@ fun HomeScreen(
                             TextButton(
                                 onClick = { morningViewModel.dismiss() },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                            ) { Text("Got it") }
+                            ) { Text(stringResource(R.string.home_got_it)) }
                             TextButton(
                                 onClick = {
                                     // Warmer framing (found via a real user report, 2026-07 -
@@ -289,8 +293,8 @@ fun HomeScreen(
                                     // it starts like a greeting rather than launching straight
                                     // into information.
                                     val lines = listOfNotNull(
-                                        "Good morning!",
-                                        morningState.leadItem ?: "Nothing needs your attention this morning.",
+                                        goodMorningGreeting,
+                                        morningState.leadItem ?: nothingNeedsAttention,
                                         morningState.homeLine,
                                         morningState.yesterdaySpendLine
                                     )
@@ -300,7 +304,7 @@ fun HomeScreen(
                             ) {
                                 Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Read aloud")
+                                Text(stringResource(R.string.home_read_aloud))
                             }
                         }
                     }
@@ -310,7 +314,7 @@ fun HomeScreen(
             if (!uiState.isOnline) {
                 item {
                     Text(
-                        "Offline - everything here still works fully; nothing in this app needs a connection.",
+                        stringResource(R.string.home_offline_banner),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
@@ -323,13 +327,13 @@ fun HomeScreen(
                     AccentInfoCard(
                         icon = Icons.Filled.Warning,
                         accentColor = WarningStrong,
-                        title = "SMS access was turned off",
-                        body = "Automatic capture is paused. You can still add expenses manually, or re-enable it from Permissions."
+                        title = stringResource(R.string.home_sms_off_title),
+                        body = stringResource(R.string.home_sms_off_body)
                     ) {
                         TextButton(
                             onClick = onOpenPermissionsReview,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                        ) { Text("Review permissions") }
+                        ) { Text(stringResource(R.string.home_review_permissions)) }
                     }
                 }
             }
@@ -350,7 +354,7 @@ fun HomeScreen(
                                 AccentInfoCard(
                                     icon = Icons.Filled.PriorityHigh,
                                     accentColor = Warning,
-                                    title = "Needs attention",
+                                    title = stringResource(R.string.home_needs_attention),
                                     body = attentionItemText(attention)
                                 )
                             }
@@ -406,15 +410,15 @@ fun HomeScreen(
 @Composable
 private fun HeroSection(uiState: HomeUiState) {
     HeroMoneyCard(
-        label = "Spent this month",
+        label = stringResource(R.string.home_spent_this_month),
         amount = uiState.spentThisMonth,
         caption = if (!uiState.hasAnyData) {
-            "Nothing captured yet - grant SMS access or add a transaction manually to get started."
+            stringResource(R.string.home_nothing_captured_yet)
         } else {
-            "Last 7 days"
+            stringResource(R.string.home_last_7_days)
         },
         trend = uiState.last7DaysSpend,
-        secondaryLabel = if (uiState.hasAnyData) "Today" else null,
+        secondaryLabel = if (uiState.hasAnyData) stringResource(R.string.home_today_label) else null,
         secondaryAmount = if (uiState.hasAnyData) uiState.spentToday else null,
         trendThreshold = uiState.dailySpendThreshold
     )
@@ -432,7 +436,7 @@ private fun StatsSection(uiState: HomeUiState) {
                 icon = Icons.Filled.TrendingUp,
                 iconTint = MaterialTheme.colorScheme.primary,
                 iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                label = "Income",
+                label = stringResource(R.string.home_stat_income),
                 value = "₹${"%.2f".format(uiState.incomeThisMonth)}",
                 deltaText = uiState.incomeDeltaPercent?.let { "${if (it >= 0) "▲" else "▼"} ${"%.1f".format(kotlin.math.abs(it))}%" },
                 deltaPositive = (uiState.incomeDeltaPercent ?: 0f) >= 0f,
@@ -442,7 +446,7 @@ private fun StatsSection(uiState: HomeUiState) {
                 icon = Icons.Filled.TrendingDown,
                 iconTint = MaterialTheme.colorScheme.error,
                 iconContainerColor = MaterialTheme.colorScheme.errorContainer,
-                label = "Expenses",
+                label = stringResource(R.string.home_stat_expenses),
                 value = "₹${"%.2f".format(uiState.spentThisMonth)}",
                 // Rising spend is the "bad" direction here, opposite of income's polarity.
                 deltaText = uiState.expensesDeltaPercent?.let { "${if (it >= 0) "▲" else "▼"} ${"%.1f".format(kotlin.math.abs(it))}%" },
@@ -455,7 +459,7 @@ private fun StatsSection(uiState: HomeUiState) {
                 icon = Icons.Filled.Savings,
                 iconTint = MaterialTheme.colorScheme.tertiary,
                 iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                label = "Savings",
+                label = stringResource(R.string.home_stat_savings),
                 value = "₹${"%.2f".format(uiState.savingsThisMonth)}",
                 modifier = Modifier.weight(1f)
             )
@@ -463,7 +467,7 @@ private fun StatsSection(uiState: HomeUiState) {
                 icon = Icons.Filled.AccountBalanceWallet,
                 iconTint = MaterialTheme.colorScheme.secondary,
                 iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                label = "Investments",
+                label = stringResource(R.string.home_stat_investments),
                 value = "₹${"%.2f".format(uiState.investmentsTotal)}",
                 modifier = Modifier.weight(1f)
             )
@@ -482,7 +486,7 @@ private fun InsightSection(insight: com.lifeos.expensecapture.finance.SpendingIn
     val polished by produceState(initialValue = factual, factual) {
         value = AiTextPolisher.polish(factual)
     }
-    AiInsightCard(title = "What changed", body = polished)
+    AiInsightCard(title = stringResource(R.string.home_what_changed), body = polished)
 }
 
 @Composable
@@ -497,7 +501,7 @@ private fun QuickActionsSection(
     onOpenInvestments: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionLabel("Quick Actions")
+        SectionLabel(stringResource(R.string.home_quick_actions))
         // 2x4 grid, not a scroll row (real user feedback, 2026-08: a horizontally scrolling row
         // hid the extra four actions instead of making them easier to reach) - all eight visible
         // at once, two rows of four.
@@ -505,28 +509,28 @@ private fun QuickActionsSection(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 QuickActionButton(
                     icon = Icons.Filled.Add,
-                    label = "Add Expense",
+                    label = stringResource(R.string.home_qa_add_expense),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     iconTint = MaterialTheme.colorScheme.primary,
                     onClick = onAddExpense
                 )
                 QuickActionButton(
                     icon = Icons.Filled.ArrowDownward,
-                    label = "Add Income",
+                    label = stringResource(R.string.home_qa_add_income),
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     onClick = onAddIncome
                 )
                 QuickActionButton(
                     icon = Icons.Filled.Groups,
-                    label = "Split Expenses",
+                    label = stringResource(R.string.home_qa_split_expenses),
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     onClick = onOpenSplitExpenses
                 )
                 QuickActionButton(
                     icon = Icons.Filled.Search,
-                    label = "Search",
+                    label = stringResource(R.string.home_qa_search),
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
                     onClick = onOpenSearch
@@ -535,28 +539,28 @@ private fun QuickActionsSection(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 QuickActionButton(
                     icon = Icons.Filled.UploadFile,
-                    label = "Import Statement",
+                    label = stringResource(R.string.home_qa_import_statement),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     iconTint = MaterialTheme.colorScheme.primary,
                     onClick = onOpenImportStatement
                 )
                 QuickActionButton(
                     icon = Icons.Filled.AccountBalanceWallet,
-                    label = "Pay Cycle",
+                    label = stringResource(R.string.home_qa_pay_cycle),
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     onClick = onOpenPayCycle
                 )
                 QuickActionButton(
                     icon = Icons.Filled.Today,
-                    label = "Your Day",
+                    label = stringResource(R.string.home_qa_your_day),
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     onClick = onOpenNightSummary
                 )
                 QuickActionButton(
                     icon = Icons.Filled.TrendingUp,
-                    label = "Investments",
+                    label = stringResource(R.string.home_stat_investments),
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     iconTint = MaterialTheme.colorScheme.secondary,
                     onClick = onOpenInvestments
@@ -578,8 +582,8 @@ private fun RecentTransactionsSection(uiState: HomeUiState, onOpenLedger: () -> 
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionLabel("Recent Transactions")
-            TextButton(onClick = onOpenLedger) { Text("View All") }
+            SectionLabel(stringResource(R.string.home_recent_transactions))
+            TextButton(onClick = onOpenLedger) { Text(stringResource(R.string.home_view_all)) }
         }
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -587,11 +591,12 @@ private fun RecentTransactionsSection(uiState: HomeUiState, onOpenLedger: () -> 
             colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
         ) {
             Column {
+                val uncategorizedLabel = stringResource(R.string.home_uncategorized)
                 uiState.recentTransactions.forEachIndexed { index, transaction ->
                     TransactionRow(
                         transaction = transaction,
                         categoryName = uiState.categories.firstOrNull { it.id == transaction.categoryId }?.name
-                            ?: "Uncategorized",
+                            ?: uncategorizedLabel,
                         onClick = onOpenLedger
                     )
                     if (index != uiState.recentTransactions.lastIndex) {
@@ -612,26 +617,26 @@ private fun ExploreSection(
     onOpenNeedsReview: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionLabel("Explore")
+        SectionLabel(stringResource(R.string.home_explore))
         EntryRow(
             Icons.Filled.ReceiptLong, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
-            "Ledger", "All captured and manual transactions", onOpenLedger
+            stringResource(R.string.home_entry_ledger_title), stringResource(R.string.home_entry_ledger_body), onOpenLedger
         )
         EntryRow(
             Icons.Filled.PieChart, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer,
-            "Budgets", "Set limits and see where you stand, with a month-end projection", onOpenBudgets
+            stringResource(R.string.home_entry_budgets_title), stringResource(R.string.home_entry_budgets_body), onOpenBudgets
         )
         EntryRow(
             Icons.Filled.Autorenew, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
-            "Subscriptions", "Recurring charges detected from your transaction history", onOpenSubscriptions
+            stringResource(R.string.home_entry_subscriptions_title), stringResource(R.string.home_entry_subscriptions_body), onOpenSubscriptions
         )
         EntryRow(
             Icons.Filled.Payments, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
-            "Bills", "Variable-amount recurring payments and due dates", onOpenBills
+            stringResource(R.string.home_entry_bills_title), stringResource(R.string.home_entry_bills_body), onOpenBills
         )
         EntryRow(
             Icons.Filled.Inbox, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
-            "Needs Review", "Messages the parser couldn't confidently read", onOpenNeedsReview
+            stringResource(R.string.home_entry_needs_review_title), stringResource(R.string.home_entry_needs_review_body), onOpenNeedsReview
         )
     }
 }

@@ -55,9 +55,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
+import com.lifeos.expensecapture.R
 import com.lifeos.expensecapture.assistant.AiTextPolisher
 import com.lifeos.expensecapture.data.db.entity.TaskPriority
 import com.lifeos.expensecapture.ui.common.ActionTile
@@ -149,55 +152,55 @@ fun ProductivityHomeScreen(
                 )
             }
 
-            item { SectionLabel("Explore") }
+            item { SectionLabel(stringResource(R.string.home_explore)) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                         ExploreTile(
                             Icons.Filled.Timeline, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.tertiaryContainer,
-                            "Timeline", onOpenTimeline, Modifier.weight(1f)
+                            stringResource(R.string.prod_timeline), onOpenTimeline, Modifier.weight(1f)
                         )
                         ExploreTile(
                             Icons.Filled.Folder, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
-                            "Projects", onOpenProjects, Modifier.weight(1f)
+                            stringResource(R.string.prod_projects), onOpenProjects, Modifier.weight(1f)
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                         ExploreTile(
                             Icons.Filled.MenuBook, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer,
-                            "Journal", onOpenJournal, Modifier.weight(1f)
+                            stringResource(R.string.prod_journal), onOpenJournal, Modifier.weight(1f)
                         )
                         ExploreTile(
                             Icons.Filled.ShoppingCart, MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.tertiaryContainer,
-                            "Shopping", onOpenShopping, Modifier.weight(1f)
+                            stringResource(R.string.prod_shopping), onOpenShopping, Modifier.weight(1f)
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                         ExploreTile(
                             Icons.Filled.Assessment, MaterialTheme.colorScheme.outline, MaterialTheme.colorScheme.surfaceVariant,
-                            "Review", onOpenReview, Modifier.weight(1f)
+                            stringResource(R.string.prod_review), onOpenReview, Modifier.weight(1f)
                         )
                         Spacer(Modifier.weight(1f))
                     }
                 }
             }
 
-            item { SectionLabel("Quick actions") }
+            item { SectionLabel(stringResource(R.string.prod_quick_actions)) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        ActionTile(Icons.Filled.Receipt, "Add Expense", onOpenLedger, Modifier.weight(1f))
-                        ActionTile(Icons.Filled.NoteAdd, "Create Note", onOpenNotes, Modifier.weight(1f))
+                        ActionTile(Icons.Filled.Receipt, stringResource(R.string.home_qa_add_expense), onOpenLedger, Modifier.weight(1f))
+                        ActionTile(Icons.Filled.NoteAdd, stringResource(R.string.prod_create_note), onOpenNotes, Modifier.weight(1f))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        ActionTile(Icons.Filled.PlaylistAdd, "Add Habit", onOpenHabits, Modifier.weight(1f))
-                        ActionTile(Icons.Filled.CheckBoxOutlineBlank, "Add Task", onOpenTasks, Modifier.weight(1f))
+                        ActionTile(Icons.Filled.PlaylistAdd, stringResource(R.string.prod_add_habit), onOpenHabits, Modifier.weight(1f))
+                        ActionTile(Icons.Filled.CheckBoxOutlineBlank, stringResource(R.string.prod_add_task), onOpenTasks, Modifier.weight(1f))
                     }
                 }
             }
 
             if (uiState.projects.isNotEmpty()) {
-                item { SectionLabel("Projects") }
+                item { SectionLabel(stringResource(R.string.prod_projects)) }
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                         uiState.projects.take(2).forEach { row ->
@@ -249,7 +252,7 @@ fun ProductivityHomeScreen(
             }
 
             if (uiState.goals.isNotEmpty()) {
-                item { SectionLabel("Goal progress") }
+                item { SectionLabel(stringResource(R.string.prod_goal_progress)) }
                 item {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -279,7 +282,7 @@ fun ProductivityHomeScreen(
             }
 
             if (uiState.recentActivity.isNotEmpty()) {
-                item { SectionLabel("Recent Activity") }
+                item { SectionLabel(stringResource(R.string.prod_recent_activity)) }
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -317,7 +320,7 @@ private fun FamilySpendTodayCard(spend: Double, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("Family spent today", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.prod_family_spent_today), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("₹${"%.2f".format(spend)}", style = MaterialTheme.typography.titleLarge)
             }
             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
@@ -371,13 +374,13 @@ private fun TodayScoreCard(score: Int?, onViewInsights: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Today Score", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.prod_today_score), style = MaterialTheme.typography.titleMedium)
                 }
                 if (score != null) {
                     val (statusText, statusColor) = when {
-                        score >= 70 -> "On Track" to accent
-                        score >= 40 -> "Catching Up" to Warning
-                        else -> "Behind" to WarningStrong
+                        score >= 70 -> stringResource(R.string.prod_status_on_track) to accent
+                        score >= 40 -> stringResource(R.string.prod_status_catching_up) to Warning
+                        else -> stringResource(R.string.prod_status_behind) to WarningStrong
                     }
                     StatusChipLabel(statusText, statusColor)
                 }
@@ -385,8 +388,7 @@ private fun TodayScoreCard(score: Int?, onViewInsights: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             if (score == null) {
                 Text(
-                    "Nothing due or completed yet today - once you've got a task, habit, or two, " +
-                        "this fills in.",
+                    stringResource(R.string.prod_score_empty_body),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -397,9 +399,9 @@ private fun TodayScoreCard(score: Int?, onViewInsights: () -> Unit) {
                     else -> WarningStrong
                 }
                 val message = when {
-                    score >= 70 -> "Great job! You're doing well across your tasks and habits."
-                    score >= 40 -> "Making progress - a few more today would help."
-                    else -> "Today's tasks and habits could use some attention."
+                    score >= 70 -> stringResource(R.string.prod_score_msg_high)
+                    score >= 40 -> stringResource(R.string.prod_score_msg_mid)
+                    else -> stringResource(R.string.prod_score_msg_low)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ProgressRing(progress = score / 100f, modifier = Modifier.size(88.dp), progressColor = ringColor) {
@@ -410,7 +412,7 @@ private fun TodayScoreCard(score: Int?, onViewInsights: () -> Unit) {
                 }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = onViewInsights, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
-                    Text("View Insights")
+                    Text(stringResource(R.string.prod_view_insights))
                     Icon(Icons.Filled.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
             }
@@ -456,8 +458,8 @@ private fun AiSuggestionsCard(tips: List<HomeTip>) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("AI Suggestions", style = MaterialTheme.typography.titleMedium)
-                StatusChipLabel("Live", accent)
+                Text(stringResource(R.string.prod_ai_suggestions), style = MaterialTheme.typography.titleMedium)
+                StatusChipLabel(stringResource(R.string.prod_live_badge), accent)
             }
             tips.forEach { tip ->
                 val (icon, tint, container) = when (tip.kind) {
@@ -506,12 +508,12 @@ private fun MiniProductivityChartCard(
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
-                "This week",
+                stringResource(R.string.prod_this_week),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(6.dp))
-            Text("$totalThisWeek completed", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.prod_completed_count, totalThisWeek), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth().height(36.dp),
@@ -541,8 +543,8 @@ private fun MiniProductivityChartCard(
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MiniLegendDot(taskColor, "Tasks")
-                MiniLegendDot(habitColor, "Habits")
+                MiniLegendDot(taskColor, stringResource(R.string.prod_tasks_legend))
+                MiniLegendDot(habitColor, stringResource(R.string.prod_habits_legend))
             }
         }
     }
@@ -586,10 +588,10 @@ private fun TodaysFocusCard(
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Today's Focus", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.prod_todays_focus), style = MaterialTheme.typography.titleMedium)
                 if (uiState.todayTasks.isNotEmpty()) {
                     Text(
-                        "${uiState.todayTasks.size} task${if (uiState.todayTasks.size == 1) "" else "s"} planned",
+                        pluralStringResource(R.plurals.prod_tasks_planned, uiState.todayTasks.size, uiState.todayTasks.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -598,7 +600,7 @@ private fun TodaysFocusCard(
             Spacer(Modifier.height(16.dp))
             if (uiState.todayTasks.isEmpty()) {
                 Text(
-                    if (uiState.totalOpenTasks == 0) "Nothing on your list." else "Nothing due today, ${uiState.totalOpenTasks} open in total",
+                    if (uiState.totalOpenTasks == 0) stringResource(R.string.prod_nothing_on_list) else stringResource(R.string.prod_nothing_due_today, uiState.totalOpenTasks),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -628,7 +630,7 @@ private fun TodaysFocusCard(
                 }
                 if (uiState.todayTasks.size > 5) {
                     Text(
-                        "+${uiState.todayTasks.size - 5} more",
+                        stringResource(R.string.prod_more_suffix, uiState.todayTasks.size - 5),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -638,9 +640,9 @@ private fun TodaysFocusCard(
             if (uiState.totalHabits > 0) {
                 Spacer(Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Habits", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.prod_habits_legend), style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "${uiState.doneTodayHabitsCount}/${uiState.totalHabits} done",
+                        stringResource(R.string.prod_habits_done_count, uiState.doneTodayHabitsCount, uiState.totalHabits),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -648,7 +650,7 @@ private fun TodaysFocusCard(
                 Spacer(Modifier.height(8.dp))
                 if (uiState.pendingHabitsToday.isEmpty()) {
                     Text(
-                        "All habits done for today.",
+                        stringResource(R.string.prod_all_habits_done),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -676,7 +678,7 @@ private fun TodaysFocusCard(
                     }
                     if (uiState.pendingHabitsToday.size > 5) {
                         Text(
-                            "+${uiState.pendingHabitsToday.size - 5} more",
+                            stringResource(R.string.prod_more_suffix, uiState.pendingHabitsToday.size - 5),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -687,13 +689,13 @@ private fun TodaysFocusCard(
             Spacer(Modifier.height(4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onOpenTasks, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
-                    Text("View all tasks")
+                    Text(stringResource(R.string.prod_view_all_tasks))
                 }
                 IconButton(
                     onClick = onOpenTasks,
                     modifier = Modifier.size(36.dp).clip(CircleShape).background(accent)
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add task", tint = MaterialTheme.colorScheme.onPrimary)
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.prod_add_task_cd), tint = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
@@ -705,12 +707,12 @@ private fun TodaysFocusCard(
  * file for two call sites. */
 @Composable
 private fun PriorityChip(priority: TaskPriority) {
-    val color = when (priority) {
-        TaskPriority.LOW -> Color(0xFF6B8F71)
-        TaskPriority.MEDIUM -> Warning
-        TaskPriority.HIGH -> WarningStrong
+    val (label, color) = when (priority) {
+        TaskPriority.LOW -> stringResource(R.string.prod_priority_low) to Color(0xFF6B8F71)
+        TaskPriority.MEDIUM -> stringResource(R.string.prod_priority_medium) to Warning
+        TaskPriority.HIGH -> stringResource(R.string.prod_priority_high) to WarningStrong
     }
-    StatusChipLabel(priority.name.lowercase().replaceFirstChar { it.uppercase() }, color)
+    StatusChipLabel(label, color)
 }
 
 @Composable
