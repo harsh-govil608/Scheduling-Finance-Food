@@ -213,20 +213,21 @@ class FinanceInsightsRepository(
                 )
             )
         } else {
-            // Explicitly categorizing a transaction as Bills & Utilities is a deliberate, more
-            // recent signal than any prior dismiss - un-cancels a previously "Not a bill"-
-            // dismissed row instead of leaving it stuck forever. The CANCELLED guard elsewhere
-            // exists to stop the OLD repeated-merchant guessing from resurrecting a dismissed
-            // row - that guess-based path no longer creates Bills at all (see
-            // refreshRecurringDetection), so this different, explicit trigger is allowed to bring
-            // it back for re-confirmation.
-            val nextStatus = if (existing.status == BillStatus.CANCELLED) BillStatus.DETECTED_UNCONFIRMED else existing.status
+            // Real bug fix (2026-08, user report - "Not a bill" wasn't sticking): this used to
+            // un-cancel a dismissed bill here on the theory that seeing a Bills & Utilities
+            // transaction again was a "fresh" signal worth re-confirming. It isn't - dismissing a
+            // bill doesn't recategorize its transactions, and refreshRecurringDetection runs
+            // automatically on every Home open (HomeViewModel) plus the periodic
+            // NotificationCheckWorker, so it re-observes the exact same already-categorized
+            // transactions on every pass, not just when something new happens. That silently
+            // flipped CANCELLED back to DETECTED_UNCONFIRMED within seconds of the user dismissing
+            // it. CANCELLED now stays CANCELLED here, same as the DETECTED_UNCONFIRMED/
+            // CONFIRMED_TRACKED cases - a dismissed merchant can only come back via manual re-add.
             billDao.update(
                 existing.copy(
                     typicalAmount = typicalAmount,
                     dueDayOfMonth = dueDayOfMonth,
-                    lastPaidDate = latest.date,
-                    status = nextStatus
+                    lastPaidDate = latest.date
                 )
             )
         }

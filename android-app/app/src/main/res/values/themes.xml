@@ -1,5 +1,14 @@
 <resources>
-    <style name="Theme.ExpenseCapture" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Bug fix (2026-08, real user report: "app language isn't changing to Hindi" from the
+         Profile screen) - was android:Theme.Material.Light.NoActionBar, a plain platform theme.
+         AppCompatDelegate.setApplicationLocales' automatic per-app-language recreation (see
+         LocaleHelper's kdoc) only works below Android 13 when the Activity is an AppCompatActivity
+         wired through a Theme.AppCompat-descended theme - MainActivity was a plain
+         ComponentActivity with this platform theme, so on any device older than Android 13 the
+         Hindi selection was silently recorded but never actually applied to any resource lookup.
+         Android 13+ devices worked fine already, since that OS version applies per-app language
+         via its own LocaleManager regardless of Activity/theme base class. -->
+    <style name="Theme.ExpenseCapture" parent="Theme.AppCompat.Light.NoActionBar" />
 
     <!-- Voice quick-capture (2026-08) - makes VoiceCaptureActivity feel like a floating
          quick-action rather than "the app" opening, since it's launched from a Quick Settings

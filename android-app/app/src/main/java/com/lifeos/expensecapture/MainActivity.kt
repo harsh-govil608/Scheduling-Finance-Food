@@ -1,8 +1,8 @@
 package com.lifeos.expensecapture
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -10,7 +10,11 @@ import androidx.compose.ui.Modifier
 import com.lifeos.expensecapture.ui.navigation.PilotApp
 import com.lifeos.expensecapture.ui.theme.ExpenseCaptureTheme
 
-class MainActivity : ComponentActivity() {
+// AppCompatActivity, not a plain ComponentActivity (2026-08 fix - see themes.xml's kdoc on
+// Theme.ExpenseCapture for why): AppCompatDelegate.setApplicationLocales needs this base class to
+// actually apply/recreate on Android versions below 13. Fully compatible with Compose's setContent
+// - AppCompatActivity extends androidx.activity.ComponentActivity too, just with this extra plumbing.
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

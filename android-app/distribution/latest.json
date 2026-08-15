@@ -1,6 +1,6 @@
 {
-  "versionCode": 93,
-  "versionName": "0.60.3-pilot",
+  "versionCode": 94,
+  "versionName": "0.60.4-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Registers this app's signing certificate with Firebase - should fix phone OTP verification issues when opening Family Sharing for the first time, and enables Google Drive sign-in properly."
+  "notes": "Fixes 'Not a bill' not sticking (it was silently un-dismissing itself the next time you opened the app) and the Hindi app-language switch in Profile not actually applying on most phones."
 }
