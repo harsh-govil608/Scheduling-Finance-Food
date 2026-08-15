@@ -1,6 +1,6 @@
 {
-  "versionCode": 92,
-  "versionName": "0.60.2-pilot",
+  "versionCode": 93,
+  "versionName": "0.60.3-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Adds a Leave Family button (Family > Members) for anyone who isn't the family owner - previously the only way to leave was the owner deleting the whole family for everyone."
+  "notes": "Registers this app's signing certificate with Firebase - should fix phone OTP verification issues when opening Family Sharing for the first time, and enables Google Drive sign-in properly."
 }
