@@ -1,6 +1,6 @@
 {
-  "versionCode": 89,
-  "versionName": "0.59.2-pilot",
+  "versionCode": 90,
+  "versionName": "0.60.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes Family Sharing document uploads (were failing for everyone), a timezone bug where a Goal's custom target date could save as the wrong day, list flicker across Family's shared modules, a health-record privacy leak, and a stale SOS status message."
+  "notes": "Adds Automatic Backup to Google Drive (Profile > Backup & Restore) - sign in once and it backs up daily on its own. Also adds a Wire-up for archiving Projects, and a size limit on Family document uploads. Note: Drive backup needs a one-time setup on the developer's end before it'll actually work - not usable yet if you try it."
 }

@@ -36,6 +36,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.family.data.FamilyAuthRepository
 import com.lifeos.expensecapture.family.data.SharedCalendarRepository
@@ -148,10 +150,20 @@ private fun AddCalendarEventDialog(
         text = {
             Column {
                 OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
+                // Real gap found via review, 2026-08-15: daysText.toIntOrNull() ?: 0 used to
+                // silently treat garbage input ("abc") as "today" and accept negative numbers as
+                // a past date with no validation - the user would get a different event than what
+                // they thought they typed, with no error shown. Now a numeric keyboard plus real
+                // validation before Add is even enabled.
+                val daysValue = daysText.toIntOrNull()
+                val daysInvalid = daysValue == null || daysValue < 0
                 OutlinedTextField(
                     value = daysText,
                     onValueChange = { daysText = it },
                     label = { Text("Days from today") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = daysText.isNotBlank() && daysInvalid,
+                    supportingText = { if (daysText.isNotBlank() && daysInvalid) Text("Enter 0 or a positive number of days") },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 )
                 OutlinedTextField(
@@ -163,9 +175,11 @@ private fun AddCalendarEventDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                if (title.isNotBlank()) onConfirm(title.trim(), daysText.toIntOrNull() ?: 0, location)
-            }) { Text("Add") }
+            val daysValue = daysText.toIntOrNull()
+            TextButton(
+                onClick = { onConfirm(title.trim(), daysValue ?: 0, location) },
+                enabled = title.isNotBlank() && daysValue != null && daysValue >= 0
+            ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )

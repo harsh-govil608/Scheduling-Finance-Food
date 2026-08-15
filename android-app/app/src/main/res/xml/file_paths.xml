@@ -2,4 +2,8 @@
 <paths>
     <cache-path name="exports" path="exports/" />
     <cache-path name="updates" path="updates/" />
+    <!-- Google Drive auto-backup download (2026-08-15) - DriveBackupRepository writes the
+         downloaded backup candidate directly to cacheDir, which the "exports"/"updates" entries
+         above don't cover (FileProvider throws if a path isn't declared here). -->
+    <cache-path name="drive_backup" path="." />
 </paths>

@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,8 +38,12 @@ import androidx.compose.ui.unit.dp
 import com.lifeos.expensecapture.App
 import com.lifeos.expensecapture.export.BackupExporter
 import com.lifeos.expensecapture.export.BackupImporter
+import com.lifeos.expensecapture.export.DriveBackupRepository
+import com.lifeos.expensecapture.export.DriveBackupResult
+import com.lifeos.expensecapture.export.DriveBackupWorker
 import com.lifeos.expensecapture.export.RestoreResult
 import com.lifeos.expensecapture.logging.AppLogger
+import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,6 +65,26 @@ fun BackupRestoreScreen(app: App, onBack: () -> Unit) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
     var showRestoreConfirm by remember { mutableStateOf(false) }
+
+    // Auto Backup to Google Drive (2026-08-15) - see DriveBackupRepository's kdoc for the
+    // Drive.file-scoped design and the one-time Google Cloud Console setup this still needs.
+    var driveSignedIn by remember { mutableStateOf(DriveBackupRepository.isSignedIn(context)) }
+    var driveBusy by remember { mutableStateOf(false) }
+    var driveMessage by remember { mutableStateOf<String?>(null) }
+    var showDriveRestoreConfirm by remember { mutableStateOf(false) }
+
+    val driveSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val account = DriveBackupRepository.accountFromSignInResult(result.data)
+        if (account != null) {
+            driveSignedIn = true
+            driveMessage = null
+            DriveBackupWorker.schedulePeriodic(context)
+        } else {
+            driveMessage = "Couldn't sign in to Google Drive"
+        }
+    }
 
     val restoreLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -144,7 +171,113 @@ fun BackupRestoreScreen(app: App, onBack: () -> Unit) {
             errorMessage?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Automatic backup to Google Drive", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (driveSignedIn) {
+                            "Backs up automatically once a day over Wi-Fi. Only this app's own backup files are touched - nothing else in your Drive."
+                        } else {
+                            "Sign in once, and this app backs itself up to your own Google Drive automatically - no more remembering to tap \"Back up now.\""
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (driveSignedIn) {
+                        Button(
+                            onClick = {
+                                driveBusy = true
+                                driveMessage = null
+                                coroutineScope.launch {
+                                    when (val result = DriveBackupRepository.uploadBackup(context, app.database)) {
+                                        is DriveBackupResult.Success -> driveMessage = "Backed up to Drive just now"
+                                        is DriveBackupResult.Failure -> driveMessage = result.message
+                                    }
+                                    driveBusy = false
+                                }
+                            },
+                            enabled = !driveBusy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Back up to Drive now") }
+
+                        OutlinedButton(
+                            onClick = { driveMessage = null; showDriveRestoreConfirm = true },
+                            enabled = !driveBusy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Restore from Drive") }
+
+                        TextButton(
+                            onClick = {
+                                DriveBackupRepository.signOut(context)
+                                DriveBackupWorker.cancel(context)
+                                driveSignedIn = false
+                                driveMessage = null
+                            },
+                            enabled = !driveBusy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Turn off automatic backup") }
+                    } else {
+                        Button(
+                            onClick = { driveSignInLauncher.launch(DriveBackupRepository.getSignInIntent(context)) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Sign in with Google") }
+                    }
+
+                    if (driveBusy) CircularProgressIndicator(modifier = Modifier.padding(top = 4.dp))
+                    driveMessage?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
         }
+    }
+
+    if (showDriveRestoreConfirm) {
+        AlertDialog(
+            onDismissRequest = { if (!driveBusy) showDriveRestoreConfirm = false },
+            title = { Text("Replace all current data?") },
+            text = {
+                Text(
+                    "Restoring your most recent Drive backup permanently replaces every " +
+                        "transaction, budget, task, and habit currently on this device. This " +
+                        "cannot be undone - if you want to keep what's here now, back it up first. " +
+                        "The app will restart to finish restoring."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        driveBusy = true
+                        coroutineScope.launch {
+                            val downloaded = withContext(Dispatchers.IO) { DriveBackupRepository.downloadLatestBackup(context) }
+                            showDriveRestoreConfirm = false
+                            if (downloaded == null) {
+                                driveMessage = "No Drive backup found to restore"
+                                driveBusy = false
+                                return@launch
+                            }
+                            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", downloaded)
+                            when (val result = withContext(Dispatchers.IO) { BackupImporter.restoreDatabase(context, uri) }) {
+                                is RestoreResult.Success -> restartApp(context)
+                                is RestoreResult.InvalidFile -> driveMessage = "The Drive backup doesn't look valid - nothing was changed."
+                                is RestoreResult.Failed -> driveMessage = result.message
+                            }
+                            driveBusy = false
+                        }
+                    },
+                    enabled = !driveBusy
+                ) { Text("Replace and restart", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDriveRestoreConfirm = false }, enabled = !driveBusy) { Text("Cancel") }
+            }
+        )
     }
 
     if (showRestoreConfirm) {

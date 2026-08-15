@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -85,17 +87,29 @@ fun ProjectsScreen(app: App, onBack: () -> Unit, onOpenProject: (Long) -> Unit) 
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
                     ) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(row.project.name, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                if (row.totalTaskCount == 0) {
-                                    "No tasks yet"
-                                } else {
-                                    "${row.openTaskCount} open of ${row.totalTaskCount} tasks"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(row.project.name, style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    if (row.totalTaskCount == 0) {
+                                        "No tasks yet"
+                                    } else {
+                                        "${row.openTaskCount} open of ${row.totalTaskCount} tasks"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            // Real gap found via review, 2026-08-15: ProjectsViewModel.archive()
+                            // was fully implemented (ProjectDao.observeAll() already filters
+                            // WHERE archived = 0) but had no UI ever calling it - a working
+                            // feature with no way to trigger it.
+                            IconButton(onClick = { viewModel.archive(row.project) }) {
+                                Icon(Icons.Filled.Archive, contentDescription = "Archive project")
+                            }
                         }
                     }
                 }

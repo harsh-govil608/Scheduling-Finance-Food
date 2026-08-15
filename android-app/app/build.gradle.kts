@@ -37,8 +37,8 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 89
-        versionName = "0.59.2-pilot"
+        versionCode = 90
+        versionName = "0.60.0-pilot"
         buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY", "")}\"")
     }
 
@@ -83,6 +83,11 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // google-auth-library-oauth2-http and google-auth-library-credentials (transitive
+            // deps of the Drive API client, 2026-08-15) both bundle an identical META-INF/
+            // INDEX.LIST - packaging conflict, not a real difference between the two jars.
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/DEPENDENCIES"
         }
     }
 }
@@ -135,6 +140,22 @@ dependencies {
     // the local Room-backed crash_logs table CrashHandler already writes to.
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // Auto Backup to Google Drive (2026-08-15, real user request, standing backlog item) - Drive
+    // REST API access via a signed-in Google account, scoped to Drive.file (files this app itself
+    // creates only, not the user's whole Drive) so it qualifies for Google's lighter OAuth
+    // verification path rather than a full sensitive-scope review. See DriveBackupRepository's
+    // kdoc for the one-time Google Cloud Console setup this still needs before it works.
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.api-client:google-api-client-android:2.7.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation("com.google.apis:google-api-services-drive:v3-rev20240914-2.0.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation("com.google.http-client:google-http-client-gson:1.45.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
 
     // Monetization scaffolding (2026-08-12, real founder request - "implementation to be paid").
     // Only functions once this app is installed via Google Play (even just the internal testing

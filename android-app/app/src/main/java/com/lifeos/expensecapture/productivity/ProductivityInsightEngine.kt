@@ -35,7 +35,7 @@ object ProductivityInsightEngine {
         val bestStreak = habits
             .mapNotNull { habit ->
                 val days = completionsByHabit[habit.id]?.map { it.dateEpochDay }?.toSet() ?: emptySet()
-                val streak = currentStreak(days, todayEpochDay)
+                val streak = HabitStreakCalculator.currentStreak(days, todayEpochDay)
                 if (streak >= MIN_STREAK_TO_CELEBRATE) habit.name to streak else null
             }
             .maxByOrNull { (_, streak) -> streak }
@@ -60,21 +60,5 @@ object ProductivityInsightEngine {
             taskMomentumLine
         )
         return if (parts.isEmpty()) null else parts.joinToString(" ")
-    }
-
-    /** Same algorithm as HabitsViewModel.currentStreak - kept as its own small copy rather than a
-     * shared utility, since HabitsViewModel's version is private to that screen's own UI-facing
-     * HabitRow model and forcing a shared extraction for one reuse isn't worth the indirection. */
-    private fun currentStreak(days: Set<Long>, today: Long): Int {
-        if (days.isEmpty()) return 0
-        val mostRecent = days.max()
-        if (mostRecent < today - 1) return 0
-        var streak = 0
-        var day = if (days.contains(today)) today else today - 1
-        while (days.contains(day)) {
-            streak++
-            day--
-        }
-        return streak
     }
 }

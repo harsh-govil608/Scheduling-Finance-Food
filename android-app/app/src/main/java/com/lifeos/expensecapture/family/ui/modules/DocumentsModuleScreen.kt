@@ -50,6 +50,11 @@ import com.lifeos.expensecapture.family.model.SharedDocument
 import com.lifeos.expensecapture.ui.common.cardSurfaceColor
 import kotlinx.coroutines.launch
 
+/** 20 MB - generous for a photo/PDF/scanned document, small enough that an upload over a slow
+ * connection still finishes in a reasonable time instead of hanging indefinitely with no
+ * progress indication or way to cancel (real gap found via review, 2026-08-15). */
+private const val MAX_DOCUMENT_UPLOAD_BYTES = 20L * 1024 * 1024
+
 /** Shared Documents module (2026-08 Family module) - a real file, not a placeholder record: the
  * system document picker + a real Firebase Storage upload (see DocumentStorageRepository), then a
  * Firestore record pointing at the resulting download URL. Follows TasksModuleScreen's pattern
@@ -76,10 +81,26 @@ fun DocumentsModuleScreen(familyId: String, onBack: () -> Unit) {
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        var fileName = "document"
+        var fileSize = -1L
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex) else null
-        } ?: "document"
+            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (cursor.moveToFirst()) {
+                if (nameIndex >= 0) fileName = cursor.getString(nameIndex) ?: fileName
+                if (sizeIndex >= 0) fileSize = cursor.getLong(sizeIndex)
+            }
+        }
+
+        // Real gap found via review, 2026-08-15: uploads had no size cap at all - a large
+        // video/PDF would stream indefinitely with no progress indication and no way to cancel.
+        // -1 (size unknown, some content providers don't report it) is let through rather than
+        // blocked, since rejecting a legitimate file just because its size couldn't be read would
+        // be worse than the rare case of an oversized unknown-size file slipping through.
+        if (fileSize > MAX_DOCUMENT_UPLOAD_BYTES) {
+            error = "That file is too large to upload (max ${MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024)} MB)"
+            return@rememberLauncherForActivityResult
+        }
 
         uploading = true
         coroutineScope.launch {
