@@ -1,6 +1,6 @@
 {
-  "versionCode": 91,
-  "versionName": "0.60.1-pilot",
+  "versionCode": 92,
+  "versionName": "0.60.2-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "URGENT: fixes the app crashing immediately on launch after updating to 0.60.0. If the app wouldn't open after your last update, this fixes it - please update again now."
+  "notes": "Adds a Leave Family button (Family > Members) for anyone who isn't the family owner - previously the only way to leave was the owner deleting the whole family for everyone."
 }

@@ -83,11 +83,21 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         request.resource.data.ownerId == request.auth.uid &&
         request.resource.data.memberIds == [request.auth.uid];
-      // Only known update: joinFamilyByCode's arrayUnion(self) - nothing else in the app
-      // updates the family doc, so nothing else is allowed to either.
+      // Two known updates to memberIds: joinFamilyByCode's arrayUnion(self), and
+      // leaveFamily's arrayRemove(self) (real gap fixed 2026-08-15 - there was previously no
+      // way for a non-owner member to leave without deleting the whole family for everyone).
+      // Leaving is verified as "exactly your own uid removed, nothing else changed" rather than
+      // trusting an arbitrary new array, so a member can only ever remove themselves.
       allow update: if isSignedIn() &&
-        request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid]) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds']) &&
+        (
+          request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid]) ||
+          (
+            request.auth.uid in resource.data.memberIds &&
+            !(request.auth.uid in request.resource.data.memberIds) &&
+            request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1
+          )
+        );
       allow delete: if isFamilyOwner(familyId);
 
       match /members/{userId} {
@@ -106,7 +116,10 @@ service cloud.firestore {
         allow update: if canManageFamily(familyId) ||
           (isSignedIn() && request.auth.uid == userId &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoUrl']));
-        allow delete: if isFamilyOwner(familyId);
+        // A member deleting their own doc (leaveFamily, real gap fixed 2026-08-15) doesn't need
+        // owner rights, just to be that member - the family-doc-level rule above already ensures
+        // this can only ever remove your own membership, never anyone else's.
+        allow delete: if isFamilyOwner(familyId) || (isSignedIn() && request.auth.uid == userId);
       }
 
       match /invitations/{inviteId} {

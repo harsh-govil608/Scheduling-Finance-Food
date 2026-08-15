@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -73,6 +75,9 @@ fun FamilyMembersScreen(familyId: String, onBack: () -> Unit) {
     var editingMember by remember { mutableStateOf<FamilyMember?>(null) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
+    var showLeaveConfirm by remember { mutableStateOf(false) }
+    var isLeaving by remember { mutableStateOf(false) }
+    var leaveError by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
@@ -93,6 +98,17 @@ fun FamilyMembersScreen(familyId: String, onBack: () -> Unit) {
                             Icon(
                                 Icons.Filled.DeleteForever,
                                 contentDescription = "Delete family",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    } else if (currentMember != null) {
+                        // Real gap found via review, 2026-08-15: there was previously no way for
+                        // a non-owner member to leave a family without the owner deleting it for
+                        // everyone. The Owner can't leave this way at all (see FamilyRole's kdoc).
+                        IconButton(onClick = { showLeaveConfirm = true }, enabled = !isLeaving) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = "Leave family",
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -193,6 +209,58 @@ fun FamilyMembersScreen(familyId: String, onBack: () -> Unit) {
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }, enabled = !isDeleting) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showLeaveConfirm) {
+        AlertDialog(
+            onDismissRequest = { if (!isLeaving) { showLeaveConfirm = false; leaveError = null } },
+            title = { Text("Leave this family?") },
+            text = {
+                Column {
+                    Text(
+                        "You'll lose access to this family's shared tasks, calendar, expenses, " +
+                            "documents, health records, and emergency contacts. Other members keep " +
+                            "everything - you can rejoin later with a new invite if you change your mind."
+                    )
+                    leaveError?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val uid = currentUserId ?: return@TextButton
+                        isLeaving = true
+                        leaveError = null
+                        coroutineScope.launch {
+                            when (val result = familyRepository.leaveFamily(familyId, uid)) {
+                                is com.lifeos.expensecapture.family.data.FamilyResult.Success -> {
+                                    isLeaving = false
+                                    showLeaveConfirm = false
+                                    onBack()
+                                }
+                                is com.lifeos.expensecapture.family.data.FamilyResult.Failure -> {
+                                    isLeaving = false
+                                    leaveError = result.message
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isLeaving
+                ) {
+                    if (isLeaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    } else {
+                        Text("Leave", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLeaveConfirm = false; leaveError = null }, enabled = !isLeaving) { Text("Cancel") }
             }
         )
     }

@@ -327,6 +327,25 @@ class FamilyRepository(
         }
     }
 
+    /**
+     * Real gap found via review, 2026-08-15: no way for a non-owner member to remove themselves
+     * from a family while leaving it intact for everyone else - only deleteFamily existed
+     * (owner-only, destroys it for all members). The Owner deliberately can never leave this way
+     * (see FamilyRole's own kdoc: "can never be removed except by deleting the family outright"),
+     * enforced by the caller the same way deleteFamily's owner-only restriction already is.
+     * Removes both the memberIds array entry and the member's own subcollection doc - the two
+     * places membership is tracked (see joinFamilyByCode's arrayUnion for the mirror-image write).
+     */
+    suspend fun leaveFamily(familyId: String, userId: String): FamilyResult<Unit> {
+        return try {
+            familyDoc(familyId).update("memberIds", FieldValue.arrayRemove(userId)).await()
+            membersCollection(familyId).document(userId).delete().await()
+            FamilyResult.Success(Unit)
+        } catch (e: Exception) {
+            FamilyResult.Failure(e.message ?: "Couldn't leave family")
+        }
+    }
+
     private fun randomInviteCode(length: Int = 6): String =
         (1..length).map { INVITE_CODE_CHARS.random() }.joinToString("")
 }
