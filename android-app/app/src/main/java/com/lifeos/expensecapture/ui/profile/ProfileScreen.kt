@@ -131,6 +131,7 @@ fun ProfileScreen(
     var showPaymentSettings by remember { mutableStateOf(false) }
     var showLanguageSettings by remember { mutableStateOf(false) }
     var aiLanguage by remember { mutableStateOf(Prefs.getAiLanguage(context)) }
+    var showAppLanguageSettings by remember { mutableStateOf(false) }
 
     // Export Statement (2026-08, real user request: "move share button to profile and name it
     // export statement") - moved here verbatim from Finance Home's top bar, same CSV export/share
@@ -261,6 +262,13 @@ fun ProfileScreen(
                     SettingsRowDivider()
                     SettingsRow(
                         icon = Icons.Filled.Language,
+                        title = "App Language",
+                        subtitle = if (com.lifeos.expensecapture.util.LocaleHelper.currentLanguageTag() == "hi") "हिन्दी (Hindi)" else "English",
+                        onClick = { showAppLanguageSettings = true }
+                    )
+                    SettingsRowDivider()
+                    SettingsRow(
+                        icon = Icons.Filled.Language,
                         title = "AI Chat Language",
                         subtitle = languageLabel(aiLanguage),
                         onClick = { showLanguageSettings = true }
@@ -372,6 +380,28 @@ fun ProfileScreen(
                 Prefs.setAiLanguage(context, language)
             },
             onDismiss = { showLanguageSettings = false }
+        )
+    }
+
+    if (showAppLanguageSettings) {
+        AlertDialog(
+            onDismissRequest = { showAppLanguageSettings = false },
+            title = { Text("App Language") },
+            text = {
+                Column {
+                    TextButton(onClick = {
+                        com.lifeos.expensecapture.util.LocaleHelper.applyLanguage(com.lifeos.expensecapture.util.LocaleHelper.LANGUAGE_ENGLISH)
+                        showAppLanguageSettings = false
+                    }) { Text("English") }
+                    TextButton(onClick = {
+                        com.lifeos.expensecapture.util.LocaleHelper.applyLanguage(com.lifeos.expensecapture.util.LocaleHelper.LANGUAGE_HINDI)
+                        aiLanguage = "Hindi"
+                        Prefs.setAiLanguage(context, "Hindi")
+                        showAppLanguageSettings = false
+                    }) { Text("हिन्दी (Hindi)") }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showAppLanguageSettings = false }) { Text("Close") } }
         )
     }
 

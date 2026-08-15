@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Per-app language preference (2026-08) - referenced from AndroidManifest's
+     android:localeConfig, required for Android 13+'s native per-app language picker to know
+     which locales this app actually supports; also read by AppCompatDelegate on older versions
+     via the appcompat backport. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="hi" />
+</locale-config>

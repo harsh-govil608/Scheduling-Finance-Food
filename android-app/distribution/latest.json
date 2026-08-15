@@ -1,6 +1,6 @@
 {
-  "versionCode": 86,
-  "versionName": "0.58.7-pilot",
+  "versionCode": 87,
+  "versionName": "0.59.0-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Adds a real Privacy Policy (reachable from Profile) as prep for Play Store, and fixes the SMS permission screen's claim that message text never leaves the device - it can, for AI-assisted extraction on banks not yet recognized. No behavior change to what's actually captured, just accurate disclosure of it."
+  "notes": "First step of Hindi support: choose English or हिन्दी on first open (change anytime from Profile > App Language). The bottom navigation and the entire first-time setup flow now show in your chosen language - more of the app will follow in future updates."
 }

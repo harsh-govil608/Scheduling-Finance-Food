@@ -1,4 +1,34 @@
 
 <resources>
     <string name="app_name">Expense Capture Pilot</string>
+
+    <!-- Bottom nav (2026-08, localization foundation - see LocaleHelper's kdoc) -->
+    <string name="nav_finance">Finance</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_analytics">Analytics</string>
+    <string name="nav_ai">AI</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Language picker (first onboarding step) -->
+    <string name="language_picker_title">Choose your language</string>
+    <string name="language_picker_body">Select the language you\'re most comfortable with. You can change this anytime from Profile.</string>
+    <string name="language_english">English</string>
+    <string name="language_hindi">हिन्दी (Hindi)</string>
+    <string name="language_continue">Continue</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Welcome</string>
+    <string name="onboarding_welcome_body">This app automatically captures your expenses from bank and UPI SMS, tracks budgets, subscriptions, and bills - without you typing anything in. Next, we\'ll explain exactly what access that needs and why, before asking for anything.</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_sms_title">Automatic expense capture</string>
+    <string name="onboarding_sms_body">This app reads bank and UPI transaction SMS on your phone to log expenses automatically. Personal messages, OTPs, and anything not from a bank or payment provider are ignored and never stored or looked at. For a bank message this app doesn\'t already recognize, the message text may be sent to an AI service solely to pull out the amount and merchant - never stored by that service, and never for anything other than genuine bank/UPI messages.</string>
+    <string name="onboarding_grant_sms">Grant SMS access</string>
+    <string name="onboarding_skip_sms">Skip for now - I\'ll add expenses manually</string>
+    <string name="onboarding_scanning">Scanning your existing messages for past transactions…</string>
+    <string name="onboarding_notif_title">Stay on top of bills &amp; budgets</string>
+    <string name="onboarding_notif_body">We can notify you when a bill is due, a subscription is about to renew, or a budget goes over - only for things you\'re already tracking, nothing else.</string>
+    <string name="onboarding_allow_notifications">Allow notifications</string>
+    <string name="onboarding_not_now">Not now</string>
+    <string name="onboarding_all_set">You\'re all set</string>
+    <string name="onboarding_go_home">Go to my Finance home</string>
 </resources>

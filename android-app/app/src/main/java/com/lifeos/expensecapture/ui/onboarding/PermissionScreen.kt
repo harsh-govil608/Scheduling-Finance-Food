@@ -37,10 +37,14 @@ import com.lifeos.expensecapture.finance.FinanceInsightsRepository
 import com.lifeos.expensecapture.notifications.NotificationCheckWorker
 import com.lifeos.expensecapture.notifications.PeriodicReminderWorker
 import com.lifeos.expensecapture.sms.SmsHistoryScanner
+import com.lifeos.expensecapture.util.LocaleHelper
+import com.lifeos.expensecapture.util.Prefs
+import androidx.compose.ui.res.stringResource
+import com.lifeos.expensecapture.R
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-private enum class OnboardingStep { WELCOME, SMS_PERMISSION, SCANNING, NOTIFICATION_PERMISSION, FIRST_VALUE }
+private enum class OnboardingStep { LANGUAGE, WELCOME, SMS_PERMISSION, SCANNING, NOTIFICATION_PERMISSION, FIRST_VALUE }
 
 const val CONSENT_SMS = "SMS"
 const val CONSENT_NOTIFICATIONS = "NOTIFICATIONS"
@@ -122,7 +126,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val app = context.applicationContext as App
-    var step by remember { mutableStateOf(OnboardingStep.WELCOME) }
+    var step by remember { mutableStateOf(OnboardingStep.LANGUAGE) }
     var scanSummary by remember { mutableStateOf<ScanSummary?>(null) }
 
     fun hasSmsPermission(): Boolean {
@@ -202,63 +206,61 @@ fun PermissionScreen(onGranted: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         when (step) {
-            OnboardingStep.WELCOME -> {
-                Text("Welcome", style = MaterialTheme.typography.headlineSmall)
+            OnboardingStep.LANGUAGE -> {
+                Text(stringResource(R.string.language_picker_title), style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    "This app automatically captures your expenses from bank and UPI SMS, " +
-                        "tracks budgets, subscriptions, and bills - without you typing anything " +
-                        "in. Next, we'll explain exactly what access that needs and why, before " +
-                        "asking for anything.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(stringResource(R.string.language_picker_body), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(24.dp))
-                Button(onClick = { step = OnboardingStep.SMS_PERMISSION }) { Text("Continue") }
+                Button(onClick = {
+                    LocaleHelper.applyLanguage(LocaleHelper.LANGUAGE_ENGLISH)
+                    step = OnboardingStep.WELCOME
+                }) { Text(stringResource(R.string.language_english)) }
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = {
+                    LocaleHelper.applyLanguage(LocaleHelper.LANGUAGE_HINDI)
+                    Prefs.setAiLanguage(context, "Hindi")
+                    step = OnboardingStep.WELCOME
+                }) { Text(stringResource(R.string.language_hindi)) }
+            }
+
+            OnboardingStep.WELCOME -> {
+                Text(stringResource(R.string.onboarding_welcome_title), style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(16.dp))
+                Text(stringResource(R.string.onboarding_welcome_body), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(24.dp))
+                Button(onClick = { step = OnboardingStep.SMS_PERMISSION }) { Text(stringResource(R.string.onboarding_continue)) }
             }
 
             OnboardingStep.SMS_PERMISSION -> {
-                Text("Automatic expense capture", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.onboarding_sms_title), style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    "This app reads bank and UPI transaction SMS on your phone to log expenses " +
-                        "automatically. Personal messages, OTPs, and anything not from a bank or " +
-                        "payment provider are ignored and never stored or looked at. For a bank " +
-                        "message this app doesn't already recognize, the message text may be sent " +
-                        "to an AI service solely to pull out the amount and merchant - never stored " +
-                        "by that service, and never for anything other than genuine bank/UPI " +
-                        "messages.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(stringResource(R.string.onboarding_sms_body), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(24.dp))
                 Button(onClick = {
                     smsLauncher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
-                }) { Text("Grant SMS access") }
+                }) { Text(stringResource(R.string.onboarding_grant_sms)) }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = {
                     scope.launch {
                         app.database.consentDao().upsert(ConsentEntity(CONSENT_SMS, false))
                         proceedToNotificationStep()
                     }
-                }) { Text("Skip for now - I'll add expenses manually") }
+                }) { Text(stringResource(R.string.onboarding_skip_sms)) }
             }
 
             OnboardingStep.SCANNING -> {
                 CircularProgressIndicator()
                 Spacer(Modifier.height(16.dp))
-                Text("Scanning your existing messages for past transactions…")
+                Text(stringResource(R.string.onboarding_scanning))
             }
 
             OnboardingStep.NOTIFICATION_PERMISSION -> {
-                Text("Stay on top of bills & budgets", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.onboarding_notif_title), style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    "We can notify you when a bill is due, a subscription is about to renew, " +
-                        "or a budget goes over - only for things you're already tracking, nothing else.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(stringResource(R.string.onboarding_notif_body), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(24.dp))
                 Button(onClick = { notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }) {
-                    Text("Allow notifications")
+                    Text(stringResource(R.string.onboarding_allow_notifications))
                 }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = {
@@ -268,11 +270,11 @@ fun PermissionScreen(onGranted: () -> Unit) {
             PeriodicReminderWorker.schedulePeriodic(context)
                         finishOnboarding()
                     }
-                }) { Text("Not now") }
+                }) { Text(stringResource(R.string.onboarding_not_now)) }
             }
 
             OnboardingStep.FIRST_VALUE -> {
-                Text("You're all set", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.onboarding_all_set), style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
                 // AI-polished phrasing (2026-08) - firstValueMessage's deterministic sentence
                 // stays the source of truth; the AI call only warms up the phrasing, with the plain
@@ -283,7 +285,7 @@ fun PermissionScreen(onGranted: () -> Unit) {
                 }
                 Text(polished, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(24.dp))
-                Button(onClick = onGranted) { Text("Go to my Finance home") }
+                Button(onClick = onGranted) { Text(stringResource(R.string.onboarding_go_home)) }
             }
         }
     }

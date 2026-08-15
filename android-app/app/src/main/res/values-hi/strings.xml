@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Expense Capture Pilot</string>
+
+    <string name="nav_finance">फाइनेंस</string>
+    <string name="nav_home">होम</string>
+    <string name="nav_analytics">एनालिटिक्स</string>
+    <string name="nav_ai">AI</string>
+    <string name="nav_profile">प्रोफ़ाइल</string>
+
+    <string name="language_picker_title">अपनी भाषा चुनें</string>
+    <string name="language_picker_body">वह भाषा चुनें जिसमें आप सबसे सहज हों। आप इसे कभी भी प्रोफ़ाइल से बदल सकते हैं।</string>
+    <string name="language_english">English</string>
+    <string name="language_hindi">हिन्दी (Hindi)</string>
+    <string name="language_continue">आगे बढ़ें</string>
+
+    <string name="onboarding_welcome_title">स्वागत है</string>
+    <string name="onboarding_welcome_body">यह ऐप आपके बैंक और UPI SMS से आपके खर्चों को अपने आप दर्ज करता है, बजट, सब्सक्रिप्शन और बिलों को ट्रैक करता है - बिना आपको कुछ टाइप किए। आगे, हम आपको बताएंगे कि इसके लिए कौन सी अनुमति चाहिए और क्यों, कुछ भी मांगने से पहले।</string>
+    <string name="onboarding_continue">आगे बढ़ें</string>
+    <string name="onboarding_sms_title">अपने आप खर्च दर्ज करना</string>
+    <string name="onboarding_sms_body">यह ऐप आपके फोन पर बैंक और UPI लेनदेन के SMS पढ़कर अपने आप खर्च दर्ज करता है। व्यक्तिगत संदेश, OTP, और बैंक या पेमेंट प्रोवाइडर के अलावा कुछ भी अनदेखा किया जाता है और कभी सेव या नहीं देखा जाता। जिस बैंक मैसेज को यह ऐप पहचान नहीं पाता, उसका टेक्स्ट सिर्फ राशि और मर्चेंट निकालने के लिए एक AI सेवा को भेजा जा सकता है - उस सेवा द्वारा कभी सेव नहीं किया जाता, और असली बैंक/UPI मैसेज के अलावा कभी नहीं भेजा जाता।</string>
+    <string name="onboarding_grant_sms">SMS एक्सेस दें</string>
+    <string name="onboarding_skip_sms">अभी छोड़ें - मैं खुद खर्च जोड़ूंगा/जोड़ूंगी</string>
+    <string name="onboarding_scanning">आपके पुराने संदेशों में लेनदेन खोजे जा रहे हैं…</string>
+    <string name="onboarding_notif_title">बिल और बजट पर नज़र रखें</string>
+    <string name="onboarding_notif_body">हम आपको सूचित कर सकते हैं जब कोई बिल देय हो, कोई सब्सक्रिप्शन रिन्यू होने वाला हो, या बजट पार हो जाए - सिर्फ उन चीज़ों के लिए जिन्हें आप पहले से ट्रैक कर रहे हैं, कुछ और नहीं।</string>
+    <string name="onboarding_allow_notifications">सूचनाओं की अनुमति दें</string>
+    <string name="onboarding_not_now">अभी नहीं</string>
+    <string name="onboarding_all_set">आप तैयार हैं</string>
+    <string name="onboarding_go_home">मेरे फाइनेंस होम पर जाएं</string>
+</resources>

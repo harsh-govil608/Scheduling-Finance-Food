@@ -37,8 +37,8 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 86
-        versionName = "0.58.7-pilot"
+        versionCode = 87
+        versionName = "0.59.0-pilot"
         buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY", "")}\"")
     }
 
@@ -91,6 +91,12 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
+    // Per-app language preference (2026-08, real user request: Hindi/English switchable at
+    // first open) - AppCompatDelegate.setApplicationLocales works even on a plain
+    // ComponentActivity (this app has never used AppCompatActivity/Views) as of appcompat 1.6+,
+    // which auto-registers a manifest service that handles locale persistence/recreation across
+    // both pre- and post-Android-13 without this app needing its own Context-wrapping logic.
+    implementation("androidx.appcompat:appcompat:1.7.0")
 
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")

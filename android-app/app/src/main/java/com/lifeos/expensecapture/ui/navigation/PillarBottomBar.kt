@@ -14,6 +14,8 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.lifeos.expensecapture.R
 
 enum class Pillar { FINANCE, HOME, ANALYTICS, AI, PROFILE }
 
@@ -45,35 +47,35 @@ fun PillarBottomBar(current: Pillar, onSelect: (Pillar) -> Unit) {
             selected = current == Pillar.FINANCE,
             onClick = { onSelect(Pillar.FINANCE) },
             icon = { Icon(Icons.Default.CurrencyRupee, contentDescription = null) },
-            label = { Text("Finance") },
+            label = { Text(stringResource(R.string.nav_finance)) },
             colors = itemColors
         )
         NavigationBarItem(
             selected = current == Pillar.HOME,
             onClick = { onSelect(Pillar.HOME) },
             icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
-            label = { Text("Home") },
+            label = { Text(stringResource(R.string.nav_home)) },
             colors = itemColors
         )
         NavigationBarItem(
             selected = current == Pillar.ANALYTICS,
             onClick = { onSelect(Pillar.ANALYTICS) },
             icon = { Icon(Icons.Default.BarChart, contentDescription = null) },
-            label = { Text("Analytics") },
+            label = { Text(stringResource(R.string.nav_analytics)) },
             colors = itemColors
         )
         NavigationBarItem(
             selected = current == Pillar.AI,
             onClick = { onSelect(Pillar.AI) },
             icon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null) },
-            label = { Text("AI") },
+            label = { Text(stringResource(R.string.nav_ai)) },
             colors = itemColors
         )
         NavigationBarItem(
             selected = current == Pillar.PROFILE,
             onClick = { onSelect(Pillar.PROFILE) },
             icon = { Icon(Icons.Default.Person, contentDescription = null) },
-            label = { Text("Profile") },
+            label = { Text(stringResource(R.string.nav_profile)) },
             colors = itemColors
         )
     }
