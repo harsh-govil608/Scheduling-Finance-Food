@@ -1,6 +1,6 @@
 {
-  "versionCode": 90,
-  "versionName": "0.60.0-pilot",
+  "versionCode": 91,
+  "versionName": "0.60.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Adds Automatic Backup to Google Drive (Profile > Backup & Restore) - sign in once and it backs up daily on its own. Also adds a Wire-up for archiving Projects, and a size limit on Family document uploads. Note: Drive backup needs a one-time setup on the developer's end before it'll actually work - not usable yet if you try it."
+  "notes": "URGENT: fixes the app crashing immediately on launch after updating to 0.60.0. If the app wouldn't open after your last update, this fixes it - please update again now."
 }
