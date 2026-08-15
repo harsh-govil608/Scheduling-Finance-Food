@@ -62,6 +62,7 @@ object DriveBackupRepository {
 
     private fun signInOptions(): GoogleSignInOptions =
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
             .requestScopes(com.google.android.gms.common.api.Scope(DriveScopes.DRIVE_FILE))
             .build()
 
@@ -96,8 +97,17 @@ object DriveBackupRepository {
     }
 
     private fun driveService(context: Context, account: GoogleSignInAccount): Drive {
+        // Real bug fix (2026-08, user report - upload failed with the cryptic "the name must not
+        // be empty: null"): GoogleSignInAccount.getAccount() (the raw on-device Account object)
+        // is deprecated in current Play Services and commonly returns null even after a
+        // successful sign-in, for privacy reasons unrelated to whether Drive access was granted.
+        // Passing that null Account into selectedAccount left the credential with nothing to read
+        // a name off of once it tried to fetch a token - selecting by email string instead avoids
+        // depending on the raw Account object at all; GoogleSignInAccount.email is always present
+        // once requestEmail() is part of the sign-in options (see signInOptions()).
         val credential = GoogleAccountCredential.usingOAuth2(context, listOf(DriveScopes.DRIVE_FILE)).apply {
-            selectedAccount = account.account
+            selectedAccountName = account.email
+                ?: error("Signed-in Google account has no email - please sign out and sign in again")
         }
         return Drive.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
             .setApplicationName("Expense Capture Pilot")

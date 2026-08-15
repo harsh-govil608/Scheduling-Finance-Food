@@ -1,6 +1,6 @@
 {
-  "versionCode": 95,
-  "versionName": "0.60.5-pilot",
+  "versionCode": 96,
+  "versionName": "0.60.6-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Hindi now actually translates the Finance and Home dashboards (labels, buttons, section headers), not just the bottom nav. Full app-wide translation is still in progress - most other screens are still English-only for now."
+  "notes": "Fixes Google Drive backup failing with 'the name must not be empty: null' right after signing in - was a broken account-selection method, unrelated to the actual backup file."
 }
