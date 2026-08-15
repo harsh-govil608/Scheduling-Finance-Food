@@ -213,8 +213,11 @@ private fun ExpensesTransactionsTab(familyId: String) {
     val currentUserName = authRepository.currentUser?.displayName ?: ""
     val coroutineScope = rememberCoroutineScope()
 
-    val expenses by repository.observeAll().collectAsState(initial = emptyList())
-    val members by familyRepository.observeMembers(familyId).collectAsState(initial = emptyList())
+    // remember()'d keyed on familyId (2026-08-15 fix) - see TasksModuleScreen.kt's identical fix
+    // for why an inline observeX().collectAsState() recreates the Firestore listener on every
+    // recomposition instead of reusing one.
+    val expenses by remember(familyId) { repository.observeAll() }.collectAsState(initial = emptyList())
+    val members by remember(familyId) { familyRepository.observeMembers(familyId) }.collectAsState(initial = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {

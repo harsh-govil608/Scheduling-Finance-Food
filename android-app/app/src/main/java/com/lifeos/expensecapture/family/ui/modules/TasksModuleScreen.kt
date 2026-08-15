@@ -69,8 +69,12 @@ fun TasksModuleScreen(familyId: String, onBackToFinance: () -> Unit, onSelectPil
     val currentUserName = authRepository.currentUser?.displayName ?: ""
     val coroutineScope = rememberCoroutineScope()
 
-    val tasks by taskRepository.observeAll().collectAsState(initial = emptyList())
-    val members by familyRepository.observeMembers(familyId).collectAsState(initial = emptyList())
+    // remember()'d keyed on familyId (2026-08-15 fix - real bug found via review): an inline
+    // observeX().collectAsState() creates a brand new Flow (and Firestore listener) on every
+    // recomposition - e.g. every time showAddDialog toggles - tearing down and re-subscribing
+    // instead of reusing one listener, same class of bug already fixed for Smart Split earlier.
+    val tasks by remember(familyId) { taskRepository.observeAll() }.collectAsState(initial = emptyList())
+    val members by remember(familyId) { familyRepository.observeMembers(familyId) }.collectAsState(initial = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(

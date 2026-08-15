@@ -62,8 +62,11 @@ fun HealthModuleScreen(familyId: String, onBack: () -> Unit) {
     val currentUserName = authRepository.currentUser?.displayName ?: ""
     val coroutineScope = rememberCoroutineScope()
 
-    val records by repository.observeAll().collectAsState(initial = emptyList())
-    val members by familyRepository.observeMembers(familyId).collectAsState(initial = emptyList())
+    // remember()'d keyed on familyId (2026-08-15 fix) - see TasksModuleScreen.kt's identical fix
+    // for why an inline observeX().collectAsState() recreates the Firestore listener on every
+    // recomposition instead of reusing one.
+    val records by remember(familyId) { repository.observeAll() }.collectAsState(initial = emptyList())
+    val members by remember(familyId) { familyRepository.observeMembers(familyId) }.collectAsState(initial = emptyList())
     val currentMember = members.firstOrNull { it.userId == currentUserId }
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -97,16 +100,23 @@ fun HealthModuleScreen(familyId: String, onBack: () -> Unit) {
                     ) {
                         Column(Modifier.padding(16.dp)) {
                             if (currentMember != null && owner != null) {
+                                // Real privacy gap fixed 2026-08-15: the "For {member}" label used
+                                // to render unconditionally, outside the gate - so a hidden
+                                // record's owner (and the fact they have one at all) was disclosed
+                                // even when its title/notes were correctly hidden. PermissionGate's
+                                // own fallback ("Hidden by this member's privacy settings")
+                                // deliberately never says whose - moving this inside keeps that
+                                // guarantee instead of undermining it right below.
                                 PermissionGate(viewer = currentMember, target = owner, type = PermissionType.HEALTH) {
                                     Text(record.title, style = MaterialTheme.typography.bodyLarge)
                                     Text(record.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        "For ${owner.displayName}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
-                            Text(
-                                "For ${owner?.displayName ?: "member"}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
                 }

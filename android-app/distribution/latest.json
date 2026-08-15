@@ -1,6 +1,6 @@
 {
-  "versionCode": 88,
-  "versionName": "0.59.1-pilot",
+  "versionCode": 89,
+  "versionName": "0.59.2-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Internal only - no visible changes. Adds automated regression tests locking in this week's Smart Split payment fixes so they can't silently break again."
+  "notes": "Fixes Family Sharing document uploads (were failing for everyone), a timezone bug where a Goal's custom target date could save as the wrong day, list flicker across Family's shared modules, a health-record privacy leak, and a stale SOS status message."
 }

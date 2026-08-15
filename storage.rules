@@ -11,5 +11,16 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid;
     }
+
+    // Family Sharing's shared Documents module (2026-08-15 fix - real bug found via review, not
+    // yet used in production: DocumentStorageRepository has uploaded to this exact path since
+    // the module was built, but no rule ever covered it, so every single upload was silently
+    // failing with a permission error). firestore.get() lets Storage rules check the SAME
+    // family-membership condition firestore.rules already enforces for every other Family
+    // subcollection, instead of duplicating a separate, potentially-drifting access model here.
+    match /families/{familyId}/documents/{fileName} {
+      allow read, write: if request.auth != null &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/families/$(familyId)).data.memberIds;
+    }
   }
 }

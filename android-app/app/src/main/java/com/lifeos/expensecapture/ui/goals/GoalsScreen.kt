@@ -247,7 +247,19 @@ private fun AddGoalDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { customDateMillis = it; targetInDays = null }
+                    // Real bug (2026-08-15 review): DatePickerState.selectedDateMillis is UTC
+                    // midnight for the picked calendar date, not local-zone midnight - storing it
+                    // raw showed/saved the wrong date for any timezone west of UTC (e.g. picking
+                    // "20 Aug" could save as "19 Aug"). Same fix already established for the CSV
+                    // export date range in ProfileScreen.kt - recover the real calendar date,
+                    // then rebuild the millis in the device's own zone.
+                    datePickerState.selectedDateMillis?.let { utcMillis ->
+                        val localDate = java.time.Instant.ofEpochMilli(utcMillis)
+                            .atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                        customDateMillis = localDate.atStartOfDay(java.time.ZoneId.systemDefault())
+                            .toInstant().toEpochMilli()
+                        targetInDays = null
+                    }
                     showDatePicker = false
                 }) { Text("OK") }
             },

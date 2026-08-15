@@ -65,7 +65,10 @@ fun DocumentsModuleScreen(familyId: String, onBack: () -> Unit) {
     val currentUserName = authRepository.currentUser?.displayName ?: ""
     val coroutineScope = rememberCoroutineScope()
 
-    val documents by repository.observeAll().collectAsState(initial = emptyList())
+    // remember()'d keyed on familyId (2026-08-15 fix) - see TasksModuleScreen.kt's identical fix
+    // for why an inline observeX().collectAsState() recreates the Firestore listener on every
+    // recomposition instead of reusing one.
+    val documents by remember(familyId) { repository.observeAll() }.collectAsState(initial = emptyList())
     var uploading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 

@@ -62,7 +62,10 @@ fun CalendarModuleScreen(familyId: String, onBackToFinance: () -> Unit, onSelect
     val currentUserName = authRepository.currentUser?.displayName ?: ""
     val coroutineScope = rememberCoroutineScope()
 
-    val events by repository.observeAll().collectAsState(initial = emptyList())
+    // remember()'d keyed on familyId (2026-08-15 fix) - see TasksModuleScreen.kt's identical fix
+    // for why an inline observeX().collectAsState() recreates the Firestore listener on every
+    // recomposition instead of reusing one.
+    val events by remember(familyId) { repository.observeAll() }.collectAsState(initial = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(

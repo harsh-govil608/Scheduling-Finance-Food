@@ -42,7 +42,10 @@ class SosViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun triggerSos(location: GeoPoint?) {
-        _uiState.value = _uiState.value.copy(triggering = true, lastError = null)
+        // Real bug fixed 2026-08-15: justTriggered was never reset to false anywhere - a second
+        // trigger attempt that failed left the stale "Alert sent" success state showing alongside
+        // the new error, permanently, for the rest of the screen's lifetime.
+        _uiState.value = _uiState.value.copy(triggering = true, lastError = null, justTriggered = false)
         viewModelScope.launch {
             // One-shot read of current membership rather than staying subscribed - SOS only
             // needs "who to notify right now," not an ongoing membership Flow.
@@ -53,7 +56,7 @@ class SosViewModel(
             }
             when (val result = sosRepository.triggerSos(familyId, userId, userName, location, memberIds)) {
                 is FamilyResult.Success -> _uiState.value = _uiState.value.copy(triggering = false, justTriggered = true)
-                is FamilyResult.Failure -> _uiState.value = _uiState.value.copy(triggering = false, lastError = result.message)
+                is FamilyResult.Failure -> _uiState.value = _uiState.value.copy(triggering = false, justTriggered = false, lastError = result.message)
             }
         }
     }
