@@ -136,6 +136,12 @@ fun PermissionScreen(onGranted: () -> Unit) {
             PackageManager.PERMISSION_GRANTED
     }
 
+    fun hasNotificationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
     suspend fun finishOnboarding() {
         // Recurring detection needs to have run before the summary is built, or "N look like a
         // recurring bill/subscription" would always read 0 on a first-ever scan.
@@ -152,7 +158,16 @@ fun PermissionScreen(onGranted: () -> Unit) {
     }
 
     suspend fun proceedToNotificationStep() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Real bug fix (2026-08, user report - "allow notifications" was showing on every single
+        // app open): this unconditionally sent every returning user back to
+        // NOTIFICATION_PERMISSION on every cold start, since PilotApp's NavHost always starts at
+        // "permission" and this step never checked whether the user had already decided (granted
+        // OR explicitly denied before) - only the SMS step had that check. Now skips straight to
+        // finishOnboarding() once already granted, or once a consent decision already exists (so
+        // a prior "don't allow" tap isn't re-asked every launch either) - matching how the SMS
+        // step already behaves via hasSmsPermission() in the LaunchedEffect below.
+        val alreadyDecided = hasNotificationPermission() || app.database.consentDao().get(CONSENT_NOTIFICATIONS) != null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !alreadyDecided) {
             step = OnboardingStep.NOTIFICATION_PERMISSION
         } else {
             // No runtime notification permission needed pre-Android 13 - the worker still

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -72,6 +73,7 @@ import com.lifeos.expensecapture.ui.subscriptions.SubscriptionsScreen
 import com.lifeos.expensecapture.ui.tasks.TaskListScreen
 import com.lifeos.expensecapture.ui.timeline.ContextTimelineScreen
 import com.lifeos.expensecapture.ui.weeklyreview.ReviewScreen
+import com.lifeos.expensecapture.util.Prefs
 import kotlinx.coroutines.launch
 
 /**
@@ -140,10 +142,19 @@ fun PilotApp(app: App) {
     // user is on - see SmartSplitNotificationWatcher's kdoc for what triggers it and its limits.
     SmartSplitNotificationWatcher(app)
 
-    NavHost(navController = navController, startDestination = "permission") {
+    // Real bug fix (2026-08, user report - the notification permission ask, and really the whole
+    // onboarding flow, was showing on every single app open): this always started at "permission"
+    // with no persisted memory of a returning user already having been through it - see
+    // Prefs.isOnboardingComplete's kdoc. Checked once per PilotApp composition (i.e. once per
+    // process start), not re-evaluated afterward, so completing onboarding this session still
+    // navigates forward normally via onGranted below rather than needing a recomposition here.
+    val startDestination = remember { if (Prefs.isOnboardingComplete(context)) "home" else "permission" }
+
+    NavHost(navController = navController, startDestination = startDestination) {
         composable("permission") {
             PermissionScreen(
                 onGranted = {
+                    Prefs.setOnboardingComplete(context)
                     navController.navigate("home") {
                         popUpTo("permission") { inclusive = true }
                     }

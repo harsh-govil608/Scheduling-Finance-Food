@@ -1,6 +1,6 @@
 {
-  "versionCode": 96,
-  "versionName": "0.60.6-pilot",
+  "versionCode": 97,
+  "versionName": "0.60.7-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes Google Drive backup failing with 'the name must not be empty: null' right after signing in - was a broken account-selection method, unrelated to the actual backup file."
+  "notes": "Fixes the 'Allow notifications' (and full onboarding flow) showing on every single app open instead of just the first time."
 }

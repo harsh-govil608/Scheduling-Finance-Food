@@ -20,6 +20,7 @@ object Prefs {
     private const val KEY_AI_QUOTA_COUNT = "ai_quota_count"
     private const val KEY_AI_LANGUAGE = "ai_language"
     private const val KEY_HOME_SECTION_ORDER = "home_section_order"
+    private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
 
     /** Free tier's monthly cap on FinanceQaEngine questions (the "ask AI about my finances" chat
      * feature specifically) - see FinanceQaEngine.answer's own kdoc for exactly what this does
@@ -28,6 +29,20 @@ object Prefs {
     const val FREE_AI_QUESTIONS_PER_MONTH = 20
 
     private fun prefs(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+
+    /** Real bug fix (2026-08, user report - the "allow notifications" onboarding step, and really
+     * the whole onboarding flow, was showing on every single app open): PilotApp's NavHost always
+     * started at the "permission" route with no way to know a returning user had already been
+     * through it, since nothing before this persisted that fact anywhere - each step either
+     * re-checked live OS permission state (fine for skipping SMS/notification asks specifically)
+     * or, once past those, just ran the whole flow again including the final summary screen. This
+     * flag is the actual "done" signal: set once, checked once at startup to pick the real start
+     * destination, so onboarding runs exactly once per install like the user expects. */
+    fun isOnboardingComplete(context: Context): Boolean = prefs(context).getBoolean(KEY_ONBOARDING_COMPLETE, false)
+
+    fun setOnboardingComplete(context: Context) {
+        prefs(context).edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
+    }
 
     fun getDisplayName(context: Context): String = prefs(context).getString(KEY_DISPLAY_NAME, "") ?: ""
 
