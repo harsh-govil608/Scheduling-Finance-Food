@@ -1,6 +1,6 @@
 {
-  "versionCode": 98,
-  "versionName": "0.60.8-pilot",
+  "versionCode": 99,
+  "versionName": "0.60.9-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "AI chat can now answer real 'last 7 days' summary questions. Family > Expenses > Transactions now shows your actual synced transactions instead of a separate, always-empty manual list (moved to a new 'Shared Costs' tab)."
+  "notes": "Registers the release signing certificate with Firebase/Google Sign-In, alongside the debug one already registered - needed for OTP and Drive backup to work correctly on a real signed (Play Store) build."
 }

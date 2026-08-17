@@ -20,6 +20,14 @@
             "package_name": "com.lifeos.expensecapture",
             "certificate_hash": "28ee934fb97593cdcbc4d997385bf606f0bb5e48"
           }
+        },
+        {
+          "client_id": "816228522068-l8arr2krndpp77f5c89gghmf1ne20iec.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lifeos.expensecapture",
+            "certificate_hash": "51d29eed16ed1c01c525c64e5ef7bbf8e18c66e2"
+          }
         }
       ],
       "api_key": [
