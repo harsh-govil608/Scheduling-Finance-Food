@@ -64,14 +64,23 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 
-private enum class ExpensesTab { OVERVIEW, TRANSACTIONS }
+private enum class ExpensesTab { OVERVIEW, TRANSACTIONS, SHARED_COSTS }
 
 /** Shared Expenses module (2026-08 Family module, restyled 2026-08 to match `ui3/` reference's
  * Overview/Transactions tabs). Overview reads the real family ledger (see FamilyLedgerRepository's
  * kdoc - SMS-auto-synced across every member's phone), grouped by category and by week for this
- * month; Transactions is the pre-existing manually-added SharedExpense list unchanged - see
- * SharedExpense's kdoc for why that's a deliberately separate, smaller "who paid this shared cost"
- * ledger rather than the same data as Overview's auto-synced spend. */
+ * month.
+ *
+ * Real bug fix (2026-08, user report - "Transactions are blank, should show what transactions
+ * have been done"): the "Transactions" tab used to actually show SharedExpense, a separate,
+ * smaller, manually-added-only "who paid this shared cost" list - genuinely empty until someone
+ * used the "+" button here specifically, which looked exactly like a broken feature to anyone
+ * expecting it to show real auto-captured spend (the only place that ever existed was Overview's
+ * aggregated charts - never as an actual itemized list). Transactions now shows the real,
+ * itemized family ledger (same data source as Overview, all-time, newest first). The manual
+ * splitting list still exists, unchanged, just moved to its own "Shared Costs" tab instead of
+ * being mislabeled as "Transactions" - see SharedExpense's kdoc for why that's a deliberately
+ * separate concept from auto-synced spend. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpensesModuleScreen(familyId: String, onBackToFinance: () -> Unit, onSelectPillar: (FamilyPillar) -> Unit = {}) {
@@ -90,10 +99,12 @@ fun ExpensesModuleScreen(familyId: String, onBackToFinance: () -> Unit, onSelect
             TabRow(selectedTabIndex = selectedTab) {
                 Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Overview") })
                 Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Transactions") })
+                Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 }, text = { Text("Shared Costs") })
             }
             when (ExpensesTab.entries[selectedTab]) {
                 ExpensesTab.OVERVIEW -> ExpensesOverviewTab(familyId)
                 ExpensesTab.TRANSACTIONS -> ExpensesTransactionsTab(familyId)
+                ExpensesTab.SHARED_COSTS -> ExpensesSharedCostsTab(familyId)
             }
         }
     }
@@ -204,8 +215,70 @@ private fun weeklyTotals(debits: List<FamilyLedgerEntry>): List<Pair<String, Flo
     }
 }
 
+/** Real itemized family ledger (2026-08, real bug fix - see ExpensesModuleScreen's kdoc). Same
+ * data source and all-time window as a plain "everything synced so far," newest first - a
+ * transaction list is exactly the kind of thing where "everything, most recent on top" is the
+ * right default, unlike Overview's deliberate this-month-only scope for its aggregate charts. */
 @Composable
 private fun ExpensesTransactionsTab(familyId: String) {
+    val ledgerRepository = remember { FamilyLedgerRepository() }
+    val entries by remember(familyId) { ledgerRepository.observeEntries(familyId, 0L) }
+        .collectAsState(initial = emptyList())
+
+    if (entries.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+            Text(
+                "No family spend synced yet - this fills in as members' phones auto-capture transactions.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(entries, key = { it.id }) { entry -> FamilyLedgerEntryRow(entry) }
+    }
+}
+
+private val ledgerEntryDateFormat = java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.getDefault())
+
+@Composable
+private fun FamilyLedgerEntryRow(entry: FamilyLedgerEntry) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = cardSurfaceColor())
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(entry.merchantName.ifBlank { "Unknown" }, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "${entry.categoryName.ifBlank { "Uncategorized" }} · ${entry.memberName.ifBlank { "Family member" }} · " +
+                        ledgerEntryDateFormat.format(java.util.Date(entry.date)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                "${if (entry.direction == "CREDIT") "+" else "-"}₹${"%.2f".format(entry.amount)}",
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (entry.direction == "CREDIT") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpensesSharedCostsTab(familyId: String) {
     val authRepository = remember { FamilyAuthRepository() }
     val familyRepository = remember { FamilyRepository() }
     val repository = remember(familyId) { SharedExpenseRepository(familyId = familyId) }

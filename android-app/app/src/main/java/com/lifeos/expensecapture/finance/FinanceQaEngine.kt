@@ -88,6 +88,20 @@ object FinanceQaEngine {
         val categories = db.categoryDao().observeAll().first()
         fun categoryName(id: Long?) = categories.firstOrNull { it.id == id }?.name ?: "Uncategorized"
 
+        // Real bug fix (2026-08, user report - "why can't AI give summaries of past days, like a
+        // past 7 day summary"): the snapshot only ever had "this month so far" (1-31 days
+        // depending on when asked) and "last month" - nothing at a fixed recent-day granularity,
+        // so a question about a specific window like the last 7 days had no matching real data to
+        // answer from, and the system prompt's own "never invent a number" rule correctly refused
+        // rather than guess. Mirrors the fixed 7-day window HomeScreen's own hero card already
+        // uses (uiState.last7DaysSpend) - not an arbitrary new concept.
+        val last7DaysStart = today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
+        val last7DaysDebits = transactions.filter { it.direction == TransactionDirection.DEBIT && it.date >= last7DaysStart }
+        val last7DaysCredits = transactions.filter { it.direction == TransactionDirection.CREDIT && it.date >= last7DaysStart }
+        val last7ByCategory = last7DaysDebits.groupBy { categoryName(it.categoryId) }
+            .mapValues { it.value.sumOf { t -> t.amount } }
+            .entries.sortedByDescending { it.value }
+
         val thisMonthDebits = transactions.filter { it.direction == TransactionDirection.DEBIT && it.date >= thisMonthStart }
         val lastMonthComparableDebits = transactions.filter {
             it.direction == TransactionDirection.DEBIT && it.date in lastMonthStart until lastMonthComparableEnd
@@ -137,6 +151,15 @@ object FinanceQaEngine {
 
         return buildString {
             appendLine("Today's date: ${today} (day $daysElapsedThisMonth of this month so far)")
+            appendLine()
+            appendLine(
+                "Last 7 days (${last7DaysStart.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }} to $today) - " +
+                    "spent: Rs.${"%.2f".format(last7DaysDebits.sumOf { it.amount })}, received: Rs.${"%.2f".format(last7DaysCredits.sumOf { it.amount })}"
+            )
+            if (last7ByCategory.isNotEmpty()) {
+                appendLine("Last 7 days by category:")
+                last7ByCategory.forEach { (cat, amt) -> appendLine("- $cat: Rs.${"%.2f".format(amt)}") }
+            }
             appendLine()
             appendLine("This month so far - spent: Rs.${"%.2f".format(thisMonthDebits.sumOf { it.amount })}, received: Rs.${"%.2f".format(thisMonthCredits)}")
             if (thisMonthRefunds > 0.0) {
