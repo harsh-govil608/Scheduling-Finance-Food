@@ -37,8 +37,8 @@ android {
         applicationId = "com.lifeos.expensecapture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 99
-        versionName = "0.60.9-pilot"
+        versionCode = 100
+        versionName = "0.61.0-pilot"
         buildConfigField("String", "OPENROUTER_API_KEY", "\"${localProperties.getProperty("OPENROUTER_API_KEY", "")}\"")
     }
 
