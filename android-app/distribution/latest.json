@@ -1,6 +1,6 @@
 {
-  "versionCode": 100,
-  "versionName": "0.61.0-pilot",
+  "versionCode": 101,
+  "versionName": "0.61.1-pilot",
   "downloadUrl": "https://raw.githubusercontent.com/harsh-govil608/Scheduling-Finance-Food/main/android-app/distribution/app-latest.apk",
-  "notes": "Fixes adding a Mutual Fund holding in Investments always failing with a fund-list error - AMFI (the data source) added two new columns to their file, which broke the fund parser for everyone. Mutual fund search/add works again."
+  "notes": "Fixes the AI assistant/insights/chat not working at all - the free AI model this app used was discontinued upstream, switched to a currently-live free model."
 }

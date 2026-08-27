@@ -25,7 +25,19 @@ import java.util.concurrent.TimeUnit
  * fully offline" promise - AI is additive everywhere, never load-bearing.
  */
 object AiClient {
-    private const val MODEL = "openai/gpt-oss-20b:free"
+    // Real bug fix (2026-08, user report - "AI key kaam nahi kar raha"): the key itself was
+    // always valid - OpenRouter discontinued/rate-limited the free-tier slug this used to point
+    // at, returning a 404 ("This model is unavailable for free... use this slug instead") for
+    // every single call, silently, since generateText() catches all failures and returns null
+    // (the "AI is additive, never load-bearing" design - see this object's own kdoc). Switched to
+    // a genuinely free, currently-live model rather than the paid alternative, per a deliberate
+    // choice not to run this app's AI features on a borrowed/company-owned paid balance - verified
+    // working with real $0-cost responses at the time this was picked. OpenRouter's free tier is a
+    // shared pool across all its users though (a different free model tried during this same fix
+    // came back 429 rate-limited on the very first request) - if this one starts failing the same
+    // way, swap the slug here for another currently-live `:free` model from
+    // https://openrouter.ai/models?max_price=0, same one-line change as this fix.
+    private const val MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 
     private val api: OpenRouterApi by lazy {
         val client = OkHttpClient.Builder()
